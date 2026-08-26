@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220">
+  <defs>
+    <path id="stamp-ring" d="M110,18 A92,92 0 1,1 109.9,18"/>
+  </defs>
+  <circle cx="110" cy="110" r="104" fill="none" stroke="#4a4e9a" stroke-width="2.2" opacity="0.92"/>
+  <circle cx="110" cy="110" r="98" fill="none" stroke="#4a4e9a" stroke-width="7" opacity="0.88"/>
+  <circle cx="110" cy="110" r="88" fill="none" stroke="#4a4e9a" stroke-width="1.6" opacity="0.9"/>
+  <text fill="#4a4e9a" font-family="Arial, Helvetica, sans-serif" font-size="13.5" font-weight="700" letter-spacing="2.4">
+    <textPath href="#stamp-ring" startOffset="18%">SHREE MARUTHI TRAVELS</textPath>
+  </text>
+  <text x="110" y="104" text-anchor="middle" fill="#4a4e9a" font-family="Georgia, serif" font-size="16" font-weight="700">Bangalore</text>
+  <text x="110" y="126" text-anchor="middle" fill="#4a4e9a" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">560 061</text>
+  <text x="110" y="178" text-anchor="middle" fill="#4a4e9a" font-size="16"></text>
+</svg>
