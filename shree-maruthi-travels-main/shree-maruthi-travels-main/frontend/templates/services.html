@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SMT Services | Shree Maruthi Travels</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+    {% include 'header.html' %}
+    <main class="container" style="padding: 4rem 0;">
+        <section class="services-section" style="text-align: center;">
+            <h1 class="section-title" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 1rem;">Our Services</h1>
+            <p class="section-subtitle" style="font-size: 1.1rem; color: var(--text-secondary); max-width: 800px; margin: 0 auto;">
+                We provide end‑to‑end employee transportation solutions for corporate clients, plus a range of outstation, airport, and event transport services.
+            </p>
+            <div class="services-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 2rem; margin-top: 2.5rem;">
+                <div class="service-card" style="background: var(--bg-surface); padding: 1.5rem; border-radius: 12px; box-shadow: var(--glow-shadow); transition: var(--transition-fast);">
+                    <h3 style="color: var(--primary); margin-bottom: 0.5rem;">Corporate ETS</h3>
+                    <p style="color: var(--text-muted);">Dedicated shuttle fleets, real‑time tracking, and driver management for your employees.</p>
+                </div>
+                <div class="service-card" style="background: var(--bg-surface); padding: 1.5rem; border-radius: 12px; box-shadow: var(--glow-shadow); transition: var(--transition-fast);">
+                    <h3 style="color: var(--primary); margin-bottom: 0.5rem;">Outstation & Rentals</h3>
+                    <p style="color: var(--text-muted);">Flexible one‑way rides, hourly rentals, and long‑distance travel for staff and guests.</p>
+                </div>
+                <div class="service-card" style="background: var(--bg-surface); padding: 1.5rem; border-radius: 12px; box-shadow: var(--glow-shadow); transition: var(--transition-fast);">
+                    <h3 style="color: var(--primary); margin-bottom: 0.5rem;">Airport Transfers</h3>
+                    <p style="color: var(--text-muted);">Timely pickups & drop‑offs synchronized with flight schedules.</p>
+                </div>
+                <div class="service-card" style="background: var(--bg-surface); padding: 1.5rem; border-radius: 12px; box-shadow: var(--glow-shadow); transition: var(--transition-fast);">
+                    <h3 style="color: var(--primary); margin-bottom: 0.5rem;">EV Fleet Solutions</h3>
+                    <p style="color: var(--text-muted);">Zero‑emission electric vehicles with live SOC & range monitoring.</p>
+                </div>
+            </div>
+            <a href="/contact" class="jmr-book-btn" style="margin-top: 2rem; display: inline-block;">📝 Get a Quote</a>
+        </section>
+    </main>
+    {% include 'footer.html' %}
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

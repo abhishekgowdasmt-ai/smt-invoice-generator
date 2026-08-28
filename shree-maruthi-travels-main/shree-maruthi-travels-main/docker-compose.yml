@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  website:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      RAC_FRONTEND_URL: http://rac-frontend:5173
+      RAC_API_URL: http://rac-backend:3000
+    depends_on:
+      - rac-backend
+      - rac-frontend
+
+  postgres:
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dispatch_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rac-backend:
+    build:
+      context: ./rac/backend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/dispatch_db
+      NODE_ENV: development
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: dispatch_super_secret_jwt_key_2024
+      JWT_EXPIRY: 7d
+      WHATSAPP_PROVIDER: wwebjs
+      CORS_ORIGIN: http://localhost:8080,http://localhost:5000,http://localhost:5173
+      PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: "true"
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium-browser
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./rac/backend/src:/app/src
+      - ./rac/backend/uploads:/app/uploads
+    command: sh -c "sleep 10 && npm run seed && npm run dev"
+
+  rac-frontend:
+    build:
+      context: ./rac/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: /api/v1
+    depends_on:
+      - rac-backend
+    volumes:
+      - ./rac/frontend/src:/app/src
+
+volumes:
+  postgres_data:
+    driver: local

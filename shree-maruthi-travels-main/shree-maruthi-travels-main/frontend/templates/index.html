@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shree Maruthi Travels (SMT) | Corporate Employee Transportation Services Bangalore</title>
+    <meta name="description" content="Shree Maruthi Travels (SMT) is a premier provider of Employee Transportation Services (ETS) and rentals in Bangalore. Secure, seamless corporate commutes since 2017.">
+    <!-- Google Fonts & Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <!-- Large Lord Hanuman & Gada Background Watermarks -->
+    <div class="hanuman-bg-watermark-1" style="position: absolute; top: 12vh; right: -80px; width: 620px; height: 620px; z-index: -1; pointer-events: none; opacity: 0.04; background: url('{{ url_for('static', filename='images/hanuman_with_gada.png') }}') no-repeat center center; background-size: contain; filter: drop-shadow(0 0 20px rgba(249, 115, 22, 0.08));"></div>
+    <div class="hanuman-bg-watermark-2" style="position: absolute; top: 180vh; left: -100px; width: 680px; height: 680px; z-index: -1; pointer-events: none; opacity: 0.035; background: url('{{ url_for('static', filename='images/hanuman_with_gada.png') }}') no-repeat center center; background-size: contain; transform: scaleX(-1); filter: drop-shadow(0 0 20px rgba(249, 115, 22, 0.05));"></div>
+
+    <!-- Dynamic Background Canvas -->
+    <canvas id="routing-network-canvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; pointer-events: none; opacity: 0.85;"></canvas>
+
+    <!-- Ambient Glow BG Layers -->
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-left"></div>
+
+    <!-- Floating Device Preview Switcher -->
+    <div class="device-switcher-widget">
+        <button class="switcher-btn active" id="btn-laptop-view" title="Laptop View">💻</button>
+        <button class="switcher-btn" id="btn-mobile-view" title="Mobile View">📱</button>
+    </div>
+
+    <div id="app-container">
+        <!-- ================= JMR TOP BAR (Samaya Cabs style) ================= -->
+        <div class="jmr-topbar-wrap">
+            <div class="jmr-topbar">
+                <!-- Left: Email Info -->
+                <div class="jmr-topbar-left">
+                    <span class="icon">✉</span>
+                    <strong>shreemaruthitravels5999@gmail.com</strong>
+                </div>
+
+                <!-- Center: SMT Name & Tagline -->
+                <div class="jmr-topbar-center">
+                    <strong class="company-name">SHREE MARUTHI TRAVELS</strong>
+                    <span class="company-tagline">Premium Corporate ETS & Rentals</span>
+                </div>
+
+                <!-- Right: 24/7 Support Hotline -->
+                <div class="jmr-topbar-right">
+                    <a href="tel:+919611975999" class="call-btn-top">
+                        <span class="call-left">
+                            📞 <small>24x7</small>
+                        </span>
+                        <span class="call-right">
+                            +91 9611975999
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= NAVBAR (Multi-Page) ================= -->
+        <header class="jmr-header">
+            <div class="header-container">
+                <!-- Logo -->
+                <a href="/" class="logo">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo" style="height: 44px; width: auto; object-fit: contain;">
+                    <div class="logo-text">
+                        <h1>Shree Maruthi Travels</h1>
+                        <p>Your Journey is our priority</p>
+                    </div>
+                </a>
+
+                <!-- Mobile Menu Button -->
+                <button class="mobile-menu-btn" id="mobile-menu-btn">☰</button>
+
+                <!-- Menu Navigation -->
+                <nav id="navbar-menu">
+                    <ul>
+                        <li><a href="/" class="nav-link-page active">Home</a></li>
+                        <li><a href="/services" class="nav-link-page">Services</a></li>
+                        <li><a href="/fleet" class="nav-link-page">Our Fleet</a></li>
+                        <li><a href="/about" class="nav-link-page">About Us</a></li>
+                        <li><a href="/#ev-sustainability" class="nav-link-page">EV Mobility</a></li>
+                        <li><a href="/contact" class="nav-link-page">Contact</a></li>
+                        <li>
+                            <a href="/contact" class="jmr-book-btn">
+                                📝 Get Quote
+                            </a>
+                        </li>
+                        <li>
+                            <a href="/admin" class="admin-login-btn" title="Admin Portal Login" id="admin-portal-link">
+                                🔒 Admin
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Accent Strip -->
+        <div class="jmr-accent-strip"></div>
+
+    <!-- ================= HERO SECTION ================= -->
+    <section class="slider-section" id="home">
+        <div class="container">
+            <div class="hero-grid">
+                <!-- Left Text Section -->
+                <div class="hero-text-content">
+                    <h2>Corporate Mobility, <br><span>Reimagined.</span></h2>
+                    <p>
+                        Bangalore's trusted Employee Transportation Services (ETS) partner since 2017. 
+                        We deliver punctual, secure, and cost-optimized transit solutions for IT parks, MNCs, and corporate offices.
+                    </p>
+                    <div class="hero-buttons">
+                        <a href="/contact" class="btn btn-primary" style="background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: var(--primary-dark);">
+                            🏢 Corporate Shuttle Setup
+                        </a>
+                        <a href="/services" class="btn btn-secondary" style="color: #ffffff; border-color: rgba(255,255,255,0.25);">
+                            View All Services
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Right Custom Gada Graphic Section -->
+                <div class="hero-visual-mace">
+                    <svg viewBox="0 0 450 450" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="hero-grad-primary" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="var(--primary-light)" />
+                                <stop offset="100%" stop-color="#c77dff" />
+                            </linearGradient>
+                            <linearGradient id="hero-grad-accent" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="var(--accent)" />
+                                <stop offset="100%" stop-color="#ffb703" />
+                            </linearGradient>
+                            <radialGradient id="hub-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="rgba(157, 78, 221, 0.4)" />
+                                <stop offset="100%" stop-color="rgba(255, 123, 0, 0.4)" />
+                            </radialGradient>
+                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="8" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        <!-- Outer Animated Rotating Ring -->
+                        <circle cx="225" cy="225" r="160" stroke="var(--primary-light)" stroke-width="1.5" stroke-dasharray="40 180" opacity="0.4">
+                            <animateTransform attributeName="transform" type="rotate" from="0 225 225" to="360 225 225" dur="20s" repeatCount="indefinite" />
+                        </circle>
+
+                        <!-- Inner Animated Rotating Ring (Counter) -->
+                        <circle cx="225" cy="225" r="120" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="80 100" opacity="0.3">
+                            <animateTransform attributeName="transform" type="rotate" from="360 225 225" to="0 225 225" dur="15s" repeatCount="indefinite" />
+                        </circle>
+
+                        <!-- Core Glowing Hub with Shield SMT -->
+                        <g transform="translate(225, 225)">
+                            <circle cx="0" cy="0" r="48" fill="url(#hub-grad)" stroke="rgba(255, 255, 255, 0.15)" stroke-width="2" />
+                            <!-- Rotating dashed mace ring -->
+                            <circle cx="0" cy="0" r="38" stroke="var(--accent)" stroke-width="1" stroke-dasharray="5 15">
+                                <animateTransform attributeName="transform" type="rotate" from="0" to="-360" dur="8s" repeatCount="indefinite" />
+                            </circle>
+                            <!-- Lord Hanuman Gold Gada -->
+                            <g transform="translate(0, -9) scale(0.9)">
+                                <defs>
+                                    <linearGradient id="gold-metal" x1="0%" y1="0%" x2="100%" y2="0%">
+                                        <stop offset="0%" stop-color="#8a5a00" />
+                                        <stop offset="30%" stop-color="#ffd700" />
+                                        <stop offset="50%" stop-color="#fff6c3" />
+                                        <stop offset="70%" stop-color="#ffd700" />
+                                        <stop offset="100%" stop-color="#5c3a00" />
+                                    </linearGradient>
+                                    <radialGradient id="gold-dome" cx="35%" cy="30%" r="60%">
+                                        <stop offset="0%" stop-color="#fffbe0" />
+                                        <stop offset="35%" stop-color="#ffd700" />
+                                        <stop offset="75%" stop-color="#b27c00" />
+                                        <stop offset="100%" stop-color="#5c3a00" />
+                                    </radialGradient>
+                                </defs>
+                                <rect x="-2" y="-12" width="4" height="42" fill="url(#gold-metal)" />
+                                <circle cx="0" cy="30" r="5" fill="url(#gold-dome)" />
+                                <ellipse cx="0" cy="-16" rx="15" ry="13" fill="url(#gold-dome)" />
+                                <path d="M 0 -29 C 1 -20, 1 -10, 0 -3" fill="none" stroke="#fff" stroke-width="1.5" opacity="0.7" />
+                                <path d="M 0 -29 C -7 -25, -7 -7, 0 -3" fill="none" stroke="#ffd700" stroke-width="1.5" opacity="0.9" />
+                                <path d="M 0 -29 C 7 -25, 7 -7, 0 -3" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.6" />
+                                <path d="M -15 -16 Q 0 -11 15 -16" fill="none" stroke="#fff8dc" stroke-width="1.8" opacity="0.95" />
+                                <path d="M -3.5 -28 C -3.5 -28, 0 -38, 0 -38 C 0 -38, 3.5 -28, 3.5 -28 Z" fill="url(#gold-dome)" />
+                            </g>
+                            <text x="0" y="32" fill="#fff" font-family="'Poppins', sans-serif" font-weight="900" font-size="12" text-anchor="middle" letter-spacing="1">SMT</text>
+                        </g>
+
+                        <!-- Telemetry labels -->
+                        <text x="100" y="210" fill="var(--primary-light)" font-family="'Poppins', sans-serif" font-weight="bold" font-size="9" opacity="0.8" letter-spacing="1" text-anchor="middle">ROUTE SYNCED</text>
+                        <text x="325" y="210" fill="var(--accent)" font-family="'Poppins', sans-serif" font-weight="bold" font-size="9" opacity="0.8" letter-spacing="1" text-anchor="middle">24/7 ACTIVE</text>
+                    </svg>
+                    <!-- SMT floating vehicle renders -->
+                    <div class="hero-vehicle-overlay" style="position: absolute; bottom: -5px; right: -5px; width: 170px; height: 100px; border-radius: 12px; background: rgba(255,255,255,0.7); backdrop-filter: var(--glass-blur); box-shadow: var(--glow-shadow); border: 1px solid var(--border-color); overflow: hidden;">
+                        <img src="{{ url_for('static', filename='images/urbania_tt.png') }}" alt="Urbania Shuttle" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= SERVICES OVERVIEW ================= -->
+    <section class="container" id="services-overview" style="padding-top:4rem;padding-bottom:4rem;">
+        <div class="section-header">
+            <span class="section-subtitle">Our Services</span>
+            <h2 class="section-title">Explore All Offerings</h2>
+            <div style="width:80px;height:4px;background:linear-gradient(90deg,var(--accent),var(--primary-light));margin:1rem auto;border-radius:10px;"></div>
+        </div>
+        <div class="services-grid" style="display:grid;grid-template-columns:repeat(2,1fr);gap:2rem;">
+            <a href="/services" class="service-card" style="padding:1.5rem;border:1px solid var(--border-color);border-radius:12px;background:#fff;box-shadow:var(--glow-shadow);text-align:center;">
+                <h4 style="color:var(--primary);margin-bottom:0.5rem;">All Services</h4>
+                <p style="color:var(--text-secondary);font-size:0.9rem;">Corporate ETS, Outstation, Airport, Rental &amp; Fleet</p>
+                <button class="jmr-book-btn" style="margin-top:1rem;">Explore</button>
+            </a>
+        </div>
+    </section>
+
+    <!-- ================= TWO SECTIONS BOOKING CONTAINER ================= -->
+    <div class="booking-section-wrapper">
+        
+        <!-- ================= SECTION 1: CORPORATE ETS (Core Business) ================= -->
+        <section class="booking-panel-card ets-card" id="corporate-ets">
+            <div class="booking-panel-header">
+                <h3>🏢 Corporate ETS Booking</h3>
+                <p>Request quotes for dedicated employee shuttle contracts, shift pickups, and routes.</p>
+            </div>
+            
+            <form id="corporate-ets-form">
+                <input type="hidden" name="service_type" value="Corporate ETS">
+                
+                <div class="form-group-custom">
+                    <label for="ets-name">Contact Person Name*</label>
+                    <input type="text" id="ets-name" class="form-control-custom" placeholder="e.g. Rahul Sharma" required>
+                </div>
+                
+                <div class="form-grid-2">
+                    <div class="form-group-custom">
+                        <label for="ets-company">Company Name*</label>
+                        <input type="text" id="ets-company" class="form-control-custom" placeholder="e.g. TCS Whitefield" required>
+                    </div>
+                    <div class="form-group-custom">
+                        <label for="ets-phone">Mobile Phone Number*</label>
+                        <input type="tel" id="ets-phone" class="form-control-custom" placeholder="e.g. +91 9611975999" required>
+                    </div>
+                </div>
+                
+                <div class="form-grid-2">
+                    <div class="form-group-custom">
+                        <label for="ets-email">Corporate Email Address*</label>
+                        <input type="email" id="ets-email" class="form-control-custom" placeholder="name@company.com" required>
+                    </div>
+                    <div class="form-group-custom">
+                        <label for="ets-commuters">Expected Daily Commuters*</label>
+                        <input type="number" id="ets-commuters" class="form-control-custom" placeholder="e.g. 50" min="1" required>
+                    </div>
+                </div>
+                
+                <div class="form-group-custom">
+                    <label for="ets-details">Route Details & Shift Timings*</label>
+                    <textarea id="ets-details" class="form-control-custom" placeholder="Describe routes (e.g. Hebbal to Electronic City) and shift timings..." required></textarea>
+                </div>
+                
+                <button type="submit" class="btn-submit-custom ets-submit-btn">
+                    Submit Corporate Request
+                </button>
+            </form>
+        </section>
+
+        <!-- ================= SECTION 2: OTHER SERVICES (Outstation, Airport & Hourly) ================= -->
+        <section class="booking-panel-card other-services-card" id="other-services">
+            <div class="booking-panel-header">
+                <h3>🚘 Retail & Rental Services</h3>
+                <p>Book outstation taxis, airport pickup/drop, and hourly rental cars or buses.</p>
+            </div>
+
+            <!-- Samaya Cabs Tab pills -->
+            <div class="pills-row">
+                <div class="nav-item">
+                    <button class="nav-link btn-style active" onclick="switchBookingTab('outstation')">
+                        Outstation
+                    </button>
+                </div>
+                <div class="nav-item">
+                    <button class="nav-link btn-style" onclick="switchBookingTab('airport')">
+                        Airport Trip
+                    </button>
+                </div>
+                <div class="nav-item">
+                    <button class="nav-link btn-style" onclick="switchBookingTab('rental')">
+                        Hourly Rental
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Outstation Trip Form -->
+            <div id="tab-outstation" class="tab-pane-custom active">
+                <form id="outstation-form">
+                    <input type="hidden" name="service_type" value="Outstation">
+                    
+                    <div class="form-check-inline-custom">
+                        <label class="customradio-custom">
+                            <input type="radio" name="outstation_type" value="Round Trip" checked onclick="toggleReturnDate(true)">
+                            <span>Round Trip</span>
+                        </label>
+                        <label class="customradio-custom">
+                            <input type="radio" name="outstation_type" value="One Way" onclick="toggleReturnDate(false)">
+                            <span>One Way</span>
+                        </label>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="out-pickup">Pick-Up Location*</label>
+                            <input type="text" id="out-pickup" class="form-control-custom" placeholder="📍 e.g. Gubbalala, Bangalore" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="out-drop">Drop-Off Location*</label>
+                            <input type="text" id="out-drop" class="form-control-custom" placeholder="📍 e.g. Mysore, Karnataka" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="out-date">Pick-Up Date*</label>
+                            <input type="date" id="out-date" class="form-control-custom" required>
+                        </div>
+                        <div class="form-group-custom" id="return-date-container">
+                            <label for="out-return-date">Return Date*</label>
+                            <input type="date" id="out-return-date" class="form-control-custom" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="out-time">Pick-Up Time*</label>
+                            <input type="time" id="out-time" class="form-control-custom" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="out-phone">Contact Mobile Number*</label>
+                            <input type="tel" id="out-phone" class="form-control-custom" placeholder="e.g. +91 9888877777" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="out-name">Your Name*</label>
+                            <input type="text" id="out-name" class="form-control-custom" placeholder="e.g. Vijay Kumar" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="out-email">Email Address*</label>
+                            <input type="email" id="out-email" class="form-control-custom" placeholder="vijay@gmail.com" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit-custom other-submit-btn">
+                        🚖 Search Outstation Taxi
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tab 2: Airport Trip Form -->
+            <div id="tab-airport" class="tab-pane-custom">
+                <form id="airport-form">
+                    <input type="hidden" name="service_type" value="Airport Transfer">
+                    
+                    <div class="form-check-inline-custom">
+                        <label class="customradio-custom">
+                            <input type="radio" name="airport_trip_type" value="Pickup" checked onclick="setAirportLocationLabel('drop')">
+                            <span>Airport Pickup</span>
+                        </label>
+                        <label class="customradio-custom">
+                            <input type="radio" name="airport_trip_type" value="Drop" onclick="setAirportLocationLabel('pickup')">
+                            <span>Airport Drop</span>
+                        </label>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="air-terminal">Airport Terminal*</label>
+                            <select id="air-terminal" class="form-control-custom" required>
+                                <option value="Terminal 1">TERMINAL 1 (KIAL)</option>
+                                <option value="Terminal 2">TERMINAL 2 (Premium)</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label id="lbl-air-location" for="air-location">Drop-Off Location in City*</label>
+                            <input type="text" id="air-location" class="form-control-custom" placeholder="📍 Address/Area in Bangalore" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="air-date">Pick-Up Date*</label>
+                            <input type="date" id="air-date" class="form-control-custom" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="air-time">Pick-Up Time*</label>
+                            <input type="time" id="air-time" class="form-control-custom" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="air-name">Your Name*</label>
+                            <input type="text" id="air-name" class="form-control-custom" placeholder="e.g. Ramesh Gowda" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="air-email">Email Address*</label>
+                            <input type="email" id="air-email" class="form-control-custom" placeholder="ramesh@gmail.com" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label for="air-phone">Contact Mobile Number*</label>
+                        <input type="tel" id="air-phone" class="form-control-custom" placeholder="e.g. +91 9611975999" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit-custom other-submit-btn">
+                        🚖 Search Airport Taxi
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tab 3: Hourly Rental Form -->
+            <div id="tab-rental" class="tab-pane-custom">
+                <form id="rental-form">
+                    <input type="hidden" name="service_type" value="Hourly Rental">
+                    
+                    <div class="form-group-custom">
+                        <label for="ren-city">Rental City</label>
+                        <input type="text" id="ren-city" class="form-control-custom" value="Bangalore, Karnataka, India" readonly>
+                    </div>
+
+                    <div class="form-group-custom">
+                        <label for="ren-pickup">Pick-Up Location*</label>
+                        <input type="text" id="ren-pickup" class="form-control-custom" placeholder="📍 Address/Area to start rental" required>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="ren-package">Rental Package*</label>
+                            <select id="ren-package" class="form-control-custom" required>
+                                <option value="2 Hrs / 20 Kms">2 Hours / 20 Kms</option>
+                                <option value="4 Hrs / 40 Kms">4 Hours / 40 Kms</option>
+                                <option value="8 Hrs / 80 Kms" selected>8 Hours / 80 Kms (Half Day)</option>
+                                <option value="12 Hrs / 120 Kms">12 Hours / 120 Kms (Full Day)</option>
+                            </select>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="ren-date">Pick-Up Date*</label>
+                            <input type="date" id="ren-date" class="form-control-custom" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="ren-time">Pick-Up Time*</label>
+                            <input type="time" id="ren-time" class="form-control-custom" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="ren-phone">Contact Mobile Number*</label>
+                            <input type="tel" id="ren-phone" class="form-control-custom" placeholder="e.g. +91 9999888877" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div class="form-group-custom">
+                            <label for="ren-name">Your Name*</label>
+                            <input type="text" id="ren-name" class="form-control-custom" placeholder="e.g. Anil Prasad" required>
+                        </div>
+                        <div class="form-group-custom">
+                            <label for="ren-email">Email Address*</label>
+                            <input type="email" id="ren-email" class="form-control-custom" placeholder="anil@gmail.com" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit-custom other-submit-btn">
+                        🚖 Search Rental Cab
+                    </button>
+                </form>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- ================= ABOUT US & STORY SECTION ================= -->
+    <section class="container" id="about">
+        <div class="section-header">
+            <span class="section-subtitle">Who We Are</span>
+            <h2 class="section-title">Shree Maruthi Travels</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--accent), var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+            <div>
+                <h3 style="font-size: 2rem; color: var(--primary); margin-bottom: 1.5rem;">Safety, Punctuality & Comfort Since 2017</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 1rem; line-height: 1.8;">
+                    Founded with a vision to provide corporate Bangalore with reliable, premium employee transit, SMT has grown into a leading ETS operator. We focus on <strong>Proactive Operations</strong>—solving commute bottlenecks before they occur.
+                </p>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.8;">
+                    All SMT vehicles undergo rigorous safety checks and are fitted with active GPS telemetry tracking, first-aid safety packages, and stereos for employee comfort.
+                </p>
+                <div style="border-left: 4px solid var(--accent); padding-left: 1.5rem; margin: 2rem 0;">
+                    <p style="font-style: italic; color: var(--text-primary); font-weight: 500;">
+                        "We believe in Prevention over Cure. Strict safety guidelines, active route optimization, and dedicated verified chauffeurs make SMT the ideal transit partner for MNCs."
+                    </p>
+                    <p style="margin-top: 0.5rem; font-size: 0.85rem; font-weight: 700; color: var(--accent-dark); text-transform: uppercase;">
+                        — Mr. Byre Gowda, Proprietor
+                    </p>
+                </div>
+            </div>
+
+            <!-- Features Stats Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                    <h4 style="font-size: 2.5rem; color: var(--primary-light); font-weight: 800; margin-bottom: 0.5rem;">2017</h4>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Established</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Commenced operations with a core corporate values framework.</p>
+                </div>
+                <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                    <h4 style="font-size: 2.5rem; color: var(--accent-dark); font-weight: 800; margin-bottom: 0.5rem;">15+</h4>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">MNC Partners</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Trusted by top brands including Amazon, TCS, Uber, and Ola.</p>
+                </div>
+                <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                    <h4 style="font-size: 2.5rem; color: var(--accent-dark); font-weight: 800; margin-bottom: 0.5rem;">24/7</h4>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Live Operations</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Around-the-clock helpdesk dispatch and GPS route syncing.</p>
+                </div>
+                <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                    <h4 style="font-size: 2.5rem; color: var(--primary-light); font-weight: 800; margin-bottom: 0.5rem;">100%</h4>
+                    <p style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary);">Verified Drivers</p>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">Background checked, safety-certified professional chauffeurs.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= EV & SUSTAINABILITY SECTION ================= -->
+    <section class="container" id="ev-sustainability" style="padding-top: 6rem; padding-bottom: 6rem; position: relative;">
+        <!-- Leaf/Eco decorations or ambient glow -->
+        <div style="position: absolute; top: 10%; right: 5%; font-size: 8rem; opacity: 0.03; pointer-events: none; transform: rotate(15deg); color: #10b981;">🌱</div>
+        <div style="position: absolute; bottom: 10%; left: 5%; font-size: 8rem; opacity: 0.03; pointer-events: none; transform: rotate(-25deg); color: #10b981;">⚡</div>
+        
+        <div class="section-header">
+            <span class="section-subtitle" style="color: #10b981;">Sustainable Transport</span>
+            <h2 class="section-title">Smart Mobility, Sustainable Tomorrow</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, #10b981, var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 4rem; align-items: center;">
+            <!-- Left: EV Info & Overview -->
+            <div>
+                <h3 style="font-size: 2rem; color: var(--primary); margin-bottom: 1.5rem;">Going Electric, By Design</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 2rem; font-size: 1.05rem; line-height: 1.8;">
+                    At Shree Maruthi Travels (SMT), electric vehicles are not a token add-on; they are at the core of our long-term fleet strategy. We are reimagining corporate commutes in Bengaluru by transitioning to clean, quiet, and data-optimized electric transport. 
+                </p>
+
+                <!-- Grid of EV Benefits -->
+                <div style="display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <div style="background: rgba(16, 185, 129, 0.1); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #10b981; flex-shrink: 0;">📉</div>
+                        <div>
+                            <h5 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 0.25rem;">Lower Emissions, Stronger ESG</h5>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem;">Cut commute carbon footprint instantly and feed real sustainability metrics into your CSR reporting.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <div style="background: rgba(16, 185, 129, 0.1); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #10b981; flex-shrink: 0;">🤫</div>
+                        <div>
+                            <h5 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 0.25rem;">A Premium, Quieter Ride</h5>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem;">Near-silent, smooth electric rides elevate the daily employee commute experience and your corporate brand.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <div style="background: rgba(16, 185, 129, 0.1); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #10b981; flex-shrink: 0;">💰</div>
+                        <div>
+                            <h5 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 0.25rem;">Predictable Running Costs</h5>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem;">Insulate your transportation budget from fuel-price swings with highly stable electric vehicle running costs.</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        <div style="background: rgba(16, 185, 129, 0.1); width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; color: #10b981; flex-shrink: 0;">🛡️</div>
+                        <div>
+                            <h5 style="font-size: 1.05rem; color: var(--primary); margin-bottom: 0.25rem;">Future-Proof & Compliant</h5>
+                            <p style="color: var(--text-secondary); font-size: 0.9rem;">Stay ahead of tightening city emission norms and align directly with green mobility mandates.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: SMT E-Brochure & PDF Download Card -->
+            <div style="background: linear-gradient(145deg, #ffffff, #f0fdf4); border: 1px solid rgba(16, 185, 129, 0.15); border-radius: 20px; padding: 2.5rem; box-shadow: 0 15px 35px rgba(16, 185, 129, 0.05); text-align: center; position: relative; overflow: hidden;">
+                <!-- Glowing badge -->
+                <div style="position: absolute; top: 15px; right: 15px; background: #10b981; color: white; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em;">New PDF</div>
+                
+                <div style="font-size: 4rem; margin-bottom: 1rem;">📄</div>
+                <h4 style="font-size: 1.4rem; color: var(--primary); margin-bottom: 0.75rem;">SMT Smart Mobility Brochure</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.5rem; line-height: 1.6;">
+                    Download our official publication: <strong>"SMT — Smart Mobility, Sustainable Tomorrow"</strong> to explore our clean corporate transport plans, fleet models, and green initiatives.
+                </p>
+
+                <!-- PDF Preview Highlights Box -->
+                <div style="background: rgba(16, 185, 129, 0.05); border: 1px dashed rgba(16, 185, 129, 0.2); border-radius: 12px; padding: 1.25rem; margin-bottom: 2rem; text-align: left;">
+                    <h5 style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; color: #047857; margin-bottom: 0.75rem; font-weight: 700;">Document Highlights:</h5>
+                    <ul style="font-size: 0.8rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 0.5rem;">
+                        <li style="display: flex; align-items: center; gap: 0.5rem;">⚡ <strong style="color: var(--primary);">EV default segment details</strong> (Tigor EV & BYD e6)</li>
+                        <li style="display: flex; align-items: center; gap: 0.5rem;">🌱 <strong style="color: var(--primary);">ESG Carbon Offset</strong> calculation guidelines</li>
+                        <li style="display: flex; align-items: center; gap: 0.5rem;">📊 <strong style="color: var(--primary);">The SMT Way</strong> vs traditional fleet norms</li>
+                        <li style="display: flex; align-items: center; gap: 0.5rem;">📞 <strong style="color: var(--primary);">24x7 control room</strong> escalation metrics</li>
+                    </ul>
+                </div>
+
+                <a href="{{ url_for('static', filename='SMT_Smart_Mobility_Sustainable_Tomorrow.pdf') }}" target="_blank" class="jmr-book-btn" style="background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2); width: 100%; justify-content: center; font-size: 0.95rem; padding: 0.75rem 1.5rem;">
+                    📥 View & Download Proposal
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= ROAD SCENE ANIMATION SECTION ================= -->
+    <section class="road-scene-section" id="road-scene">
+        <div class="road-scene-label">
+            <span class="section-subtitle">Our Fleet In Motion</span>
+            <h2 class="section-title">Providing Smart Transit Across Bangalore</h2>
+        </div>
+
+        <div class="road-wrapper" id="road-wrapper">
+            <div class="blr-bg-map">
+                <svg viewBox="0 0 900 300" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <pattern id="bg-grid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+                            <rect x="1" y="1" width="26" height="26" rx="1" fill="rgba(255,255,255,0.55)" stroke="rgba(200,210,230,0.45)" stroke-width="0.5"/>
+                        </pattern>
+                        <linearGradient id="bg-fade" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="rgba(240,245,255,0.95)"/>
+                            <stop offset="100%" stop-color="rgba(225,232,248,0.80)"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="900" height="300" fill="url(#bg-fade)"/>
+                    <rect width="900" height="300" fill="url(#bg-grid)" opacity="0.7"/>
+                    <ellipse cx="450" cy="145" rx="310" ry="118" fill="none" stroke="rgba(180,190,215,0.55)" stroke-width="2.5" stroke-dasharray="7 4"/>
+                    <line x1="450" y1="27" x2="450" y2="145" stroke="rgba(175,188,215,0.55)" stroke-width="2"/>
+                    <line x1="760" y1="145" x2="450" y2="145" stroke="rgba(175,188,215,0.55)" stroke-width="2"/>
+                    <line x1="700" y1="255" x2="450" y2="145" stroke="rgba(175,188,215,0.55)" stroke-width="2"/>
+                    <circle cx="450" cy="145" r="9" fill="rgba(30,27,75,0.12)" stroke="rgba(30,27,75,0.25)" stroke-width="1.5"/>
+                </svg>
+            </div>
+
+            <!-- Skyline building backdrop -->
+            <div class="road-sky">
+                <svg class="skyline" viewBox="0 0 1280 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                    <g fill="rgba(30,27,75,0.05)" stroke="rgba(30,27,75,0.09)" stroke-width="0.5">
+                        <rect x="20" y="55" width="28" height="65"/><rect x="52" y="30" width="42" height="90"/>
+                        <rect x="130" y="15" width="48" height="105"/><rect x="260" y="22" width="55" height="98"/>
+                        <rect x="366" y="8" width="50" height="112"/><rect x="508" y="18" width="46" height="102"/>
+                        <rect x="700" y="10" width="48" height="110"/><rect x="842" y="18" width="50" height="102"/>
+                        <rect x="975" y="25" width="56" height="95"/><rect x="1138" y="20" width="50" height="100"/>
+                    </g>
+                </svg>
+            </div>
+
+            <!-- Road Surface -->
+            <div class="road-surface">
+                <div class="road-center-line"></div>
+                <div class="road-edge road-edge-top"></div>
+                <div class="road-edge road-edge-bottom"></div>
+
+                <!-- Vehicle Anim 1: Sedan (Dzire) -->
+                <div class="rv rv-sedan">
+                    <svg viewBox="0 0 210 85" xmlns="http://www.w3.org/2000/svg" style="width: 120px;">
+                        <ellipse cx="108" cy="80" rx="95" ry="6" fill="rgba(0,0,0,0.14)"/>
+                        <path d="M 12 55 L 10 44 Q 9 36 18 36 L 192 36 Q 200 36 199 44 L 198 55 Q 196 62 188 62 L 22 62 Q 13 62 12 55 Z" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+                        <path d="M 46 36 L 58 14 Q 63 7 74 7 L 148 7 Q 158 7 162 14 L 172 36 Z" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
+                        <circle cx="163" cy="65" r="16" fill="#1e293b"/>
+                        <circle cx="47" cy="65" r="16" fill="#1e293b"/>
+                    </svg>
+                </div>
+
+                <!-- Vehicle Anim 2: Mini-Bus (Urbania) -->
+                <div class="rv rv-bus">
+                    <svg viewBox="0 0 380 105" xmlns="http://www.w3.org/2000/svg" style="width: 200px;">
+                        <ellipse cx="192" cy="100" rx="168" ry="7" fill="rgba(0,0,0,0.13)"/>
+                        <path d="M 18 72 L 15 52 Q 13 38 26 38 L 354 38 Q 365 38 364 52 L 362 72 Q 360 84 348 84 L 32 84 Q 18 84 18 72 Z" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.2"/>
+                        <rect x="20" y="8" width="340" height="32" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1"/>
+                        <circle cx="308" cy="87" r="19" fill="#0f172a"/>
+                        <circle cx="72" cy="87" r="19" fill="#0f172a"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= OUR FLEET SECTION ================= -->
+    <section class="container" id="fleet" style="padding-top: 6rem;">
+        <div class="section-header">
+            <span class="section-subtitle">Choose Your Ride</span>
+            <h2 class="section-title">SMT Corporate Fleet Options</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--accent), var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+
+        <!-- Fleet Grid -->
+        {% include 'fleet_grid.html' %}
+    </section>
+
+    <!-- ================= TESTIMONIALS SECTION ================= -->
+    <section class="container" style="padding-top: 6rem; padding-bottom: 6rem;">
+        <div class="section-header">
+            <span class="section-subtitle">Reviews</span>
+            <h2 class="section-title">What Our Corporate Partners Say</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--accent), var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                <p style="font-style: italic; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+                    "We have worked with SMT for our staff commute operations for over 3 years. Their 24/7 hotline response and active GPS tracking setup make passenger safety management effortless."
+                </p>
+                <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="background: var(--primary-glow); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary);">T</div>
+                    <div>
+                        <h5 style="font-size: 0.9rem; color: var(--primary);">Transit Lead</h5>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">MNC Bangalore</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                <p style="font-style: italic; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+                    "SMT's clean electric fleet was exactly what we needed to meet our environmental goals. Their chauffeurs are highly professional, polite, and exceptionally punctual."
+                </p>
+                <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="background: var(--accent-glow); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--accent-dark);">O</div>
+                    <div>
+                        <h5 style="font-size: 0.9rem; color: var(--primary);">Operations Director</h5>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">Tech Hub Whitefield</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 12px; padding: 2rem; box-shadow: var(--glow-shadow);">
+                <p style="font-style: italic; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+                    "We regularly hire SMT Innovas and Urbania TTs for outstation events and executive pickups. Flawless vehicles, excellent cabin comfort, and reliable drivers every single time."
+                </p>
+                <div style="margin-top: 1.5rem; border-top: 1px solid var(--border-color); padding-top: 1rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <div style="background: var(--primary-glow); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary);">A</div>
+                    <div>
+                        <h5 style="font-size: 0.9rem; color: var(--primary);">Event Coordinator</h5>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">IT Sector Bangalore</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ================= CONTACT & ADDRESS SECTION ================= -->
+    <section class="container" id="contact" style="padding-top: 6rem; padding-bottom: 8rem;">
+        <div class="section-header">
+            <span class="section-subtitle">Reach Us</span>
+            <h2 class="section-title">SMT Head Office</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--accent), var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 16px; padding: 3rem; box-shadow: var(--glow-shadow);">
+                <h4 style="color: var(--primary); font-size: 1.5rem; margin-bottom: 1.5rem;">Shree Maruthi Travels</h4>
+                
+                <div style="display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem;">
+                    <span style="font-size: 1.5rem; color: var(--primary-light);">📍</span>
+                    <div>
+                        <h5 style="color: var(--primary); font-size: 1rem; margin-bottom: 0.25rem;">Office Address</h5>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6;">
+                            No. 374C, 1st Floor, 4th Cross, 9th Main, 1st Stage, Gubbalala, <br>
+                            Near Pride Apartment, Jayanagar Housing Society Layout, Bangalore – 560061
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 1rem; margin-bottom: 1.5rem;">
+                    <span style="font-size: 1.5rem; color: var(--accent-dark);">📞</span>
+                    <div>
+                        <h5 style="color: var(--primary); font-size: 1rem; margin-bottom: 0.25rem;">Hotline Support</h5>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                            Mr. Byre Gowda: <strong>+91 9611975999</strong> <br>
+                            Office Hotline: <strong>+91 9916838575</strong>
+                        </p>
+                    </div>
+                </div>
+
+                <div style="display: flex; align-items: flex-start; gap: 1rem;">
+                    <span style="font-size: 1.5rem; color: var(--primary-light);">✉</span>
+                    <div>
+                        <h5 style="color: var(--primary); font-size: 1rem; margin-bottom: 0.25rem;">Email</h5>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem;">
+                            shreemaruthitravels5999@gmail.com
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Custom vector mapping of Bangalore office -->
+            <div style="background: #ffffff; border: 1px solid var(--border-color); border-radius: 16px; padding: 2rem; box-shadow: var(--glow-shadow); display: flex; align-items: center; justify-content: center; height: 100%;">
+                <div style="width: 100%; text-align: center;">
+                    <svg viewBox="0 0 400 300" width="100%" height="100%" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <filter id="map-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="4" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+                        <rect width="400" height="300" rx="12" fill="#0c101d" />
+                        <path d="M 0 50 L 400 50 M 0 150 L 400 150 M 0 250 L 400 250 M 80 0 L 80 300 M 200 0 L 200 300 M 320 0 L 320 300" stroke="#1f2937" stroke-width="1.5" />
+                        
+                        <!-- Route paths -->
+                        <path id="route1" d="M 50 0 C 150 100, 250 200, 350 300" stroke="rgba(157, 78, 221, 0.2)" stroke-width="4" stroke-linecap="round" />
+                        <path id="route2" d="M 350 0 C 250 100, 150 200, 50 300" stroke="rgba(255, 123, 0, 0.15)" stroke-width="4" stroke-dasharray="8 8" stroke-linecap="round" />
+                        
+                        <!-- Simulated active vehicles moving along paths -->
+                        <g>
+                            <circle cx="0" cy="0" r="6" fill="var(--primary-light)" filter="url(#map-glow)" />
+                            <circle cx="0" cy="0" r="3" fill="#fff" />
+                            <animateMotion dur="9s" repeatCount="indefinite" path="M 50 0 C 150 100, 250 200, 350 300" />
+                        </g>
+                        <g>
+                            <circle cx="0" cy="0" r="6" fill="var(--accent)" filter="url(#map-glow)" />
+                            <circle cx="0" cy="0" r="3" fill="#fff" />
+                            <animateMotion dur="7s" repeatCount="indefinite" path="M 350 0 C 250 100, 150 200, 50 300" />
+                        </g>
+
+                        <!-- Jayanagar / Gubbalala Point -->
+                        <g transform="translate(200, 150)">
+                            <circle cx="0" cy="0" r="25" fill="var(--primary-glow)">
+                                <animate attributeName="r" values="15;30;15" dur="3s" repeatCount="indefinite" />
+                            </circle>
+                            <circle cx="0" cy="0" r="6" fill="var(--primary-light)" />
+                            <path d="M 0 -6 L -10 -25 C -15 -35, 15 -35, 10 -25 Z" fill="var(--primary-light)" filter="url(#map-glow)" />
+                            <circle cx="0" cy="-21" r="3" fill="white" />
+                        </g>
+                        
+                        <text x="200" y="200" fill="white" font-family="'Poppins', sans-serif" font-weight="bold" font-size="14" text-anchor="middle">Gubbalala, Bangalore</text>
+                        <text x="200" y="218" fill="var(--accent)" font-family="'Poppins', sans-serif" font-weight="600" font-size="10" text-anchor="middle">SMT HEADQUARTERS</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="background: var(--primary-dark); color: #ffffff; padding: 4rem 2rem 2rem 2rem; border-top: 1px solid var(--border-color);">
+        <div style="max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 4rem;">
+            <div>
+                <a href="#" class="logo" style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo" style="height: 38px; width: auto; object-fit: contain;">
+                    <span style="font-size: 1.25rem; font-weight: 800;">Shree Maruthi Travels</span>
+                </a>
+                <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.6; margin-top: 1rem;">
+                    Leading corporate staff transport & luxury rental provider in Bangalore since 2017. Focused on proactive, prevention-first services. Protected under divine Lord Hanuman mace telemetry.
+                </p>
+            </div>
+            
+            <div>
+                <h4 style="font-size: 1rem; color: #ffffff; margin-bottom: 1.25rem;">Quick Links</h4>
+                <ul style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem;">
+                    <li><a href="/" style="color: var(--text-muted);">Home</a></li>
+                    <li><a href="/services" style="color: var(--text-muted);">Our Services</a></li>
+                    <li><a href="/fleet" style="color: var(--text-muted);">Fleet Showcase</a></li>
+                    <li><a href="/about" style="color: var(--text-muted);">About SMT</a></li>
+                    <li><a href="/contact" style="color: var(--text-muted);">Contact & Quote</a></li>
+                </ul>
+            </div>
+
+            <div>
+                <h4 style="font-size: 1rem; color: #ffffff; margin-bottom: 1.25rem;">Portals</h4>
+                <ul style="display: flex; flex-direction: column; gap: 0.75rem; font-size: 0.85rem;">
+                    <li><a href="/admin" style="color: var(--accent); font-weight: 600;">🔒 Supervisor Portal Login</a></li>
+                    <li><a href="tel:+919611975999" style="color: var(--text-muted);">📞 +91 9611975999</a></li>
+                    <li><a href="mailto:shreemaruthitravels5999@gmail.com" style="color: var(--text-muted);">✉ Email SMT</a></li>
+                </ul>
+            </div>
+        </div>
+
+        <div style="max-width: 1200px; margin: 3rem auto 0 auto; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; color: var(--text-muted);">
+            <p>&copy; 2026 Shree Maruthi Travels (SMT). All Rights Reserved.</p>
+            <p>Designed for shreemaruthitravels.com</p>
+        </div>
+    </footer>
+
+    <!-- Helpdesk Floating Chat Widget -->
+    <div class="chat-widget">
+        <div class="chat-trigger" id="chat-trigger" onclick="toggleChat()">💬</div>
+        <div class="chat-window" id="chat-window">
+            <div class="chat-header">
+                <div class="chat-header-info">
+                    <span class="chat-status"></span>
+                    <div>
+                        <h4>SMT Helpdesk</h4>
+                        <p>Replies instantly • Online</p>
+                    </div>
+                </div>
+                <button class="chat-close" onclick="toggleChat()">&times;</button>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-bubble bot">
+                    Hello! I am the Shree Maruthi Travels Assistant. How can I help you coordinate commutes today?
+                </div>
+            </div>
+
+            <!-- Quick Reply Suggestions -->
+            <div class="chat-quick-replies">
+                <button class="quick-reply-btn" onclick="sendQuickReply('How do I request a quote?')">Get Quote</button>
+                <button class="quick-reply-btn" onclick="sendQuickReply('What is SMT contact phone number?')">Call Details</button>
+                <button class="quick-reply-btn" onclick="sendQuickReply('Where is SMT office address?')">Address</button>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" class="chat-input" id="chat-input" placeholder="Type a message..." onkeydown="handleChatKey(event)">
+                <button class="chat-send" onclick="sendChatMessage()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+            </div>
+        </div>
+    </div> <!-- end of chat-widget -->
+</div> <!-- end of app-container -->
+
+    <!-- Frontend Interactive Logic Script -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

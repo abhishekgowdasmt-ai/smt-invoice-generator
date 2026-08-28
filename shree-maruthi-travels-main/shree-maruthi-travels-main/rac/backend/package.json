@@ -1,0 +1,41 @@
+{
+  "name": "dispatch-mvp-backend",
+  "version": "1.0.0",
+  "description": "Dispatch Management System - Backend API",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate": "node db/migrate.js",
+    "seed": "node db/seed.js",
+    "test": "jest --detectOpenHandles --forceExit"
+  },
+  "keywords": ["dispatch", "rides", "booking", "whatsapp"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-async-errors": "^3.1.1",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^1.4.5-lts.1",
+    "pg": "^8.10.0",
+    "sequelize": "^6.35.0",
+    "xlsx": "^0.18.5",
+    "axios": "^1.6.0",
+    "dotenv": "^16.3.1",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "redis": "^4.6.0",
+    "bull": "^4.11.0",
+    "whatsapp-web.js": "^1.23.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  }
+}

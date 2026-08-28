@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About | Shree Maruthi Travels</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <!-- Include the same navbar as index.html -->
+    {% include 'header.html' %}
+    <section class="container" id="about-page" style="padding-top: 6rem;">
+        <div class="section-header">
+            <span class="section-subtitle">Who We Are</span>
+            <h2 class="section-title">Shree Maruthi Travels</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--accent), var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center;">
+            <div>
+                <h3 style="font-size: 2rem; color: var(--primary); margin-bottom: 1.5rem;">Safety, Punctuality & Comfort Since 2017</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 1rem; line-height: 1.8;">
+                    Founded with a vision to provide corporate Bangalore with reliable, premium employee transit, SMT has grown into a leading ETS operator. We focus on <strong>Proactive Operations</strong>—solving commute bottlenecks before they occur.
+                </p>
+                <p style="color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 1rem; line-height: 1.8;">
+                    All SMT vehicles undergo rigorous safety checks and are fitted with active GPS telemetry tracking, first-aid safety packages, and stereos for employee comfort.
+                </p>
+                <div style="border-left: 4px solid var(--accent); padding-left: 1.5rem; margin: 2rem 0;">
+                    <p style="font-style: italic; color: var(--text-primary); font-weight: 500;">
+                        "We believe in Prevention over Cure. Strict safety guidelines, active route optimization, and dedicated verified chauffeurs make SMT the ideal transit partner for MNCs."
+                    </p>
+                    <p style="margin-top: 0.5rem; font-size: 0.85rem; font-weight: 700; color: var(--accent-dark); text-transform: uppercase;">
+                        — Mr. Byre Gowda, Proprietor
+                    </p>
+                </div>
+            </div>
+            <div>
+                <img src="{{ url_for('static', filename='images/about_us.jpg') }}" alt="About SMT" style="width:100%; border-radius:12px; box-shadow: var(--glow-shadow);">
+            </div>
+        </div>
+    </section>
+    <!-- Footer reuse -->
+    {% include 'footer.html' %}
+</body>
+</html>

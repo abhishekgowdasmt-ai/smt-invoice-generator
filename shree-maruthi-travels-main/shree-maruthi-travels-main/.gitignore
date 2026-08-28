@@ -1,0 +1,30 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+backend/venv/
+venv/
+.env
+
+# Local database (use Zoho Sheet in production)
+backend/database.db
+backend/emails_sent.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Staff tool caches
+rac/frontend/node_modules/
+rac/backend/node_modules/
+rac/frontend/dist/
+tools/trips/__pycache__/
+
+# Docker
+.dockerignore

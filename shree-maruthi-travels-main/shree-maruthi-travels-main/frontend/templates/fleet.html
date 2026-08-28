@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Our Fleet - Shree Maruthi Travels</title>
+    <meta name="description" content="Explore the corporate fleet options offered by Shree Maruthi Travels, including electric and premium vehicles.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
+</head>
+<body>
+    {% include 'header.html' %}
+    <section class="container" id="fleet-page" style="padding-top: 6rem;">
+        <div class="section-header">
+            <span class="section-subtitle">Choose Your Ride</span>
+            <h2 class="section-title">SMT Corporate Fleet Options</h2>
+            <div style="width: 80px; height: 4px; background: linear-gradient(90deg, var(--accent), var(--primary-light)); margin: 1rem auto; border-radius: 10px;"></div>
+        </div>
+        <!-- Reuse the fleet grid from index.html -->
+        {% include 'fleet_grid.html' %}
+
+        
+    </section>
+    {% include 'footer.html' %}
+</body>
+</html>

@@ -1,1 +1,9 @@
 _preview/
+Attendance-App-main/
+**/__pycache__/
+**/node_modules/
+**/.env
+**/venv/
+**/database.db
+*.pyc
+

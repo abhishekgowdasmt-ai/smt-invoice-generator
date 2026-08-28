@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMT Supervisor Portal | Shree Maruthi Travels</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body style="background-color: var(--bg-main);">
+
+    <!-- Admin Passcode Lock Screen Overlay -->
+    <div class="admin-login-overlay" id="admin-login-overlay">
+        <div class="login-card">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo" style="height: 56px; width: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block;">
+            <h2>Supervisor Verification</h2>
+            <p>Access restricted to SMT supervisors and administrators. Please verify passcode credentials.</p>
+            
+            <div class="form-group" style="text-align: left;">
+                <label for="passcode-input">Supervisor PIN*</label>
+                <input type="password" id="passcode-input" placeholder="••••" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.3em;" onkeydown="handleLoginKey(event)">
+                <div class="login-error" id="login-error">Invalid passcode PIN. Please try again.</div>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="verifyAdminPasscode()">Verify & Unlock</button>
+            <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 0.75rem;" onclick="window.location.href='/'">🏠 Return to Homepage</button>
+        </div>
+    </div>
+
+    <!-- Main Admin Workspace Layout (Hidden initially until validated) -->
+    <div class="admin-layout" id="admin-workspace" style="display:none;">
+        <!-- Sidebar Navigation -->
+        <aside class="admin-sidebar" style="display: flex; flex-direction: column;">
+            <div class="logo" style="margin-bottom: 3rem;">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo" style="height: 38px; width: auto; object-fit: contain;">
+                <div class="logo-text">
+                    <h1 style="font-size: 1.15rem;">SMT Portal</h1>
+                    <p style="font-size: 0.65rem;">Operations Manager</p>
+                </div>
+            </div>
+            
+            <ul class="admin-sidebar-menu">
+                <li>
+                    <button class="admin-menu-btn active" id="btn-tab-inquiries" onclick="switchTab('inquiries')">
+                        📋 Inquiries & Quotes
+                    </button>
+                </li>
+                <li>
+                    <button class="admin-menu-btn" id="btn-tab-cabs" onclick="switchTab('cabs')">
+                        🚖 Cabs & Documents
+                    </button>
+                </li>
+                <li>
+                    <button class="admin-menu-btn" id="btn-tab-drivers" onclick="switchTab('drivers')">
+                        👷 Drivers Directory
+                    </button>
+                </li>
+                <li>
+                    <button class="admin-menu-btn" id="btn-tab-companies" onclick="switchTab('companies')">
+                        🏢 Corporate Clients
+                    </button>
+                </li>
+                <li>
+                    <button class="admin-menu-btn" id="btn-tab-ev" onclick="switchTab('ev')">
+                        ⚡ EV Fleet Dashboard
+                    </button>
+                </li>
+                <li>
+                    <button class="admin-menu-btn" id="btn-tab-tracking" onclick="switchTab('tracking')">
+                        🌐 Live Operations Map
+                    </button>
+                </li>
+                <li>
+                    <a class="admin-menu-btn" href="/admin/invoices/" style="display:block;text-decoration:none;">
+                        Invoice generator
+                    </a>
+                </li>
+                <li>
+                    <a class="admin-menu-btn" href="/admin/trips" style="display:block;text-decoration:none;">
+                        Trip sheet generator
+                    </a>
+                </li>
+                <li>
+                    <a class="admin-menu-btn" href="/admin/dispatch/" style="display:block;text-decoration:none;">
+                        RAC dispatch
+                    </a>
+                </li>
+            </ul>
+
+            <div style="margin-top: auto; padding-top: 5rem;">
+                <button class="btn btn-secondary" style="width: 100%; font-size: 0.85rem; margin-bottom: 0.75rem;" onclick="window.location.href='/'">🏠 Client Homepage</button>
+                <button class="btn btn-secondary" style="width: 100%; font-size: 0.85rem;" onclick="adminLogout()">Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="admin-content">
+            
+            <!-- Tab: Inquiries & Quotes -->
+            <div class="admin-tab-content active" id="tab-inquiries">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Fleet Quote Inquiries</h2>
+                        <p style="color: var(--text-secondary);">Manage and status employee transit contracts.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="fetchDashboardData()">Sync Sync</button>
+                    </div>
+                </header>
+
+                <!-- Metrics Indicators Section -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="stat-total">0</h3>
+                            <p>Total Submissions</p>
+                        </div>
+                        <div class="stat-card-icon">📂</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="stat-pending" style="color: var(--accent);">0</h3>
+                            <p>Pending Review</p>
+                        </div>
+                        <div class="stat-card-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--accent);">⏳</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="stat-in-progress" style="color: var(--primary);">0</h3>
+                            <p>Active Setup</p>
+                        </div>
+                        <div class="stat-card-icon" style="background: var(--primary-glow); color: var(--primary);">🛠️</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="stat-completed" style="color: #10b981;">0</h3>
+                            <p>Completed Contracts</p>
+                        </div>
+                        <div class="stat-card-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981;">✅</div>
+                    </div>
+                </div>
+
+                <!-- Inquiries Data Grid -->
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Active SMT Queue</h3>
+                        <div class="search-filter-box">
+                            <div class="search-box">
+                                <input type="text" id="admin-search-input" placeholder="Search by name, company, routing..." oninput="filterInquiries()">
+                            </div>
+                            <div class="table-filter">
+                                <select id="admin-filter-select" onchange="filterInquiries()">
+                                    <option value="all">All Statuses</option>
+                                    <option value="Pending">Pending</option>
+                                    <option value="In Progress">In Progress</option>
+                                    <option value="Completed">Completed</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="overflow-x: auto;">
+                        <table id="inquiries-table">
+                            <thead>
+                                <tr>
+                                    <th>Client Name</th>
+                                    <th>Contact Info</th>
+                                    <th>Service Category</th>
+                                    <th>Commuters</th>
+                                    <th>Route / Timings Details</th>
+                                    <th>Date Requested</th>
+                                    <th>Operational Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inquiries-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Fetching database records...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Cabs & Documents -->
+            <div class="admin-tab-content" id="tab-cabs" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Cabs & Fleet Management</h2>
+                        <p style="color: var(--text-secondary);">Manage vehicles, fuel statuses, and legal documentation.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="showAddCabModal()">➕ Add New Cab</button>
+                    </div>
+                </header>
+
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Fleet Registry</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Registration No.</th>
+                                    <th>Vehicle Model</th>
+                                    <th>Capacity</th>
+                                    <th>Fuel Category</th>
+                                    <th>Status</th>
+                                    <th>Documents Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cabs-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading cabs registry...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Drivers Directory -->
+            <div class="admin-tab-content" id="tab-drivers" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Drivers Directory</h2>
+                        <p style="color: var(--text-secondary);">Manage staff records, active licenses, and cab associations.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="showAddDriverModal()">➕ Add New Driver</button>
+                    </div>
+                </header>
+
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Driver Roster</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Driver Name</th>
+                                    <th>Phone Contact</th>
+                                    <th>License Number</th>
+                                    <th>License Expiry</th>
+                                    <th>Assigned Cab</th>
+                                    <th>Driver Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="drivers-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading driver roster...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Corporate Clients -->
+            <div class="admin-tab-content" id="tab-companies" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Corporate Clients</h2>
+                        <p style="color: var(--text-secondary);">Manage company accounts and assign dedicated cabs and drivers.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" onclick="showAddCompanyModal()">➕ Add Corporate Client</button>
+                    </div>
+                </header>
+
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Corporate Accounts & Assignments</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="companies-table">
+                            <thead>
+                                <tr>
+                                    <th>Client Name</th>
+                                    <th>Contact Details</th>
+                                    <th>Office Address</th>
+                                    <th>Assigned Cabs & Drivers</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="companies-table-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted);">Loading corporate client registry...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: EV Fleet Dashboard -->
+            <div class="admin-tab-content" id="tab-ev" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">⚡ EV Fleet Dashboard</h2>
+                        <p style="color: var(--text-secondary);">Real-time monitoring of electric vehicles, battery status, and charging logs.</p>
+                    </div>
+                </header>
+
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Sustainable EV Fleet Status</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Registration No.</th>
+                                    <th>Vehicle Model</th>
+                                    <th>Battery Capacity</th>
+                                    <th>Charge Status (SOC)</th>
+                                    <th>Estimated Range</th>
+                                    <th>Operational Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ev-table-body">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; color: var(--text-muted);">Loading EV Fleet status...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Live Operations Map -->
+            <div class="admin-tab-content" id="tab-tracking" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">🌐 Live Operations Map</h2>
+                        <p style="color: var(--text-secondary);">Real-time dispatch, route clustering, and safety telemetry.</p>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button class="btn btn-secondary" onclick="simulateTripTick()">Simulate Progress ⏱️</button>
+                        <button class="btn btn-primary" onclick="optimizeAndDispatch()">Run Route Optimizer ⚡</button>
+                    </div>
+                </header>
+                
+                <!-- Top Overview Metrics -->
+                <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.5rem;">
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="track-stat-active">0</h3>
+                            <p>Active Vehicles</p>
+                        </div>
+                        <div class="stat-card-icon" style="color: var(--primary-light);">🚗</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="track-stat-onboard">0</h3>
+                            <p>Employees Onboard</p>
+                        </div>
+                        <div class="stat-card-icon" style="color: #10b981;">👥</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="track-stat-alerts" style="color: #ef4444;">0</h3>
+                            <p>Safety SOS Alerts</p>
+                        </div>
+                        <div class="stat-card-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">🚨</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-info">
+                            <h3 id="track-stat-ev">0%</h3>
+                            <p>EV Fleet Utilization</p>
+                        </div>
+                        <div class="stat-card-icon" style="color: var(--accent);">⚡</div>
+                    </div>
+                </div>
+
+                <!-- Main Tracking Split Layout -->
+                <div class="tracking-layout-grid" style="display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 2rem;">
+                    <!-- Left: Bangalore SVG Map Panel -->
+                    <div class="dashboard-table-container" style="padding: 1.5rem; display: flex; flex-direction: column; min-height: 480px;">
+                        <h3 style="font-size: 1.25rem; margin-bottom: 1rem;">Bangalore Tech Commute Map</h3>
+                        <div class="svg-map-wrapper" style="flex: 1; background: #05070c; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05); position: relative; overflow: hidden; min-height: 380px;">
+                            <!-- Glowing grid background -->
+                            <svg id="live-commute-map" viewBox="0 0 800 500" style="width:100%; height:100%; display:block;">
+                                <defs>
+                                    <radialGradient id="hub-glow" cx="50%" cy="50%" r="50%">
+                                        <stop offset="0%" stop-color="var(--accent)" stop-opacity="0.3"/>
+                                        <stop offset="100%" stop-color="var(--accent)" stop-opacity="0"/>
+                                    </radialGradient>
+                                    <filter id="neon-glow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="3" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
+                                <!-- Grid Lines -->
+                                <g stroke="rgba(255, 255, 255, 0.03)" stroke-width="1" stroke-dasharray="5 15">
+                                    <line x1="0" y1="50" x2="800" y2="50" />
+                                    <line x1="0" y1="100" x2="800" y2="100" />
+                                    <line x1="0" y1="150" x2="800" y2="150" />
+                                    <line x1="0" y1="200" x2="800" y2="200" />
+                                    <line x1="0" y1="250" x2="800" y2="250" />
+                                    <line x1="0" y1="300" x2="800" y2="300" />
+                                    <line x1="0" y1="350" x2="800" y2="350" />
+                                    <line x1="0" y1="400" x2="800" y2="400" />
+                                    <line x1="0" y1="450" x2="800" y2="450" />
+                                    
+                                    <line x1="100" y1="0" x2="100" y2="500" />
+                                    <line x1="200" y1="0" x2="200" y2="500" />
+                                    <line x1="300" y1="0" x2="300" y2="500" />
+                                    <line x1="400" y1="0" x2="400" y2="500" />
+                                    <line x1="500" y1="0" x2="500" y2="500" />
+                                    <line x1="600" y1="0" x2="600" y2="500" />
+                                    <line x1="700" y1="0" x2="700" y2="500" />
+                                </g>
+                                
+                                <!-- Predefined Routes (Paths) -->
+                                <g fill="none" stroke-linecap="round">
+                                    <!-- SMT HQ to Amazon (Mahadevapura) path -->
+                                    <path id="path-route-amazon" d="M 200 250 Q 350 120, 600 150" stroke="rgba(79, 70, 229, 0.15)" stroke-width="4" />
+                                    <path d="M 200 250 Q 350 120, 600 150" stroke="var(--primary-light)" stroke-width="2" stroke-dasharray="8 8" opacity="0.6" />
+                                    
+                                    <!-- SMT HQ to TCS (Whitefield) path -->
+                                    <path id="path-route-tcs" d="M 200 250 Q 400 150, 700 180" stroke="rgba(79, 70, 229, 0.15)" stroke-width="4" />
+                                    <path d="M 200 250 Q 400 150, 700 180" stroke="var(--primary-light)" stroke-width="2" stroke-dasharray="8 8" opacity="0.6" />
+                                    
+                                    <!-- SMT HQ to Optum (Bellandur) path -->
+                                    <path id="path-route-optum" d="M 200 250 Q 380 300, 550 320" stroke="rgba(79, 70, 229, 0.15)" stroke-width="4" />
+                                    <path d="M 200 250 Q 380 300, 550 320" stroke="var(--primary-light)" stroke-width="2" stroke-dasharray="8 8" opacity="0.6" />
+                                    
+                                    <!-- SMT HQ to Electronic City path -->
+                                    <path id="path-route-ecity" d="M 200 250 Q 300 400, 450 450" stroke="rgba(79, 70, 229, 0.15)" stroke-width="4" />
+                                    <path d="M 200 250 Q 300 400, 450 450" stroke="var(--primary-light)" stroke-width="2" stroke-dasharray="8 8" opacity="0.6" />
+                                </g>
+                                
+                                <!-- Corporate Hub Nodes -->
+                                <!-- SMT HQ -->
+                                <g class="map-hub-node" transform="translate(200, 250)">
+                                    <circle cx="0" cy="0" r="16" fill="rgba(245, 158, 11, 0.15)" />
+                                    <circle cx="0" cy="0" r="8" fill="var(--accent)" />
+                                    <circle cx="0" cy="0" r="4" fill="#ffffff" />
+                                    <text x="12" y="4" fill="#ffffff" font-size="10" font-weight="600" font-family="sans-serif">SMT HQ (Gubbalala)</text>
+                                </g>
+                                
+                                <!-- Amazon Dev Centre -->
+                                <g class="map-hub-node" transform="translate(600, 150)">
+                                    <circle cx="0" cy="0" r="14" fill="rgba(79, 70, 229, 0.15)" />
+                                    <circle cx="0" cy="0" r="6" fill="var(--primary-light)" />
+                                    <text x="10" y="4" fill="#ffffff" font-size="10" font-weight="600" font-family="sans-serif">Amazon Dev Centre</text>
+                                </g>
+                                
+                                <!-- TCS Whitefield -->
+                                <g class="map-hub-node" transform="translate(700, 180)">
+                                    <circle cx="0" cy="0" r="14" fill="rgba(79, 70, 229, 0.15)" />
+                                    <circle cx="0" cy="0" r="6" fill="var(--primary-light)" />
+                                    <text x="10" y="4" fill="#ffffff" font-size="10" font-weight="600" font-family="sans-serif">TCS Whitefield</text>
+                                </g>
+                                
+                                <!-- Optum Bellandur -->
+                                <g class="map-hub-node" transform="translate(550, 320)">
+                                    <circle cx="0" cy="0" r="14" fill="rgba(79, 70, 229, 0.15)" />
+                                    <circle cx="0" cy="0" r="6" fill="var(--primary-light)" />
+                                    <text x="10" y="4" fill="#ffffff" font-size="10" font-weight="600" font-family="sans-serif">Optum (Eco Space)</text>
+                                </g>
+                                
+                                <!-- Electronic City -->
+                                <g class="map-hub-node" transform="translate(450, 450)">
+                                    <circle cx="0" cy="0" r="14" fill="rgba(79, 70, 229, 0.15)" />
+                                    <circle cx="0" cy="0" r="6" fill="var(--primary-light)" />
+                                    <text x="10" y="4" fill="#ffffff" font-size="10" font-weight="600" font-family="sans-serif">Electronic City</text>
+                                </g>
+                                
+                                <!-- Active Vehicles Container -->
+                                <g id="map-active-vehicles-group"></g>
+                            </svg>
+                        </div>
+                    </div>
+                    
+                    <!-- Right: Live Roster Dispatch Queue -->
+                    <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                        <div class="dashboard-table-container" style="padding: 1.5rem; flex: 1; height: 530px; overflow-y: auto;">
+                            <h3 style="font-size: 1.25rem; margin-bottom: 1rem;">Active Dispatch Registry</h3>
+                            <div id="live-trips-list" style="display: flex; flex-direction: column; gap: 1rem;">
+                                <div style="text-align: center; padding: 3rem 0; color: var(--text-muted);">
+                                    <span style="font-size: 2rem;">📭</span>
+                                    <p style="margin-top: 0.5rem; font-size: 0.85rem;">No active dispatches. Click "Run Route Optimizer" to cluster quote requests and deploy fleet.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Section: Safety Alerts Logs -->
+                <div class="dashboard-table-container" style="padding: 1.5rem; margin-top: 1.5rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3 style="font-size: 1.25rem; color: #ef4444; display: flex; align-items: center; gap: 0.5rem;">🚨 Safety Operations Feed</h3>
+                        <button class="status-select" onclick="clearSimulationTrips()" style="color: var(--text-muted);">Reset Simulation</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table style="width:100%;">
+                            <thead>
+                                <tr style="text-align: left; border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 0.5rem 1rem;">Alert Time</th>
+                                    <th style="padding: 0.5rem 1rem;">Route / Vehicle</th>
+                                    <th style="padding: 0.5rem 1rem;">Violation Type</th>
+                                    <th style="padding: 0.5rem 1rem;">Alert Details</th>
+                                    <th style="padding: 0.5rem 1rem;">Control Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="safety-alerts-table-body">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No active safety logs. Fleet operating within parameters.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+
+    <!-- Unified Admin Modal Overlay -->
+    <div class="admin-modal-overlay" id="admin-modal-overlay" style="display: none;">
+        <div class="admin-modal-card">
+            <div class="admin-modal-header">
+                <h3 id="admin-modal-title">Record Form</h3>
+                <button class="admin-modal-close" onclick="closeAdminModal()">×</button>
+            </div>
+            <div class="admin-modal-body" id="admin-modal-body">
+                <!-- Injected dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Script file containing admin logic and auth headers -->
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

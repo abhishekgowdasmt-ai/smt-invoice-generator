@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shree Maruthi Travels — Invoice Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .staff-tool-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 16px;
+      background: #0c355e;
+      color: #fff;
+      font-size: 13px;
+    }
+    .staff-tool-bar a { color: #fff; font-weight: 650; }
+    @media print { .staff-tool-bar { display: none !important; } }
+  </style>
+</head>
+<body>
+  <div class="staff-tool-bar">
+    <span>SMT staff tools — Invoice generator</span>
+    <a href="/admin">Back to portal</a>
+  </div>
+  <header class="app-header">
+    <div class="brand">
+      <img src="assets/logo.png" alt="SMT">
+      <div>
+        <h1>Shree Maruthi Travels</h1>
+        <p>Invoice generator — fill the variables, print the same format</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="btn ghost" id="resetBtn">New invoice</button>
+      <button type="button" class="btn secondary" id="printBtn" title="Choose Save as PDF, paper size A4, margins None">Print / Save PDF</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="form-pane">
+      <div class="card">
+        <h2>Start from a client</h2>
+        <p class="hint">Presets fill bill-to details and the matching template from your old invoices. Amounts can still be edited. To save a file, click <b>Print / Save PDF</b>, choose printer <b>Save as PDF</b>, paper <b>A4</b>, margins <b>None</b>.</p>
+        <div class="row">
+          <div>
+            <label for="preset">Client preset</label>
+            <select id="preset" data-persist></select>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="template">Invoice format</label>
+            <select id="template" data-persist>
+              <option value="srt">Reverse charge (SRT / TCS / Amazon)</option>
+              <option value="gst">GST invoice (Traveltime / Google / SAP)</option>
+              <option value="direct">Direct client (ITER style)</option>
+              <option value="deneb">IGST / Deneb style</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Invoice</h2>
+        <div class="row cols-2">
+          <div>
+            <label for="invoiceNo">Invoice number</label>
+            <input id="invoiceNo" data-persist placeholder="SMT-SRT-030">
+          </div>
+          <div>
+            <label for="invoiceDate">Invoice date</label>
+            <input id="invoiceDate" type="date" data-persist>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="dateStyle">Date format</label>
+            <select id="dateStyle" data-persist>
+              <option value="long">29-Jul-2026</option>
+              <option value="short">29-Jul-26</option>
+              <option value="numeric">01-06-2026</option>
+            </select>
+          </div>
+          <div>
+            <label for="reverseCharge">Reverse charge</label>
+            <select id="reverseCharge" data-persist>
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="periodFrom">Service from</label>
+            <input id="periodFrom" type="date" data-persist>
+          </div>
+          <div>
+            <label for="periodTo">Service to</label>
+            <input id="periodTo" type="date" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="periodText">Period text override (optional)</label>
+            <input id="periodText" data-persist placeholder="Used if dates are empty">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="clientName">End client name</label>
+            <input id="clientName" data-persist placeholder="Google / TCS / SAP">
+          </div>
+        </div>
+        <div id="srtOnly">
+          <div class="row">
+            <div>
+              <label for="subject">Subject line</label>
+              <textarea id="subject" data-persist rows="3"></textarea>
+              <p class="hint">{period} and {month} are filled automatically from the service dates.</p>
+            </div>
+          </div>
+        </div>
+        <div id="gstExtras">
+          <div class="row cols-3">
+            <div>
+              <label for="invMonth">Inv. month</label>
+              <input id="invMonth" data-persist placeholder="MAY'26">
+            </div>
+            <div>
+              <label for="gracePeriod">Grace period</label>
+              <input id="gracePeriod" data-persist placeholder="0 Days">
+            </div>
+            <div>
+              <label for="paymentMethod">Payment method</label>
+              <input id="paymentMethod" data-persist placeholder="Online RTGS/NEFT">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Bill to</h2>
+        <div class="row">
+          <div>
+            <label for="billToName">Recipient name</label>
+            <input id="billToName" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="billToAddress">Address</label>
+            <textarea id="billToAddress" data-persist></textarea>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="billToGstin">GSTIN</label>
+            <input id="billToGstin" data-persist>
+          </div>
+          <div>
+            <label for="billToPan">PAN</label>
+            <input id="billToPan" data-persist>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="billToState">State</label>
+            <input id="billToState" data-persist value="Karnataka">
+          </div>
+          <div>
+            <label for="billToStateCode">State code</label>
+            <input id="billToStateCode" data-persist value="29">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Line items</h2>
+        <div class="items-head"><span>Description / location</span><span>Amount</span><span></span></div>
+        <div id="items"></div>
+        <button type="button" class="btn small" id="addItem" style="margin:8px 0 12px">+ Add row</button>
+        <div class="row cols-3">
+          <div>
+            <label for="cgst">CGST %</label>
+            <input id="cgst" type="number" min="0" step="0.1" value="0" data-persist>
+          </div>
+          <div>
+            <label for="sgst">SGST %</label>
+            <input id="sgst" type="number" min="0" step="0.1" value="0" data-persist>
+          </div>
+          <div>
+            <label for="igst">IGST %</label>
+            <input id="igst" type="number" min="0" step="0.1" value="0" data-persist>
+          </div>
+        </div>
+        <label class="check"><input id="roundOff" type="checkbox" data-persist> Round off grand total</label>
+        <label class="check"><input id="showStamp" type="checkbox" checked data-persist> Show company stamp</label>
+        <div class="totals-box">
+          <div><span>Subtotal</span><span id="totSub">₹ 0.00</span></div>
+          <div><span>CGST</span><span id="totCgst">₹ 0.00</span></div>
+          <div><span>SGST</span><span id="totSgst">₹ 0.00</span></div>
+          <div><span>IGST</span><span id="totIgst">₹ 0.00</span></div>
+          <div class="grand"><span>Grand total</span><span id="totGrand">₹ 0.00</span></div>
+          <div style="display:block;margin-top:6px;color:#5b6570;font-size:12px" id="totWords">Zero Rupees Only</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Notes (optional)</h2>
+        <textarea id="notes" data-persist placeholder="Shown on GST / SAP style invoices"></textarea>
+      </div>
+
+      <details class="card">
+        <summary>Company details (fixed — edit if needed)</summary>
+        <p class="hint">These stay the same on every invoice. Change only if your bank or address changes.</p>
+        <div class="row">
+          <div>
+            <label for="coName">Company name</label>
+            <input id="coName" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="coAddress">Address</label>
+            <textarea id="coAddress" data-persist></textarea>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="coGstin">GSTIN</label>
+            <input id="coGstin" data-persist>
+          </div>
+          <div>
+            <label for="coPan">PAN</label>
+            <input id="coPan" data-persist>
+          </div>
+        </div>
+        <div class="row cols-3">
+          <div>
+            <label for="coState">State</label>
+            <input id="coState" data-persist>
+          </div>
+          <div>
+            <label for="coStateCode">Code</label>
+            <input id="coStateCode" data-persist>
+          </div>
+          <div>
+            <label for="coSac">SAC</label>
+            <input id="coSac" data-persist>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="coPhone1">Phone 1</label>
+            <input id="coPhone1" data-persist>
+          </div>
+          <div>
+            <label for="coPhone2">Phone 2</label>
+            <input id="coPhone2" data-persist>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="coEmail">Email</label>
+            <input id="coEmail" data-persist>
+          </div>
+          <div>
+            <label for="coWeb">Website</label>
+            <input id="coWeb" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="coAccountName">Account holder</label>
+            <input id="coAccountName" data-persist>
+          </div>
+        </div>
+        <div class="row cols-2">
+          <div>
+            <label for="coBank">Bank</label>
+            <input id="coBank" data-persist>
+          </div>
+          <div>
+            <label for="coAccountNo">Account no.</label>
+            <input id="coAccountNo" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="coIfsc">IFSC</label>
+            <input id="coIfsc" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="coBranchSrt">Branch (SRT invoices)</label>
+            <input id="coBranchSrt" data-persist>
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="coBranchGst">Branch (GST invoices)</label>
+            <input id="coBranchGst" data-persist>
+          </div>
+        </div>
+      </details>
+    </aside>
+
+    <main class="preview-pane">
+      <div id="previewWrap" class="preview-wrap">
+        <div id="invoice" class="invoice sheet-shadow"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
