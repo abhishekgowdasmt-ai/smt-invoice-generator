@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { API } from '../services/api'
+import { QRCodeSVG } from 'qrcode.react'
 
 const BookingDetailPage = () => {
   const { bookingId } = useParams()
@@ -15,6 +16,7 @@ const BookingDetailPage = () => {
   const [assignmentNotes, setAssignmentNotes] = useState('')
   const [sendMessage, setSendMessage] = useState(true)
   const [assigning, setAssigning] = useState(false)
+  const [waDraft, setWaDraft] = useState(null)
 
   useEffect(() => {
     loadBooking()
@@ -49,7 +51,7 @@ const BookingDetailPage = () => {
 
     setAssigning(true)
     try {
-      await API.createAssignment({
+      const result = await API.createAssignment({
         booking_id: booking.booking_id,
         driver_id: selectedDriver.driver_id,
         assignment_notes: assignmentNotes,
@@ -57,7 +59,12 @@ const BookingDetailPage = () => {
       })
       setAssignmentModal(false)
       loadBooking()
-      alert('Booking assigned successfully!')
+      if (sendMessage && result.wa_link) {
+        setWaDraft(result)
+        window.open(result.wa_link, '_blank', 'noopener')
+      } else {
+        alert('Booking assigned successfully!')
+      }
     } catch (err) {
       alert('Failed to assign: ' + err.message)
     } finally {
@@ -110,6 +117,21 @@ const BookingDetailPage = () => {
             <button onClick={() => navigate('/bookings')} className="btn-secondary">← Back</button>
           </div>
         </div>
+
+        {waDraft?.wa_link && (
+          <div className="card" style={{ marginBottom: '20px', display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <h3>Send WhatsApp to {waDraft.driver_name}</h3>
+              <p>Scan this QR with your phone or tap Open WhatsApp, then tap Send.</p>
+              <a className="btn-primary" href={waDraft.wa_link} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '12px', textDecoration: 'none' }}>
+                Open WhatsApp
+              </a>
+            </div>
+            <div style={{ background: 'white', padding: '12px', borderRadius: '12px', border: '1px solid #eee' }}>
+              <QRCodeSVG value={waDraft.wa_link} size={160} />
+            </div>
+          </div>
+        )}
 
         <div className="booking-detail">
           <div className="detail-section">

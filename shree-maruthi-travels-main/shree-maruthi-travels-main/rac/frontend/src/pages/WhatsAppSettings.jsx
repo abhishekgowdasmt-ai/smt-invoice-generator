@@ -3,120 +3,103 @@ import Navigation from '../components/Navigation'
 import { API } from '../services/api'
 import { QRCodeSVG } from 'qrcode.react'
 
+const waLink = (phone, body) => {
+    const digits = String(phone || '').replace(/\D/g, '')
+    const full = digits.length === 10 ? `91${digits}` : digits
+    if (!full) return ''
+    return `https://wa.me/${full}?text=${encodeURIComponent(body || '')}`
+}
+
 const WhatsAppSettings = () => {
-    const [status, setStatus] = useState(null)
-    const [loading, setLoading] = useState(true)
+    const [drivers, setDrivers] = useState([])
+    const [driverId, setDriverId] = useState('')
+    const [phone, setPhone] = useState('')
+    const [message, setMessage] = useState('Namaste, this is Shree Maruthi Travels. You have a new trip assignment. Please confirm.')
     const [error, setError] = useState(null)
 
-    const fetchStatus = async () => {
-        try {
-            const data = await API.getWhatsappStatus()
-            setStatus(data)
-            setError(null)
-        } catch (err) {
-            console.error('Failed to fetch WhatsApp status:', err)
-            setError('Could not connect to the WhatsApp service.')
-        } finally {
-            setLoading(false)
-        }
-    }
-
     useEffect(() => {
-        fetchStatus()
-        // Refresh status every 10 seconds to catch QR code generation
-        const interval = setInterval(fetchStatus, 10000)
-        return () => clearInterval(interval)
+        API.getDrivers({ active_only: true, limit: 200 })
+            .then((res) => setDrivers(res.data || []))
+            .catch((err) => setError(err.message))
     }, [])
+
+    const selected = drivers.find((row) => row.driver_id === driverId)
+    const link = waLink(phone || selected?.whatsapp_number, message)
+
+    const chooseDriver = (id) => {
+        setDriverId(id)
+        const row = drivers.find((item) => item.driver_id === id)
+        if (row?.whatsapp_number) setPhone(row.whatsapp_number)
+    }
 
     return (
         <div>
             <Navigation />
             <div className="container">
                 <div className="page-header">
-                    <h1>📱 WhatsApp Configuration</h1>
-                    <p className="subtitle">Manage your WhatsApp connection and authentication</p>
+                    <h1>WhatsApp</h1>
+                    <p className="subtitle">Scan the QR with your phone, or tap Open WhatsApp. The message sends from your WhatsApp, not from the server.</p>
                 </div>
 
-                {loading && !status ? (
-                    <div className="card text-center">
-                        <p className="loading">Checking WhatsApp status...</p>
-                    </div>
-                ) : error ? (
-                    <div className="card" style={{ backgroundColor: '#f8d7da', color: '#721c24' }}>
-                        <h3>⚠️ Connection Error</h3>
-                        <p>{error}</p>
-                        <button onClick={fetchStatus} className="btn-secondary" style={{ marginTop: '10px' }}>Retry</button>
-                    </div>
-                ) : (
-                    <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
-                        
-                        <div className="card">
-                            <h3>Connection Status</h3>
-                            <div style={{ margin: '20px 0' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                                    <span style={{ 
-                                        display: 'inline-block', 
-                                        width: '12px', 
-                                        height: '12px', 
-                                        borderRadius: '50%', 
-                                        backgroundColor: status?.isReady ? '#2ecc71' : '#95a5a6',
-                                        marginRight: '10px'
-                                    }}></span>
-                                    <strong style={{ fontSize: '1.2rem' }}>
-                                        {status?.isReady ? 'Connected & Ready' : (status?.provider === 'none' ? 'Not connected' : 'Authentication Required')}
-                                    </strong>
-                                </div>
-                                <p><strong>Current Provider:</strong> <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px' }}>{status?.provider}</code></p>
-                            </div>
+                {error && <div className="alert alert-error" style={{ marginBottom: '20px' }}>{error}</div>}
 
-                            {status?.isReady ? (
-                                <div style={{ padding: '15px', backgroundColor: '#d4edda', borderRadius: '8px', border: '1px solid #c3e6cb', color: '#155724' }}>
-                                    <p>✅ WhatsApp is successfully linked. Messages will be sent automatically to drivers when assigned.</p>
-                                </div>
-                            ) : status?.provider === 'none' ? (
-                                <div style={{ padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #d6dce5', color: '#334155' }}>
-                                    <p>WhatsApp is turned off on this site. There is no QR code because no WhatsApp account is linked.</p>
-                                    <p style={{ marginTop: '8px' }}>You can still assign drivers. Records save in Zoho Sheet. Message the driver from your phone if you need to notify them.</p>
-                                </div>
-                            ) : (
-                                <div style={{ padding: '15px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '1px solid #ffeeba', color: '#856404' }}>
-                                    <p>⚠️ Device not linked. You need to scan the QR code to enable messaging.</p>
-                                </div>
-                            )}
+                <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                    <div className="card">
+                        <h3>Write message</h3>
+                        <div className="form-group">
+                            <label>Driver</label>
+                            <select className="input" value={driverId} onChange={(e) => chooseDriver(e.target.value)}>
+                                <option value="">Select driver</option>
+                                {drivers.map((driver) => (
+                                    <option key={driver.driver_id} value={driver.driver_id}>
+                                        {driver.driver_name} ({driver.whatsapp_number})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
+                        <div className="form-group">
+                            <label>WhatsApp number</label>
+                            <input
+                                className="input"
+                                value={phone}
+                                onChange={(e) => setPhone(e.target.value)}
+                                placeholder="9198XXXXXXXX"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Message</label>
+                            <textarea
+                                className="input"
+                                rows="8"
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                            />
+                        </div>
+                        {link ? (
+                            <a className="btn-primary" href={link} target="_blank" rel="noreferrer" style={{ display: 'inline-block', textDecoration: 'none' }}>
+                                Open WhatsApp
+                            </a>
+                        ) : (
+                            <p className="text-muted">Enter a driver number to generate the QR.</p>
+                        )}
+                    </div>
 
-                        {status?.provider === 'wwebjs' && !status?.isReady && (
-                            <div className="card text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                                <h3>Scan QR Code</h3>
-                                <p style={{ marginBottom: '15px' }}>Open WhatsApp on your phone, go to <strong>Linked Devices</strong>, and scan this code:</p>
-                                
-                                {status?.qr ? (
-                                    <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #eee' }}>
-                                        <QRCodeSVG value={status.qr} size={256} />
-                                    </div>
-                                ) : (
-                                    <div style={{ padding: '40px', background: '#f9f9f9', borderRadius: '8px', border: '1px dashed #ccc' }}>
-                                        <p>Generating QR code...</p>
-                                        <small>This may take a minute on initial startup.</small>
-                                    </div>
-                                )}
-                                
-                                <p style={{ marginTop: '15px', fontSize: '0.9rem', color: '#666' }}>
-                                    The status will update automatically once scanned.
-                                </p>
+                    <div className="card text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <h3>Scan QR code</h3>
+                        {link ? (
+                            <>
+                                <p style={{ marginBottom: '15px' }}>Open WhatsApp on your phone → Linked devices is not needed. Scan this code to open the chat with the message filled in. Then tap Send.</p>
+                                <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #eee' }}>
+                                    <QRCodeSVG value={link} size={256} />
+                                </div>
+                            </>
+                        ) : (
+                            <div style={{ padding: '40px', background: '#f9f9f9', borderRadius: '8px', border: '1px dashed #ccc' }}>
+                                <p>Select a driver or type a number to show the QR code.</p>
                             </div>
                         )}
-
-                        <div className="card">
-                            <h3>Help & Troubleshooting</h3>
-                            <ul style={{ paddingLeft: '20px', lineHeight: '1.6' }}>
-                                <li>Automatic WhatsApp from this portal is not enabled (it needs extra paid services and a phone always online).</li>
-                                <li>Assigning a booking still works and is stored in Zoho Sheet.</li>
-                                <li>To notify a driver, open WhatsApp on your phone and message their number from the Drivers page.</li>
-                            </ul>
-                        </div>
                     </div>
-                )}
+                </div>
             </div>
         </div>
     )

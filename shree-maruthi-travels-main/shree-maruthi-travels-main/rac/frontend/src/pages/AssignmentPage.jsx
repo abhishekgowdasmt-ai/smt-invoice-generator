@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import Navigation from '../components/Navigation'
 import { API } from '../services/api'
+import { QRCodeSVG } from 'qrcode.react'
 
 const AssignmentPage = () => {
   const [unassigned, setUnassigned] = useState([])
@@ -12,6 +13,7 @@ const AssignmentPage = () => {
   const [loading, setLoading] = useState(true)
   const [assigning, setAssigning] = useState(false)
   const [success, setSuccess] = useState(null)
+  const [waDraft, setWaDraft] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -41,18 +43,23 @@ const AssignmentPage = () => {
 
     setAssigning(true)
     try {
-      await API.createAssignment({
+      const result = await API.createAssignment({
         booking_id: selectedBooking.booking_id,
         driver_id: selectedDriver.driver_id,
         assignment_notes: notes,
         send_message_now: sendMessage
       })
-      setSuccess(`✅ ${selectedBooking.source_booking_id} assigned to ${selectedDriver.driver_name}`)
+      setSuccess(`${selectedBooking.source_booking_id} assigned to ${selectedDriver.driver_name}`)
+      if (sendMessage && result.wa_link) {
+        setWaDraft(result)
+        window.open(result.wa_link, '_blank', 'noopener')
+      } else {
+        setWaDraft(null)
+      }
       setSelectedBooking(null)
       setSelectedDriver(null)
       setNotes('')
       loadData()
-      setTimeout(() => setSuccess(null), 3000)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -68,6 +75,20 @@ const AssignmentPage = () => {
 
         {error && <div className="alert alert-error" style={{ marginBottom: '20px' }}>{error}</div>}
         {success && <div className="alert alert-success" style={{ marginBottom: '20px' }}>{success}</div>}
+        {waDraft?.wa_link && (
+          <div className="card" style={{ marginBottom: '20px', display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <h3>Send WhatsApp to {waDraft.driver_name}</h3>
+              <p>WhatsApp should open with the trip message. If it did not, tap the button or scan this QR with your phone, then tap Send.</p>
+              <a className="btn-primary" href={waDraft.wa_link} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: '12px', textDecoration: 'none' }}>
+                Open WhatsApp
+              </a>
+            </div>
+            <div style={{ background: 'white', padding: '12px', borderRadius: '12px', border: '1px solid #eee' }}>
+              <QRCodeSVG value={waDraft.wa_link} size={160} />
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="loading">Loading...</p>

@@ -4,6 +4,7 @@ import os
 import re
 from datetime import datetime
 from functools import wraps
+from urllib.parse import quote
 
 from flask import Blueprint, jsonify, request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -140,6 +141,20 @@ def _parse_number(value, default=0):
         return default
 
 
+def _phone_digits(phone):
+    digits = re.sub(r'\D', '', str(phone or ''))
+    if len(digits) == 10:
+        digits = '91' + digits
+    return digits
+
+
+def _wa_link(phone, body):
+    digits = _phone_digits(phone)
+    if not digits:
+        return ''
+    return f'https://wa.me/{digits}?text={quote(body or "")}'
+
+
 def _whatsapp_body(booking):
     pickup = (booking.get('pickup_time') or 'N/A')
     end = (booking.get('end_time') or 'N/A')
@@ -211,10 +226,10 @@ def dashboard_summary():
 def whatsapp_status():
     return jsonify({
         'success': True,
-        'provider': 'none',
+        'provider': 'phone',
         'isReady': False,
         'qr': None,
-        'message': 'WhatsApp is not connected. Assignments still save in Zoho Sheet. Message drivers from your phone if needed.',
+        'message': 'Scan the QR or tap Open WhatsApp. The message sends from your phone.',
     })
 
 
@@ -528,7 +543,7 @@ def create_assignment():
         'total_assignments': int(driver.get('total_assignments') or 0) + 1,
     })
     body = _whatsapp_body(booking)
-    phone = str(driver.get('whatsapp_number') or '').replace('+', '').replace(' ', '')
+    wa_link = _wa_link(driver.get('whatsapp_number'), body)
     rac_store.insert('messages', {
         'message_log_id': rac_store.new_id('msg'),
         'booking_id': booking_id,
@@ -536,16 +551,19 @@ def create_assignment():
         'assignment_id': assignment_id,
         'phone_number': driver.get('whatsapp_number'),
         'message_body': body,
-        'provider_name': 'none',
-        'send_status': 'skipped',
-        'error_message': 'WhatsApp is not enabled. Open wa.me link from Messages if needed.',
-        'wa_link': f'https://wa.me/{phone}?text=' if phone else '',
+        'provider_name': 'phone',
+        'send_status': 'ready',
+        'wa_link': wa_link,
     })
     return jsonify({
         'success': True,
         'message': 'Booking assigned successfully',
         'assignment_id': assignment_id,
-        'whatsapp_status': 'skipped',
+        'whatsapp_status': 'ready',
+        'wa_link': wa_link,
+        'message_body': body,
+        'driver_name': driver.get('driver_name'),
+        'phone_number': driver.get('whatsapp_number'),
     }), 201
 
 
@@ -575,11 +593,19 @@ def resend_message(assignment_id):
     assignment = rac_store.find_one('assignments', 'assignment_id', assignment_id)
     if not assignment:
         return jsonify({'success': False, 'message': 'Assignment not found'}), 404
-    rac_store.update_one('assignments', 'assignment_id', assignment_id, {'whatsapp_message_status': 'skipped'})
+    booking = rac_store.find_one('bookings', 'booking_id', assignment.get('booking_id')) or {}
+    driver = rac_store.find_one('drivers', 'driver_id', assignment.get('driver_id')) or {}
+    body = _whatsapp_body(booking)
+    wa_link = _wa_link(driver.get('whatsapp_number'), body)
+    rac_store.update_one('assignments', 'assignment_id', assignment_id, {'whatsapp_message_status': 'ready'})
     return jsonify({
         'success': True,
-        'message': 'WhatsApp sending is off. Assignment is saved in Zoho Sheet.',
-        'whatsapp_message_status': 'skipped',
+        'message': 'WhatsApp message is ready to send from your phone',
+        'whatsapp_message_status': 'ready',
+        'wa_link': wa_link,
+        'message_body': body,
+        'driver_name': driver.get('driver_name'),
+        'phone_number': driver.get('whatsapp_number'),
     })
 
 

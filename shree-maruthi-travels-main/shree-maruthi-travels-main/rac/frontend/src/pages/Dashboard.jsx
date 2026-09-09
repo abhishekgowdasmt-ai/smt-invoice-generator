@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { useAuth } from '../App'
 import { API } from '../services/api'
-import { QRCodeSVG } from 'qrcode.react'
 
 const Dashboard = () => {
   const [summary, setSummary] = useState(null)
