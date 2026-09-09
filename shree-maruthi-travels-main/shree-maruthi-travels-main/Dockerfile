@@ -15,4 +15,4 @@ COPY tools/ ./tools/
 EXPOSE 8080
 
 # Start gunicorn (production WSGI server)
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "--threads", "2", "--timeout", "120", "backend.app:app"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 2 --threads 2 --timeout 120 backend.app:app"]
