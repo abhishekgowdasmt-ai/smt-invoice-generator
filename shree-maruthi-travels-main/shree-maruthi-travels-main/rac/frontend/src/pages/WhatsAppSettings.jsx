@@ -37,15 +37,25 @@ const WhatsAppSettings = () => {
             <Navigation />
             <div className="container">
                 <div className="page-header">
-                    <h1>WhatsApp</h1>
-                    <p className="subtitle">Scan the QR with your phone, or tap Open WhatsApp. The message sends from your WhatsApp, not from the server.</p>
+                    <h1>Send WhatsApp</h1>
+                    <p className="subtitle">This is not a login QR. The website does not connect to your WhatsApp account. Each QR opens one chat, from your phone, to one driver.</p>
+                </div>
+
+                <div className="card" style={{ marginBottom: '20px', background: '#eef6ff', border: '1px solid #c5ddf5' }}>
+                    <h3 style={{ marginBottom: '8px' }}>Why a driver is required</h3>
+                    <p style={{ marginBottom: '10px' }}>
+                        WhatsApp Web “link a device” would keep the office WhatsApp logged in on the server. That cannot stay running on this free host, so we do not do it.
+                    </p>
+                    <p>
+                        Your WhatsApp is already on your phone. Pick the driver (or type a number), then scan. The QR is the chat with that person. Change driver, get a new QR, send again.
+                    </p>
                 </div>
 
                 {error && <div className="alert alert-error" style={{ marginBottom: '20px' }}>{error}</div>}
 
                 <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
                     <div className="card">
-                        <h3>Write message</h3>
+                        <h3>1. Who should receive it?</h3>
                         <div className="form-group">
                             <label>Driver</label>
                             <select className="input" value={driverId} onChange={(e) => chooseDriver(e.target.value)}>
@@ -75,27 +85,37 @@ const WhatsAppSettings = () => {
                                 onChange={(e) => setMessage(e.target.value)}
                             />
                         </div>
-                        {link ? (
-                            <a className="btn-primary" href={link} target="_blank" rel="noreferrer" style={{ display: 'inline-block', textDecoration: 'none' }}>
-                                Open WhatsApp
-                            </a>
-                        ) : (
-                            <p className="text-muted">Enter a driver number to generate the QR.</p>
-                        )}
                     </div>
 
                     <div className="card text-center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <h3>Scan QR code</h3>
+                        <h3>2. Send from your phone</h3>
                         {link ? (
                             <>
-                                <p style={{ marginBottom: '15px' }}>Open WhatsApp on your phone → Linked devices is not needed. Scan this code to open the chat with the message filled in. Then tap Send.</p>
+                                <p style={{ marginBottom: '15px' }}>
+                                    Scan with your phone camera or WhatsApp, then tap Send. Or open the chat on this computer.
+                                </p>
                                 <div style={{ background: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid #eee' }}>
                                     <QRCodeSVG value={link} size={256} />
                                 </div>
+                                <a
+                                    className="btn-primary"
+                                    href={link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{ display: 'inline-block', textDecoration: 'none', marginTop: '16px' }}
+                                >
+                                    Open WhatsApp
+                                </a>
+                                {selected?.driver_name && (
+                                    <p className="text-muted" style={{ marginTop: '12px' }}>
+                                        Chat: {selected.driver_name}
+                                    </p>
+                                )}
                             </>
                         ) : (
                             <div style={{ padding: '40px', background: '#f9f9f9', borderRadius: '8px', border: '1px dashed #ccc' }}>
-                                <p>Select a driver or type a number to show the QR code.</p>
+                                <p>No QR yet — it would not know who to message.</p>
+                                <p className="text-muted" style={{ marginTop: '8px' }}>Select a driver on the left, or type their WhatsApp number.</p>
                             </div>
                         )}
                     </div>

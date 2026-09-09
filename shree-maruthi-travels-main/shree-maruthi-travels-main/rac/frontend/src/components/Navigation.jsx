@@ -16,7 +16,7 @@ const Navigation = () => {
       </div>
       <div className="nav-links">
         <a href="/admin">SMT Portal</a>
-        <Link to="/whatsapp-qr">WhatsApp QR</Link>
+        <Link to="/whatsapp-qr">Send WhatsApp</Link>
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/drivers">Drivers</Link>
         <Link to="/bookings">Bookings</Link>

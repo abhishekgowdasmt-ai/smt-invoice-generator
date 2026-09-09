@@ -25,13 +25,13 @@ const Dashboard = () => {
       <div className="container">
         <h1>Dashboard</h1>
         
-        {waStatus && waStatus.provider === 'wwebjs' && !waStatus.isReady && (
-          <div className="card" style={{ marginBottom: '20px', backgroundColor: '#fff3cd', color: '#856404', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {waStatus && waStatus.provider === 'phone' && (
+          <div className="card" style={{ marginBottom: '20px', backgroundColor: '#eef6ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
             <div>
-              <h3>📱 WhatsApp Authentication Required</h3>
-              <p>Driver notifications are currently paused. Please link your device to resume.</p>
+              <h3>Send from your phone</h3>
+              <p>WhatsApp is not logged into this website. Assign a trip, then scan the QR or tap Open WhatsApp to send from your phone.</p>
             </div>
-            <Link to="/whatsapp-qr" className="btn-primary">Go to QR Code</Link>
+            <Link to="/whatsapp-qr" className="btn-primary">Send WhatsApp</Link>
           </div>
         )}
 

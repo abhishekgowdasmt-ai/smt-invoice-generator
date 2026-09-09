@@ -234,7 +234,7 @@ def whatsapp_status():
         'provider': 'phone',
         'isReady': False,
         'qr': None,
-        'message': 'Scan the QR or tap Open WhatsApp. The message sends from your phone.',
+        'message': 'Pick a driver, then scan or open WhatsApp on your phone. This is not a login QR.',
     })
 
 
