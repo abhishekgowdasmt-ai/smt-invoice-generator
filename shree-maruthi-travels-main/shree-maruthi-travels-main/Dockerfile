@@ -7,6 +7,9 @@ RUN npm run build
 
 FROM node:20-bookworm-slim AS wa-bridge
 WORKDIR /wa
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 COPY backend/wa_bridge/package.json ./
 RUN npm install --omit=dev
 
