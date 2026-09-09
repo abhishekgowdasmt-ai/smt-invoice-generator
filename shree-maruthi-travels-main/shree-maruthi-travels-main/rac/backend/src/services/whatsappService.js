@@ -19,6 +19,14 @@ export const sendWhatsAppMessage = async (phoneNumber, messageBody, messageId) =
       return await sendWhatsAppMessageTwilio(phoneNumber, messageBody, messageId);
     } else if (provider === 'wwebjs') {
       return await sendWhatsAppMessageWWeb(phoneNumber, messageBody, messageId);
+    } else if (provider === 'none') {
+      return {
+        success: false,
+        provider,
+        error: 'WhatsApp is not configured on this server',
+        status: 'failed',
+        timestamp: new Date()
+      };
     } else {
       throw new Error(`Unknown WhatsApp provider: ${provider}`);
     }

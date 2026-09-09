@@ -1,6 +1,4 @@
-import sequelize from '../src/config/database.js';
-import User from '../src/models/User.js';
-import Driver from '../src/models/Driver.js';
+import { sequelize, User, Driver } from '../src/models/index.js';
 import { hashPassword } from '../src/utils/auth.js';
 
 const seed = async () => {
@@ -8,7 +6,7 @@ const seed = async () => {
     console.log('🌱 Seeding database...');
     
     // Sync database
-    await sequelize.sync({ alter: true });
+    await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     console.log('✅ Database synchronized');
 
     // Create test admin user

@@ -26,5 +26,3 @@ rac/backend/node_modules/
 rac/frontend/dist/
 tools/trips/__pycache__/
 
-# Docker
-.dockerignore

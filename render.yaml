@@ -1,8 +1,43 @@
 services:
   - type: web
-    name: smt-website
-    runtime: python
+    name: smt-invoice-generator
+    runtime: docker
     plan: free
     rootDir: shree-maruthi-travels-main/shree-maruthi-travels-main
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 2 --timeout 120 backend.app:app
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: RAC_API_HOSTPORT
+        fromService:
+          name: smt-rac-api
+          type: web
+          property: hostport
+
+  - type: web
+    name: smt-rac-api
+    runtime: node
+    plan: free
+    rootDir: shree-maruthi-travels-main/shree-maruthi-travels-main/rac/backend
+    buildCommand: npm install --legacy-peer-deps
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
+        value: "true"
+      - key: WHATSAPP_PROVIDER
+        value: none
+      - key: CORS_ORIGIN
+        value: https://shreemaruthitravels.com,https://www.shreemaruthitravels.com,https://smt-invoice-generator.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: smt-rac-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: smt-rac-db
+    databaseName: dispatch_db
+    plan: basic-256mb
+    ipAllowList: []

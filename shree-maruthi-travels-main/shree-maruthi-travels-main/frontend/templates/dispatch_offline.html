@@ -16,9 +16,13 @@
     <main class="container" style="max-width: 640px; margin: 3rem auto; padding: 0 1.25rem;">
         <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px;">
             <h1 style="color: var(--primary);">RAC dispatch is not running</h1>
+            {% if configured %}
+            <p style="color: var(--text-muted); margin: 1rem 0;">The dispatch API is waking up or still being created on Render. Wait about a minute, then refresh this page.</p>
+            {% else %}
             <p style="color: var(--text-muted); margin: 1rem 0;">The portal is ready. Start PostgreSQL and the RAC Node API (port 3000) plus the React app (port 5173), or run docker compose from the website folder.</p>
             <pre style="background:#0e1322; color:#fff; padding:1rem; border-radius:8px; overflow:auto; font-size:0.85rem;">cd rac
 docker compose up --build</pre>
+            {% endif %}
             <p style="margin-top:1rem; color: var(--text-muted);">RAC login: admin@dispatch.local / Admin@12345</p>
         </section>
     </main>

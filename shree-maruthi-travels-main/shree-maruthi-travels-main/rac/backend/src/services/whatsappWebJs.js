@@ -9,52 +9,53 @@ import qrcode from 'qrcode-terminal';
 
 const { Client, LocalAuth } = pkg;
 
-// Initialize the client
-// Uses LocalAuth to persist session so you don't have to scan QR code every time
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: {
-    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
-    args: [
-      '--no-sandbox', 
-      '--disable-setuid-sandbox', 
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--disable-extensions',
-      '--remote-debugging-port=9222'
-    ],
-    headless: true
-  }
-});
+const whatsappWebEnabled = process.env.WHATSAPP_PROVIDER === 'wwebjs';
 
+let client = null;
 let isReady = false;
 let currentQR = null;
 
-// Generate QR Code for authentication
-client.on('qr', (qr) => {
-  currentQR = qr;
-  isReady = false;
-  console.log('====================================================');
-  console.log('📱 WHATSAPP AUTHENTICATION REQUIRED');
-  console.log('Please scan this QR code with your WhatsApp mobile app');
-  console.log('Open WhatsApp -> Menu -> Linked Devices -> Link a Device');
-  console.log('====================================================');
-  // qrcode.generate(qr, { small: true }); // Disable terminal QR in docker if it's causing issues
-});
+if (whatsappWebEnabled) {
+  client = new Client({
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-extensions',
+        '--remote-debugging-port=9222'
+      ],
+      headless: true
+    }
+  });
+}
 
-// Client is ready
-client.on('ready', () => {
-  console.log('✅ WhatsApp Web Client is ready!');
-  currentQR = null;
-  isReady = true;
-});
+if (client) {
+  client.on('qr', (qr) => {
+    currentQR = qr;
+    isReady = false;
+    console.log('====================================================');
+    console.log('📱 WHATSAPP AUTHENTICATION REQUIRED');
+    console.log('Please scan this QR code with your WhatsApp mobile app');
+    console.log('Open WhatsApp -> Menu -> Linked Devices -> Link a Device');
+    console.log('====================================================');
+  });
 
-// Client disconnected
-client.on('disconnected', (reason) => {
-  console.log('❌ WhatsApp Client was disconnected', reason);
-  currentQR = null;
-  isReady = false;
-});
+  client.on('ready', () => {
+    console.log('✅ WhatsApp Web Client is ready!');
+    currentQR = null;
+    isReady = true;
+  });
+
+  client.on('disconnected', (reason) => {
+    console.log('❌ WhatsApp Client was disconnected', reason);
+    currentQR = null;
+    isReady = false;
+  });
+}
 
 // Initialize the client explicitly in a non-blocking way
 const initializeWhatsApp = async (retries = 3) => {
@@ -79,10 +80,13 @@ const initializeWhatsApp = async (retries = 3) => {
   }
 };
 
-// Start initialization without awaiting it here
-initializeWhatsApp().catch(err => {
+if (whatsappWebEnabled) {
+  initializeWhatsApp().catch(err => {
     console.error('🔥 Fatal error in WhatsApp init background task:', err);
-});
+  });
+} else {
+  console.log('WhatsApp Web client is disabled (set WHATSAPP_PROVIDER=wwebjs to enable).');
+}
 
 /**
  * Sends a message via whatsapp-web.js
@@ -93,7 +97,7 @@ initializeWhatsApp().catch(err => {
  */
 export const sendWhatsAppMessageWWeb = async (phoneNumber, messageBody, messageId) => {
   try {
-    if (!isReady) {
+    if (!client || !isReady) {
       console.warn('[WHATSAPP-WEB] Cannot send message - client is not ready. Please scan QR code in console.');
       return {
         success: false,

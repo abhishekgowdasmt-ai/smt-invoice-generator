@@ -30,7 +30,18 @@ rac_dist_dir = os.path.join(site_root, 'rac', 'frontend', 'dist')
 STAFF_COOKIE = 'smt_staff'
 STAFF_TOKEN = 'smt-session-token'
 RAC_FRONTEND_URL = os.environ.get('RAC_FRONTEND_URL', 'http://127.0.0.1:5173')
-RAC_API_URL = os.environ.get('RAC_API_URL', 'http://127.0.0.1:3000')
+
+
+def rac_api_base():
+    explicit = (os.environ.get('RAC_API_URL') or '').strip().rstrip('/')
+    if explicit:
+        return explicit
+    hostport = (os.environ.get('RAC_API_HOSTPORT') or '').strip()
+    if hostport:
+        if '://' in hostport:
+            return hostport.rstrip('/')
+        return 'http://' + hostport
+    return 'http://127.0.0.1:3000'
 
 app = Flask(
     __name__,
@@ -1551,7 +1562,7 @@ def _proxy_to(target_base, subpath=''):
     url = target_base.rstrip('/') + '/' + subpath.lstrip('/')
     if request.query_string:
         url += '?' + request.query_string.decode('utf-8', 'ignore')
-    hop = {'host', 'cookie', 'content-length'}
+    hop = {'host', 'cookie', 'content-length', 'origin'}
     headers = {k: v for k, v in request.headers if k.lower() not in hop}
     try:
         import requests as http
@@ -1561,7 +1572,7 @@ def _proxy_to(target_base, subpath=''):
             headers=headers,
             data=request.get_data(),
             allow_redirects=False,
-            timeout=90,
+            timeout=(5, 90),
         )
     except Exception:
         return None
@@ -1638,10 +1649,12 @@ def admin_dispatch(path):
     if denied:
         return denied
     index = os.path.join(rac_dist_dir, 'index.html')
-    if os.path.isdir(rac_dist_dir) and os.path.isfile(index):
-        full = os.path.join(rac_dist_dir, path) if path else index
-        if path and os.path.isfile(full):
-            return send_from_directory(rac_dist_dir, path)
+    if os.path.isfile(index):
+        if path:
+            wanted = os.path.normpath(os.path.join(rac_dist_dir, path))
+            root = os.path.normpath(rac_dist_dir)
+            if wanted.startswith(root + os.sep) and os.path.isfile(wanted):
+                return send_from_directory(rac_dist_dir, path)
         return send_from_directory(rac_dist_dir, 'index.html')
     proxied = _proxy_to(RAC_FRONTEND_URL, ('admin/dispatch/' + path).strip('/'))
     if proxied is not None:
@@ -1649,7 +1662,8 @@ def admin_dispatch(path):
     proxied = _proxy_to(RAC_FRONTEND_URL, path)
     if proxied is not None:
         return proxied
-    return render_template('dispatch_offline.html'), 503
+    api_configured = bool(os.environ.get('RAC_API_HOSTPORT') or os.environ.get('RAC_API_URL'))
+    return render_template('dispatch_offline.html', configured=api_configured), 503
 
 
 @app.route('/api/v1/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
@@ -1658,9 +1672,12 @@ def rac_api_proxy(path):
     denied = require_staff_page()
     if denied:
         return jsonify({"success": False, "message": "Unauthorized"}), 401
-    proxied = _proxy_to(RAC_API_URL, 'api/v1/' + path)
+    proxied = _proxy_to(rac_api_base(), 'api/v1/' + path)
     if proxied is None:
-        return jsonify({"success": False, "message": "Dispatch API is not running. Start RAC backend on port 3000."}), 503
+        return jsonify({
+            "success": False,
+            "message": "Dispatch API is starting or unavailable. Wait about a minute and refresh."
+        }), 503
     return proxied
 
 

@@ -46,4 +46,6 @@ The server runs on **`http://localhost:5000`** by default.
   - Staff tools (same PIN, cookie after login):
     - [Invoice generator](http://localhost:5000/admin/invoices/)
     - [Trip sheet generator](http://localhost:5000/admin/trips)
-    - [RAC dispatch](http://localhost:5000/admin/dispatch/) — needs the RAC stack (Postgres + Node API on 3000 + Vite on 5173). From this folder: `docker compose up postgres redis rac-backend rac-frontend`. RAC login: `admin@dispatch.local` / `Admin@12345`.
+    - [RAC dispatch](http://localhost:5000/admin/dispatch/) — RAC login: `admin@dispatch.local` / `Admin@12345`.
+      - Local: `docker compose up --build` from this folder.
+      - Render: website image builds the React app; `smt-rac-api` + Postgres serve the API. Apply `render.yaml` from the repo root.

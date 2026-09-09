@@ -1,0 +1,11 @@
+**/node_modules
+**/__pycache__
+**/*.pyc
+backend/venv
+backend/database.db
+backend/emails_sent.log
+.git
+.env
+rac/backend
+rac/frontend/node_modules
+rac/frontend/dist

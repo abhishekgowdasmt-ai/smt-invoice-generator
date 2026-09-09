@@ -1,4 +1,4 @@
-import sequelize from '../src/config/database.js';
+import { sequelize } from '../src/models/index.js';
 
 const migrate = async () => {
   try {
