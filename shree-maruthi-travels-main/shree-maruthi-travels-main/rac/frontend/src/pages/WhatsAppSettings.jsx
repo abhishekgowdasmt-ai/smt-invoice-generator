@@ -59,11 +59,11 @@ const WhatsAppSettings = () => {
                                         width: '12px', 
                                         height: '12px', 
                                         borderRadius: '50%', 
-                                        backgroundColor: status?.isReady ? '#2ecc71' : '#e67e22',
+                                        backgroundColor: status?.isReady ? '#2ecc71' : '#95a5a6',
                                         marginRight: '10px'
                                     }}></span>
                                     <strong style={{ fontSize: '1.2rem' }}>
-                                        {status?.isReady ? 'Connected & Ready' : 'Authentication Required'}
+                                        {status?.isReady ? 'Connected & Ready' : (status?.provider === 'none' ? 'Not connected' : 'Authentication Required')}
                                     </strong>
                                 </div>
                                 <p><strong>Current Provider:</strong> <code style={{ background: '#f0f0f0', padding: '2px 6px', borderRadius: '4px' }}>{status?.provider}</code></p>
@@ -72,6 +72,11 @@ const WhatsAppSettings = () => {
                             {status?.isReady ? (
                                 <div style={{ padding: '15px', backgroundColor: '#d4edda', borderRadius: '8px', border: '1px solid #c3e6cb', color: '#155724' }}>
                                     <p>✅ WhatsApp is successfully linked. Messages will be sent automatically to drivers when assigned.</p>
+                                </div>
+                            ) : status?.provider === 'none' ? (
+                                <div style={{ padding: '15px', backgroundColor: '#eef2f7', borderRadius: '8px', border: '1px solid #d6dce5', color: '#334155' }}>
+                                    <p>WhatsApp is turned off on this site. There is no QR code because no WhatsApp account is linked.</p>
+                                    <p style={{ marginTop: '8px' }}>You can still assign drivers. Records save in Zoho Sheet. Message the driver from your phone if you need to notify them.</p>
                                 </div>
                             ) : (
                                 <div style={{ padding: '15px', backgroundColor: '#fff3cd', borderRadius: '8px', border: '1px solid #ffeeba', color: '#856404' }}>
@@ -105,10 +110,9 @@ const WhatsAppSettings = () => {
                         <div className="card">
                             <h3>Help & Troubleshooting</h3>
                             <ul style={{ paddingLeft: '20px', lineHeight: '1.6' }}>
-                                <li>Ensure your phone has an active internet connection.</li>
-                                <li>If the QR code doesn't appear, try refreshing the page.</li>
-                                <li>For <code>wwebjs</code>, only one session can be active at a time.</li>
-                                <li>Check the server logs if connection persists.</li>
+                                <li>Automatic WhatsApp from this portal is not enabled (it needs extra paid services and a phone always online).</li>
+                                <li>Assigning a booking still works and is stored in Zoho Sheet.</li>
+                                <li>To notify a driver, open WhatsApp on your phone and message their number from the Drivers page.</li>
                             </ul>
                         </div>
                     </div>

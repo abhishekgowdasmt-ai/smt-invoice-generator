@@ -212,9 +212,9 @@ def whatsapp_status():
     return jsonify({
         'success': True,
         'provider': 'none',
-        'isReady': True,
+        'isReady': False,
         'qr': None,
-        'message': 'WhatsApp sending is off. Assignments still save in Zoho Sheet.',
+        'message': 'WhatsApp is not connected. Assignments still save in Zoho Sheet. Message drivers from your phone if needed.',
     })
 
 
