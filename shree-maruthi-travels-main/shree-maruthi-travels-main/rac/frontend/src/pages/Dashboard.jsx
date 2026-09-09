@@ -25,13 +25,19 @@ const Dashboard = () => {
       <div className="container">
         <h1>Dashboard</h1>
         
-        {waStatus && waStatus.provider === 'phone' && (
-          <div className="card" style={{ marginBottom: '20px', backgroundColor: '#eef6ff', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        {waStatus && !waStatus.isReady && (
+          <div className="card" style={{ marginBottom: '20px', backgroundColor: '#fff3cd', color: '#856404', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
             <div>
-              <h3>Send from your phone</h3>
-              <p>WhatsApp is not logged into this website. Assign a trip, then scan the QR or tap Open WhatsApp to send from your phone.</p>
+              <h3>Link WhatsApp</h3>
+              <p>Scan the login QR so trip messages send from your WhatsApp. You do not need a booking for this.</p>
             </div>
-            <Link to="/whatsapp-qr" className="btn-primary">Send WhatsApp</Link>
+            <Link to="/whatsapp-qr" className="btn-primary">Scan QR</Link>
+          </div>
+        )}
+        {waStatus && waStatus.isReady && (
+          <div className="card" style={{ marginBottom: '20px', backgroundColor: '#d4edda', color: '#155724' }}>
+            <h3>WhatsApp connected</h3>
+            <p>Assignments will send from your linked account.</p>
           </div>
         )}
 

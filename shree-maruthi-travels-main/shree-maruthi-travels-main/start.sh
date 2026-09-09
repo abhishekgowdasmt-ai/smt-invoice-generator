@@ -1,0 +1,3 @@
+#!/bin/sh
+node /app/backend/wa_bridge/server.js &
+exec gunicorn --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 120 backend.app:app

@@ -50,7 +50,10 @@ const AssignmentPage = () => {
         send_message_now: sendMessage
       })
       setSuccess(`${selectedBooking.source_booking_id} assigned to ${selectedDriver.driver_name}`)
-      if (sendMessage && result.wa_link) {
+      if (sendMessage && result.whatsapp_status === 'sent') {
+        setWaDraft(null)
+        setSuccess(`${selectedBooking.source_booking_id} assigned to ${selectedDriver.driver_name}. WhatsApp sent from your linked account.`)
+      } else if (sendMessage && result.wa_link) {
         setWaDraft(result)
         window.open(result.wa_link, '_blank', 'noopener')
       } else {

@@ -25,5 +25,7 @@ Thumbs.db
 rac/frontend/node_modules/
 rac/backend/node_modules/
 rac/frontend/dist/
+backend/wa_bridge/node_modules/
+backend/wa_bridge/auth/
 tools/trips/__pycache__/
 

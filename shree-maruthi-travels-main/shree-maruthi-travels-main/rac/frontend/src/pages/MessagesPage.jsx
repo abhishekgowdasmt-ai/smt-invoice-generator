@@ -59,7 +59,7 @@ const MessagesPage = () => {
       <Navigation />
       <div className="container">
         <h1>Message Log</h1>
-        <p className="text-muted" style={{ marginBottom: '16px' }}>These are trip messages ready to send from your phone. Open WhatsApp or scan the QR, then tap Send.</p>
+        <p className="text-muted" style={{ marginBottom: '16px' }}>If WhatsApp is linked, assign sends from your account. If a row is still Ready, open WhatsApp or scan that chat QR.</p>
 
         <div className="filters">
           <select
@@ -68,7 +68,8 @@ const MessagesPage = () => {
             className="input"
           >
             <option value="">All statuses</option>
-            <option value="ready">Ready to send</option>
+            <option value="sent">Sent</option>
+            <option value="ready">Ready</option>
             <option value="skipped">Skipped</option>
             <option value="failed">Failed</option>
           </select>

@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 from flask import Blueprint, jsonify, request, send_file
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+import requests
 
 import rac_store
 
@@ -155,6 +156,37 @@ def _wa_link(phone, body):
     return f'https://wa.me/{digits}?text={quote(body or "")}'
 
 
+WA_BRIDGE_URL = os.environ.get('WA_BRIDGE_URL') or 'http://127.0.0.1:3100'
+
+
+def _wa_bridge_status():
+    try:
+        data = requests.get(f'{WA_BRIDGE_URL}/status', timeout=4).json()
+        data.setdefault('success', True)
+        data.setdefault('provider', 'wwebjs')
+        return data
+    except Exception:
+        return {
+            'success': True,
+            'provider': 'wwebjs',
+            'isReady': False,
+            'qr': None,
+            'message': 'WhatsApp linker is starting. Refresh in a few seconds.',
+        }
+
+
+def _wa_bridge_send(phone, body):
+    try:
+        data = requests.post(
+            f'{WA_BRIDGE_URL}/send',
+            json={'phone': phone, 'message': body},
+            timeout=25,
+        ).json()
+        return bool(data.get('success')), data
+    except Exception as exc:
+        return False, {'error': str(exc)}
+
+
 def _whatsapp_body(booking):
     pickup = (booking.get('pickup_time') or 'N/A')
     end = (booking.get('end_time') or 'N/A')
@@ -229,13 +261,7 @@ def dashboard_summary():
 
 @rac_bp.route('/whatsapp/status', methods=['GET'])
 def whatsapp_status():
-    return jsonify({
-        'success': True,
-        'provider': 'phone',
-        'isReady': False,
-        'qr': None,
-        'message': 'Pick a driver, then scan or open WhatsApp on your phone. This is not a login QR.',
-    })
+    return jsonify(_wa_bridge_status())
 
 
 @rac_bp.route('/drivers', methods=['GET'])
@@ -595,6 +621,13 @@ def create_assignment():
     })
     body = _whatsapp_body(booking)
     wa_link = _wa_link(driver.get('whatsapp_number'), body)
+    sent, send_info = (False, {})
+    if payload.get('send_message_now', True):
+        sent, send_info = _wa_bridge_send(driver.get('whatsapp_number'), body)
+    send_status = 'sent' if sent else 'ready'
+    rac_store.update_one('assignments', 'assignment_id', assignment_id, {
+        'whatsapp_message_status': send_status,
+    })
     rac_store.insert('messages', {
         'message_log_id': rac_store.new_id('msg'),
         'booking_id': booking_id,
@@ -602,19 +635,21 @@ def create_assignment():
         'assignment_id': assignment_id,
         'phone_number': driver.get('whatsapp_number'),
         'message_body': body,
-        'provider_name': 'phone',
-        'send_status': 'ready',
+        'provider_name': 'wwebjs',
+        'send_status': send_status,
         'wa_link': wa_link,
+        'error_message': '' if sent else (send_info.get('error') or ''),
     })
     return jsonify({
         'success': True,
         'message': 'Booking assigned successfully',
         'assignment_id': assignment_id,
-        'whatsapp_status': 'ready',
+        'whatsapp_status': send_status,
         'wa_link': wa_link,
         'message_body': body,
         'driver_name': driver.get('driver_name'),
         'phone_number': driver.get('whatsapp_number'),
+        'whatsapp_error': send_info.get('error') if not sent else '',
     }), 201
 
 
@@ -648,15 +683,18 @@ def resend_message(assignment_id):
     driver = rac_store.find_one('drivers', 'driver_id', assignment.get('driver_id')) or {}
     body = _whatsapp_body(booking)
     wa_link = _wa_link(driver.get('whatsapp_number'), body)
-    rac_store.update_one('assignments', 'assignment_id', assignment_id, {'whatsapp_message_status': 'ready'})
+    sent, send_info = _wa_bridge_send(driver.get('whatsapp_number'), body)
+    send_status = 'sent' if sent else 'ready'
+    rac_store.update_one('assignments', 'assignment_id', assignment_id, {'whatsapp_message_status': send_status})
     return jsonify({
         'success': True,
-        'message': 'WhatsApp message is ready to send from your phone',
-        'whatsapp_message_status': 'ready',
+        'message': 'Message sent from your linked WhatsApp' if sent else 'WhatsApp is not linked yet. Scan the QR, or open the chat on your phone.',
+        'whatsapp_message_status': send_status,
         'wa_link': wa_link,
         'message_body': body,
         'driver_name': driver.get('driver_name'),
         'phone_number': driver.get('whatsapp_number'),
+        'whatsapp_error': send_info.get('error') if not sent else '',
     })
 
 
