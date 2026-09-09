@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SMT Services | Shree Maruthi Travels</title>
+    {% set seo_title = 'Corporate ETS, Airport Cab & Outstation Taxi Bangalore | SMT' %}
+    {% set seo_description = 'Employee transportation, airport transfers, outstation cabs, and EV fleet hire in Bangalore from Shree Maruthi Travels. Dedicated corporate routes and 24x7 dispatch.' %}
+    {% set seo_path = '/services' %}
+    {% include 'seo.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
 </head>
 <body>
@@ -33,6 +36,13 @@
                 </div>
             </div>
             <a href="/contact" class="jmr-book-btn" style="margin-top: 2rem; display: inline-block;">📝 Get a Quote</a>
+        </section>
+        <section style="text-align: left; max-width: 860px; margin: 3.5rem auto 0; color: var(--text-secondary); line-height: 1.75;">
+            <h2 style="color: var(--primary); font-size: 1.5rem; margin-bottom: 0.75rem;">Employee transportation across Bangalore</h2>
+            <p>
+                Shree Maruthi Travels runs daily corporate cabs and shuttles for offices in Whitefield, Electronic City, Manyata Tech Park, Outer Ring Road, Hebbal, and Koramangala. We also cover Kempegowda International Airport pickups and outstation trips from Bengaluru.
+            </p>
+        </section>
         </section>
     </main>
     {% include 'footer.html' %}

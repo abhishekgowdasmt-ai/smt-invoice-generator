@@ -44,7 +44,10 @@ app = Flask(
 )
 @app.context_processor
 def inject_now():
-    return {'now': datetime.utcnow}
+    return {
+        'now': datetime.utcnow,
+        'site_url': os.environ.get('PUBLIC_SITE_URL') or 'https://www.shreemaruthitravels.com',
+    }
 
 
 # Admin passcode for local authorization
@@ -455,6 +458,36 @@ def about():
 @app.route('/contact')
 def contact():
     return render_template('contact.html')
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    body = (
+        'User-agent: *\n'
+        'Allow: /\n'
+        'Disallow: /admin\n'
+        'Disallow: /api/\n'
+        '\n'
+        'Sitemap: https://www.shreemaruthitravels.com/sitemap.xml\n'
+    )
+    return Response(body, mimetype='text/plain')
+
+
+@app.route('/sitemap.xml')
+def sitemap_xml():
+    base = os.environ.get('PUBLIC_SITE_URL') or 'https://www.shreemaruthitravels.com'
+    pages = ['/', '/services', '/fleet', '/about', '/contact']
+    urls = ''.join(
+        f'<url><loc>{base}{path}</loc><changefreq>weekly</changefreq></url>'
+        for path in pages
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+        f'{urls}'
+        '</urlset>'
+    )
+    return Response(xml, mimetype='application/xml')
 
 
 @app.route('/api/places-autocomplete', methods=['GET'])

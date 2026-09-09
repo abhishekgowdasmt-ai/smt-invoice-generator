@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shree Maruthi Travels (SMT) | Corporate Employee Transportation Services Bangalore</title>
-    <meta name="description" content="Shree Maruthi Travels (SMT) is a premier provider of Employee Transportation Services (ETS) and rentals in Bangalore. Secure, seamless corporate commutes since 2017.">
-    <!-- Google Fonts & Stylesheets -->
+    {% set seo_title = 'Shree Maruthi Travels | Corporate Cab & Employee Transportation Bangalore' %}
+    {% set seo_description = 'Shree Maruthi Travels (SMT) runs corporate employee transportation, airport cabs, outstation rentals, and EV fleet services in Bangalore. 24x7 support since 2017.' %}
+    {% set seo_path = '/' %}
+    {% include 'seo.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>
@@ -87,7 +88,7 @@
                             </a>
                         </li>
                         <li>
-                            <a href="/admin" class="admin-login-btn" title="Admin Portal Login" id="admin-portal-link">
+                            <a href="/admin" class="admin-login-btn" rel="nofollow" title="Admin Portal Login" id="admin-portal-link">
                                 🔒 Admin
                             </a>
                         </li>

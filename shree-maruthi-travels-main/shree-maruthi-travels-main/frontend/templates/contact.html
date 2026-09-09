@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Contact Us | Shree Maruthi Travels</title>
-    <meta name="description" content="Get in touch with Shree Maruthi Travels for corporate ETS, outstation bookings, and airport taxi services in Bangalore.">
+    {% set seo_title = 'Contact Shree Maruthi Travels | Gubbalala, Bangalore 560061' %}
+    {% set seo_description = 'Call +91 9611975999 or visit Shree Maruthi Travels in Gubbalala, Bangalore for corporate ETS quotes, airport cabs, and outstation bookings.' %}
+    {% set seo_path = '/contact' %}
+    {% include 'seo.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
 </head>
 <body>

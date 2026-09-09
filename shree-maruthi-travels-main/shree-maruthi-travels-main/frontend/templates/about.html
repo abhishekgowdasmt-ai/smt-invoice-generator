@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>About | Shree Maruthi Travels</title>
+    {% set seo_title = 'About Shree Maruthi Travels | ETS Operator in Bangalore since 2017' %}
+    {% set seo_description = 'Shree Maruthi Travels is a Bangalore employee transportation operator founded in 2017. GPS-tracked fleet, verified drivers, and corporate ETS for MNCs.' %}
+    {% set seo_path = '/about' %}
+    {% include 'seo.html' %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body>

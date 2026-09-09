@@ -1,0 +1,52 @@
+{% set site_url = site_url|default('https://www.shreemaruthitravels.com') %}
+{% set seo_title = seo_title|default('Shree Maruthi Travels | Employee Transportation Bangalore') %}
+{% set seo_description = seo_description|default('Shree Maruthi Travels (SMT) provides corporate employee transportation, airport cabs, outstation rentals, and EV fleet services in Bangalore since 2017.') %}
+{% set seo_path = seo_path|default('/') %}
+<title>{{ seo_title }}</title>
+<meta name="description" content="{{ seo_description }}">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<link rel="canonical" href="{{ site_url }}{{ seo_path }}">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="en_IN">
+<meta property="og:site_name" content="Shree Maruthi Travels">
+<meta property="og:title" content="{{ seo_title }}">
+<meta property="og:description" content="{{ seo_description }}">
+<meta property="og:url" content="{{ site_url }}{{ seo_path }}">
+<meta property="og:image" content="{{ site_url }}{{ url_for('static', filename='images/logo.png') }}">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="{{ seo_title }}">
+<meta name="twitter:description" content="{{ seo_description }}">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "TaxiService",
+  "name": "Shree Maruthi Travels",
+  "alternateName": ["SMT", "Shree Maruthi Travels Bangalore"],
+  "url": "{{ site_url }}/",
+  "logo": "{{ site_url }}{{ url_for('static', filename='images/logo.png') }}",
+  "image": "{{ site_url }}{{ url_for('static', filename='images/logo.png') }}",
+  "telephone": "+919611975999",
+  "email": "shreemaruthitravels5999@gmail.com",
+  "priceRange": "₹₹",
+  "foundingDate": "2017",
+  "areaServed": {
+    "@type": "City",
+    "name": "Bengaluru"
+  },
+  "address": {
+    "@type": "PostalAddress",
+    "streetAddress": "No. 374C, 1st Floor, 4th Cross, 9th Main, 1st Stage, Gubbalala, Near Pride Apartment, Jayanagar Housing Society Layout",
+    "addressLocality": "Bengaluru",
+    "addressRegion": "Karnataka",
+    "postalCode": "560061",
+    "addressCountry": "IN"
+  },
+  "openingHoursSpecification": {
+    "@type": "OpeningHoursSpecification",
+    "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
+    "opens": "00:00",
+    "closes": "23:59"
+  },
+  "sameAs": []
+}
+</script>
