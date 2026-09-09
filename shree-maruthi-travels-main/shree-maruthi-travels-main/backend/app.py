@@ -34,7 +34,7 @@ invoices_dir = os.path.join(site_root, 'tools', 'invoices')
 trips_dir = os.path.join(site_root, 'tools', 'trips')
 rac_dist_dir = os.path.join(site_root, 'rac', 'frontend', 'dist')
 STAFF_COOKIE = 'smt_staff'
-STAFF_TOKEN = 'smt-session-token'
+STAFF_TOKEN = os.environ.get('STAFF_TOKEN') or 'smt-session-token'
 RAC_FRONTEND_URL = os.environ.get('RAC_FRONTEND_URL', 'http://127.0.0.1:5173')
 
 app = Flask(
@@ -48,7 +48,19 @@ def inject_now():
 
 
 # Admin passcode for local authorization
-ADMIN_PASSCODE = "5999"
+ADMIN_PASSCODE = os.environ.get('ADMIN_PASSCODE') or '5999'
+
+
+def _zoho_ok():
+    try:
+        from zoho_sheet import zoho_configured
+        return zoho_configured()
+    except Exception:
+        return False
+
+
+def _cookie_secure():
+    return request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
 
 
 def is_staff_request():
@@ -569,7 +581,7 @@ def admin_login():
     passcode = data.get('passcode')
     if passcode == ADMIN_PASSCODE:
         resp = make_response(jsonify({"authenticated": True, "token": STAFF_TOKEN}), 200)
-        resp.set_cookie(STAFF_COOKIE, STAFF_TOKEN, httponly=True, samesite='Lax', max_age=60 * 60 * 12)
+        resp.set_cookie(STAFF_COOKIE, STAFF_TOKEN, httponly=True, samesite='Lax', secure=_cookie_secure(), max_age=60 * 60 * 12)
         return resp
     return jsonify({"authenticated": False, "error": "Invalid passcode"}), 401
 
@@ -585,7 +597,7 @@ def admin_logout():
 def get_inquiries():
     # Basic Authorization check
     auth_header = request.headers.get('Authorization')
-    if not auth_header or auth_header != "Bearer smt-session-token":
+    if not auth_header or auth_header != f"Bearer {STAFF_TOKEN}":
         return jsonify({"error": "Unauthorized Access"}), 401
 
     conn = get_db_connection()
@@ -615,7 +627,7 @@ def get_inquiries():
 @app.route('/api/inquiries/<int:inquiry_id>/status', methods=['POST'])
 def update_inquiry_status(inquiry_id):
     auth_header = request.headers.get('Authorization')
-    if not auth_header or auth_header != "Bearer smt-session-token":
+    if not auth_header or auth_header != f"Bearer {STAFF_TOKEN}":
         return jsonify({"error": "Unauthorized Access"}), 401
 
     data = request.get_json()
@@ -635,7 +647,7 @@ def update_inquiry_status(inquiry_id):
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     auth_header = request.headers.get('Authorization')
-    if not auth_header or auth_header != "Bearer smt-session-token":
+    if not auth_header or auth_header != f"Bearer {STAFF_TOKEN}":
         return jsonify({"error": "Unauthorized Access"}), 401
 
     conn = get_db_connection()
@@ -664,7 +676,8 @@ def get_stats():
         "pending": pending,
         "in_progress": in_progress,
         "completed": completed,
-        "services": services
+        "services": services,
+        "zoho_connected": bool(append_inquiry_to_sheet) and _zoho_ok()
     })
 
 

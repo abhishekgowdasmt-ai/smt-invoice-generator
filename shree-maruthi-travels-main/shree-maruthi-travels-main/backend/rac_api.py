@@ -6,14 +6,14 @@ from datetime import datetime
 from functools import wraps
 from urllib.parse import quote
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, send_file
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 import rac_store
 
 rac_bp = Blueprint('rac', __name__)
-RAC_EMAIL = 'admin@dispatch.local'
-RAC_PASSWORD = 'Admin@12345'
+RAC_EMAIL = os.environ.get('RAC_EMAIL') or 'admin@dispatch.local'
+RAC_PASSWORD = os.environ.get('RAC_PASSWORD') or 'Admin@12345'
 RAC_USER = {
     'user_id': 'rac-admin-1',
     'email': RAC_EMAIL,
@@ -22,7 +22,7 @@ RAC_USER = {
     'role': 'admin',
     'active': True,
 }
-TOKEN = URLSafeTimedSerializer(os.environ.get('RAC_JWT_SECRET') or 'smt-rac-zoho-secret', salt='rac-dispatch')
+TOKEN = URLSafeTimedSerializer(os.environ.get('RAC_JWT_SECRET') or os.environ.get('STAFF_TOKEN') or 'smt-rac-zoho-secret', salt='rac-dispatch')
 
 COLUMN_MAPPING = {
     'SL NO': 'sl_no',
@@ -177,12 +177,17 @@ def _whatsapp_body(booking):
     )
 
 
+@rac_bp.route('/auth/staff', methods=['GET'])
+def staff_session():
+    return jsonify({'success': True, 'token': TOKEN.dumps(RAC_USER), 'user': RAC_USER})
+
+
 @rac_bp.route('/auth/login', methods=['POST'])
 def login():
     payload = request.get_json(silent=True) or {}
     email = (payload.get('email') or '').strip().lower()
     password = payload.get('password') or ''
-    if email != RAC_EMAIL or password != RAC_PASSWORD:
+    if email != RAC_EMAIL.strip().lower() or password != RAC_PASSWORD:
         return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
     token = TOKEN.dumps(RAC_USER)
     return jsonify({'success': True, 'token': token, 'user': RAC_USER})
@@ -387,6 +392,52 @@ def update_booking_status(booking_id):
     payload = request.get_json(silent=True) or {}
     rac_store.update_one('bookings', 'booking_id', booking_id, {'status': payload.get('status')})
     return jsonify({'success': True, 'message': 'Booking status updated'})
+
+
+@rac_bp.route('/uploads/template.xlsx', methods=['GET'])
+@require_rac
+def booking_template():
+    import pandas as pd
+    columns = [
+        'SL NO', 'BOOKING ID', 'DATE', 'NAME', 'CAB REG NO', 'MOBIL NO',
+        'PLAND START', 'END LOACTION', 'PICKUP TIME', 'END TIME', 'TOTAL HRS SMT',
+        'CAB TYPE', 'EMP NAME', 'START KM', 'END KM', 'SMT TOTAL KM', 'DUTY TYPE',
+        'DRIVER HRS', 'DRIVER KM', 'TOLL', 'PARKING', 'AMOUNT', 'REMARKS'
+    ]
+    sample = [{
+        'SL NO': 1,
+        'BOOKING ID': 'SMT-1001',
+        'DATE': '09/09/2026',
+        'NAME': 'Traveltime',
+        'CAB REG NO': 'KA01AB1234',
+        'MOBIL NO': '9876543210',
+        'PLAND START': 'Whitefield',
+        'END LOACTION': 'MG Road',
+        'PICKUP TIME': '08:00',
+        'END TIME': '18:00',
+        'TOTAL HRS SMT': '10',
+        'CAB TYPE': 'SEDAN',
+        'EMP NAME': 'Sample Employee',
+        'START KM': 10,
+        'END KM': 80,
+        'SMT TOTAL KM': 70,
+        'DUTY TYPE': 'Local',
+        'DRIVER HRS': 10,
+        'DRIVER KM': 70,
+        'TOLL': 0,
+        'PARKING': 0,
+        'AMOUNT': 2500,
+        'REMARKS': 'Sample row — delete before real upload',
+    }]
+    buffer = io.BytesIO()
+    pd.DataFrame(sample, columns=columns).to_excel(buffer, index=False)
+    buffer.seek(0)
+    return send_file(
+        buffer,
+        as_attachment=True,
+        download_name='smt-booking-template.xlsx',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
 
 
 @rac_bp.route('/uploads/history', methods=['GET'])

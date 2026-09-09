@@ -1,13 +1,12 @@
 import { useAuth } from '../App'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 
 const Navigation = () => {
   const { logout } = useAuth()
-  const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
-    navigate('/')
+    window.location.href = '/admin'
   }
 
   return (

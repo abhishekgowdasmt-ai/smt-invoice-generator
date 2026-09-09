@@ -154,6 +154,17 @@ const DriversPage = () => {
                     </td>
                     <td>
                       <button onClick={() => handleEdit(driver)} className="btn-small">Edit</button>
+                      {driver.whatsapp_number && (
+                        <a
+                          className="btn-small"
+                          href={`https://wa.me/${String(driver.whatsapp_number).replace(/\D/g, '').replace(/^(\d{10})$/, '91$1')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ textDecoration: 'none', marginLeft: '6px' }}
+                        >
+                          WhatsApp
+                        </a>
+                      )}
                       <button
                         onClick={() => handleToggleStatus(driver)}
                         className="btn-small"

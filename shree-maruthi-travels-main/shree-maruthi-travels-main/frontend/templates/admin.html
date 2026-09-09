@@ -66,7 +66,7 @@
                 </li>
                 <li>
                     <button class="admin-menu-btn" id="btn-tab-tracking" onclick="switchTab('tracking')">
-                        🌐 Live Operations Map
+                        🌐 Live map (demo)
                     </button>
                 </li>
                 <li>
@@ -102,8 +102,9 @@
                         <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Fleet Quote Inquiries</h2>
                         <p style="color: var(--text-secondary);">Manage and status employee transit contracts.</p>
                     </div>
-                    <div>
-                        <button class="btn btn-secondary" onclick="fetchDashboardData()">Sync Sync</button>
+                    <div style="display:flex; gap:0.75rem; align-items:center;">
+                        <span id="zoho-status" style="font-size:0.85rem; color: var(--text-secondary);">Zoho: checking…</span>
+                        <button class="btn btn-secondary" onclick="fetchDashboardData()">Refresh</button>
                     </div>
                 </header>
 
@@ -336,8 +337,8 @@
             <div class="admin-tab-content" id="tab-tracking" style="display:none;">
                 <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">🌐 Live Operations Map</h2>
-                        <p style="color: var(--text-secondary);">Real-time dispatch, route clustering, and safety telemetry.</p>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Live Operations Map</h2>
+                        <p style="color: var(--text-secondary);">Demo simulation only — this is not live GPS tracking.</p>
                     </div>
                     <div style="display: flex; gap: 0.75rem;">
                         <button class="btn btn-secondary" onclick="simulateTripTick()">Simulate Progress ⏱️</button>

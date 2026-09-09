@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import Navigation from '../components/Navigation'
 import { API } from '../services/api'
+import { QRCodeSVG } from 'qrcode.react'
 
 const MessagesPage = () => {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMessage, setSelectedMessage] = useState(null)
-  const [filters, setFilters] = useState({ page: 1, limit: 50, send_status: '', delivery_status: '' })
+  const [filters, setFilters] = useState({ page: 1, limit: 50, send_status: '' })
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
 
   useEffect(() => {
     loadMessages()
-  }, [filters.page, filters.send_status, filters.delivery_status])
+  }, [filters.page, filters.send_status])
 
   const loadMessages = async () => {
     setLoading(true)
@@ -19,8 +20,7 @@ const MessagesPage = () => {
       const params = {
         page: filters.page,
         limit: filters.limit,
-        ...(filters.send_status && { send_status: filters.send_status }),
-        ...(filters.delivery_status && { delivery_status: filters.delivery_status })
+        ...(filters.send_status && { send_status: filters.send_status })
       }
       const response = await API.getMessages(params)
       setMessages(response.data)
@@ -32,28 +32,26 @@ const MessagesPage = () => {
     }
   }
 
-  const renderBadge = (status, type = 'send') => {
+  const renderBadge = (status) => {
     const colors = {
-      'pending': '#95a5a6',
-      'queued': '#3498db',
-      'sent': '#2ecc71',
-      'delivered': '#27ae60',
-      'read': '#1abc9c',
-      'failed': '#e74c3c'
+      pending: '#95a5a6',
+      queued: '#3498db',
+      ready: '#3498db',
+      sent: '#2ecc71',
+      skipped: '#7f8c8d',
+      failed: '#e74c3c'
     }
-    return <span className="badge" style={{ backgroundColor: colors[status] || '#95a5a6' }}>{status}</span>
+    return <span className="badge" style={{ backgroundColor: colors[status] || '#95a5a6' }}>{status || '-'}</span>
   }
 
-  const handleResend = async (message) => {
-    try {
-      if (message.assignment_id) {
-        await API.resendMessage(message.assignment_id)
-        alert('Message queued for resend')
-        loadMessages()
-      }
-    } catch (err) {
-      alert(`Error: ${err.message}`)
+  const handleOpenWhatsApp = async (message) => {
+    let link = message.wa_link
+    if (!link && message.assignment_id) {
+      const result = await API.resendMessage(message.assignment_id)
+      link = result.wa_link
+      if (link) setSelectedMessage({ ...message, wa_link: link, message_body: result.message_body || message.message_body })
     }
+    if (link) window.open(link, '_blank', 'noopener')
   }
 
   return (
@@ -61,6 +59,7 @@ const MessagesPage = () => {
       <Navigation />
       <div className="container">
         <h1>Message Log</h1>
+        <p className="text-muted" style={{ marginBottom: '16px' }}>These are trip messages ready to send from your phone. Open WhatsApp or scan the QR, then tap Send.</p>
 
         <div className="filters">
           <select
@@ -68,23 +67,9 @@ const MessagesPage = () => {
             onChange={(e) => setFilters({ ...filters, send_status: e.target.value, page: 1 })}
             className="input"
           >
-            <option value="">All Send Status</option>
-            <option value="pending">Pending</option>
-            <option value="queued">Queued</option>
-            <option value="sent">Sent</option>
-            <option value="failed">Failed</option>
-          </select>
-
-          <select
-            value={filters.delivery_status}
-            onChange={(e) => setFilters({ ...filters, delivery_status: e.target.value, page: 1 })}
-            className="input"
-          >
-            <option value="">All Delivery Status</option>
-            <option value="queued">Queued</option>
-            <option value="sent">Sent</option>
-            <option value="delivered">Delivered</option>
-            <option value="read">Read</option>
+            <option value="">All statuses</option>
+            <option value="ready">Ready to send</option>
+            <option value="skipped">Skipped</option>
             <option value="failed">Failed</option>
           </select>
         </div>
@@ -100,9 +85,8 @@ const MessagesPage = () => {
                     <th>Booking</th>
                     <th>Driver</th>
                     <th>Phone</th>
-                    <th>Send Status</th>
-                    <th>Delivery</th>
-                    <th>Sent At</th>
+                    <th>Status</th>
+                    <th>Created</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -117,8 +101,7 @@ const MessagesPage = () => {
                       <td>{msg.driver?.driver_name}</td>
                       <td>{msg.phone_number}</td>
                       <td>{renderBadge(msg.send_status)}</td>
-                      <td>{msg.delivery_status ? renderBadge(msg.delivery_status) : '-'}</td>
-                      <td>{msg.sent_at ? new Date(msg.sent_at).toLocaleTimeString() : '-'}</td>
+                      <td>{msg.created_at ? new Date(msg.created_at).toLocaleString() : '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -150,15 +133,7 @@ const MessagesPage = () => {
                   <p><strong>Booking ID:</strong> {selectedMessage.booking?.source_booking_id}</p>
                   <p><strong>Driver:</strong> {selectedMessage.driver?.driver_name}</p>
                   <p><strong>Phone:</strong> {selectedMessage.phone_number}</p>
-                  <p><strong>Provider:</strong> {selectedMessage.provider_name}</p>
-                  <p><strong>Send Status:</strong> {renderBadge(selectedMessage.send_status)}</p>
-                  <p><strong>Delivery Status:</strong> {selectedMessage.delivery_status ? renderBadge(selectedMessage.delivery_status) : 'N/A'}</p>
-                  <p><strong>Sent At:</strong> {selectedMessage.sent_at ? new Date(selectedMessage.sent_at).toLocaleString() : 'Not sent'}</p>
-                  <p><strong>Delivered At:</strong> {selectedMessage.delivered_at ? new Date(selectedMessage.delivered_at).toLocaleString() : '-'}</p>
-                  <p><strong>Retry Count:</strong> {selectedMessage.retry_count}</p>
-                  {selectedMessage.failed_reason && (
-                    <p><strong>Failed Reason:</strong> {selectedMessage.failed_reason}</p>
-                  )}
+                  <p><strong>Status:</strong> {renderBadge(selectedMessage.send_status)}</p>
                 </div>
 
                 <div className="message-body">
@@ -166,11 +141,16 @@ const MessagesPage = () => {
                   <pre>{selectedMessage.message_body}</pre>
                 </div>
 
-                {selectedMessage.send_status === 'failed' && (
-                  <div className="action-buttons">
-                    <button onClick={() => handleResend(selectedMessage)} className="btn-primary">
-                      Resend Message
+                {(selectedMessage.wa_link || selectedMessage.assignment_id) && (
+                  <div className="action-buttons" style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'flex-start' }}>
+                    <button onClick={() => handleOpenWhatsApp(selectedMessage)} className="btn-primary">
+                      Open WhatsApp
                     </button>
+                    {selectedMessage.wa_link && (
+                      <div style={{ background: 'white', padding: '12px', borderRadius: '12px', border: '1px solid #eee' }}>
+                        <QRCodeSVG value={selectedMessage.wa_link} size={160} />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

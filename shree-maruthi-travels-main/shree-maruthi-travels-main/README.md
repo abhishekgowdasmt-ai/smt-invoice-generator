@@ -46,5 +46,5 @@ The server runs on **`http://localhost:5000`** by default.
   - Staff tools (same PIN, cookie after login):
     - [Invoice generator](http://localhost:5000/admin/invoices/)
     - [Trip sheet generator](http://localhost:5000/admin/trips)
-    - [RAC dispatch](http://localhost:5000/admin/dispatch/) — RAC login: `admin@dispatch.local` / `Admin@12345`.
+    - [RAC dispatch](http://localhost:5000/admin/dispatch/) — after the supervisor PIN, dispatch opens for staff. Fallback login: `admin@dispatch.local` / `Admin@12345`.
       Drivers, bookings, and assignments are stored in **Zoho Sheet** (worksheets `RAC_Drivers`, `RAC_Bookings`, `RAC_Assignments`, `RAC_Uploads`, `RAC_Messages`) using the same Zoho API keys as inquiries. If Zoho keys are missing, data is saved locally in `backend/rac_data.json`.

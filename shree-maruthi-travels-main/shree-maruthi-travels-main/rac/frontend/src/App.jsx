@@ -27,13 +27,30 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(localStorage.getItem('token'))
   const [loading, setLoading] = useState(false)
+  const [bootstrapping, setBootstrapping] = useState(!localStorage.getItem('token'))
 
   useEffect(() => {
     if (token) {
       localStorage.setItem('token', token)
-    } else {
-      localStorage.removeItem('token')
+      setBootstrapping(false)
+      return
     }
+    localStorage.removeItem('token')
+    let cancelled = false
+    const apiUrl = import.meta.env.VITE_API_URL || '/api/v1'
+    fetch(`${apiUrl}/auth/staff`, { credentials: 'same-origin' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success && data.token) {
+          setToken(data.token)
+          setUser(data.user)
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setBootstrapping(false)
+      })
+    return () => { cancelled = true }
   }, [token])
 
   const login = async (email, password) => {
@@ -64,7 +81,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null)
   }
 
-  const value = { user, token, loading, login, logout, isAuthenticated: !!token }
+  const value = { user, token, loading, bootstrapping, login, logout, isAuthenticated: !!token }
 
   return (
     <AuthContext.Provider value={value}>
@@ -75,11 +92,18 @@ export const AuthProvider = ({ children }) => {
 
 // Pages
 const LoginPage = () => {
-  const { login, loading } = useAuth()
+  const { login, loading, isAuthenticated, bootstrapping } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState('admin@dispatch.local')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+
+  if (bootstrapping) {
+    return <div className="login-container"><p style={{ color: '#fff' }}>Opening dispatch…</p></div>
+  }
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" />
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -120,7 +144,10 @@ const LoginPage = () => {
 
 // Protected Route
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, bootstrapping } = useAuth()
+  if (bootstrapping) {
+    return <div className="login-container"><p style={{ color: '#fff' }}>Opening dispatch…</p></div>
+  }
   return isAuthenticated ? children : <Navigate to="/" />
 }
 

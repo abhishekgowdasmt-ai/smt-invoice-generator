@@ -11,6 +11,24 @@ const UploadPage = () => {
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
 
+  const downloadTemplate = async () => {
+    try {
+      const response = await fetch('/api/v1/uploads/template.xlsx', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!response.ok) throw new Error('Could not download template')
+      const blob = await response.blob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'smt-booking-template.xlsx'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   const handleFileChange = (e) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
@@ -51,6 +69,11 @@ const UploadPage = () => {
       <Navigation />
       <div className="container">
         <h1>Upload Excel Bookings</h1>
+        <p className="text-muted" style={{ marginBottom: '16px' }}>
+          Use the SMT column headers. Download a sample file if you are unsure.
+          {' '}
+          <button type="button" className="btn-secondary" onClick={downloadTemplate}>Download template</button>
+        </p>
 
         <div className="upload-form">
           <div className="upload-box">

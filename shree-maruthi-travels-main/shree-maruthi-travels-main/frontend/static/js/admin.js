@@ -142,6 +142,11 @@ async function fetchDashboardData() {
         document.getElementById('stat-pending').textContent = stats.pending;
         document.getElementById('stat-in-progress').textContent = stats.in_progress;
         document.getElementById('stat-completed').textContent = stats.completed;
+        const zohoEl = document.getElementById('zoho-status');
+        if (zohoEl) {
+            zohoEl.textContent = stats.zoho_connected ? 'Zoho Sheet: connected' : 'Zoho Sheet: not connected (inquiries stay on this server)';
+            zohoEl.style.color = stats.zoho_connected ? '#059669' : '#b45309';
+        }
 
         filterInquiries();
     } catch (err) {
