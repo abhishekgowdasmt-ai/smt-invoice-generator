@@ -127,6 +127,99 @@ def append_inquiry_to_sheet(inquiry_data):
         return False
 
 
+def zoho_configured():
+    return all([ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, ZOHO_REFRESH_TOKEN, ZOHO_SPREADSHEET_ID])
+
+
+def _sheet_url():
+    return f"{ZOHO_SHEET_API_URL}/{ZOHO_SPREADSHEET_ID}"
+
+
+def _sheet_headers(token):
+    return {'Authorization': f'Zoho-oauthtoken {token}'}
+
+
+def _sheet_call(payload, http='post'):
+    token = _get_access_token()
+    if not token:
+        return None
+    try:
+        if http == 'get':
+            resp = requests.get(_sheet_url(), headers=_sheet_headers(token), params=payload, timeout=20)
+        else:
+            resp = requests.post(_sheet_url(), headers=_sheet_headers(token), data=payload, timeout=30)
+        return resp.json()
+    except Exception as exc:
+        print(f"[ZOHO] Sheet call failed: {exc}")
+        return None
+
+
+def ensure_worksheet(worksheet_name):
+    result = _sheet_call({
+        'method': 'worksheet.create',
+        'worksheet_name': worksheet_name
+    })
+    if result and result.get('status') == 'success':
+        print(f"[ZOHO] Created worksheet {worksheet_name}")
+        return True
+    message = str(result).lower() if result else ''
+    if 'already' in message or 'exist' in message:
+        return True
+    if result:
+        print(f"[ZOHO] worksheet.create {worksheet_name}: {result}")
+    return bool(result)
+
+
+def fetch_records(worksheet_name):
+    if not zoho_configured():
+        return None
+    ensure_worksheet(worksheet_name)
+    result = _sheet_call({
+        'method': 'worksheet.records.fetch',
+        'worksheet_name': worksheet_name,
+        'header_row': 1
+    }, http='get')
+    if not result or result.get('status') not in (None, 'success'):
+        if result:
+            print(f"[ZOHO] fetch {worksheet_name}: {result}")
+        return None
+    records = result.get('records') or result.get('data') or []
+    return records if isinstance(records, list) else []
+
+
+def add_records(worksheet_name, rows):
+    if not rows or not zoho_configured():
+        return False
+    ensure_worksheet(worksheet_name)
+    result = _sheet_call({
+        'method': 'worksheet.records.add',
+        'worksheet_name': worksheet_name,
+        'header_row': 1,
+        'json_data': json.dumps(rows)
+    })
+    ok = bool(result) and result.get('status') == 'success'
+    if not ok:
+        print(f"[ZOHO] add {worksheet_name}: {result}")
+    return ok
+
+
+def update_record(worksheet_name, id_field, id_value, data):
+    if not zoho_configured():
+        return False
+    ensure_worksheet(worksheet_name)
+    result = _sheet_call({
+        'method': 'worksheet.records.update',
+        'worksheet_name': worksheet_name,
+        'header_row': 1,
+        'criteria': f'("{id_field}"="{id_value}")',
+        'data': json.dumps(data)
+    })
+    ok = bool(result) and result.get('status') == 'success'
+    if not ok:
+        print(f"[ZOHO] update {worksheet_name}: {result}")
+    return ok
+
+
 def test_connection():
     """Quick test to verify Zoho Sheet API connectivity."""
     token = _get_access_token()

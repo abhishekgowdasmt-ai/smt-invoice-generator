@@ -11,6 +11,7 @@ venv/
 # Local database (use Zoho Sheet in production)
 backend/database.db
 backend/emails_sent.log
+backend/rac_data.json
 
 # IDE
 .vscode/

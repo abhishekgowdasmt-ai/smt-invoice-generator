@@ -1,4 +1,5 @@
 import os
+import sys
 import sqlite3
 import threading
 import smtplib
@@ -11,6 +12,10 @@ from dotenv import load_dotenv
 # Load environment variables from local .env if present
 load_dotenv()
 
+base_dir = os.path.dirname(os.path.abspath(__file__))
+if base_dir not in sys.path:
+    sys.path.insert(0, base_dir)
+
 # Zoho Sheet integration
 try:
     from zoho_sheet import append_inquiry_to_sheet
@@ -18,8 +23,9 @@ except ImportError:
     append_inquiry_to_sheet = None
     print("[WARN] zoho_sheet module not found — Zoho integration disabled")
 
+from rac_api import rac_bp
+
 # Resolve template and static folder relative to this file
-base_dir = os.path.dirname(os.path.abspath(__file__))
 site_root = os.path.abspath(os.path.join(base_dir, '..'))
 template_dir = os.path.join(base_dir, '..', 'frontend', 'templates')
 static_dir = os.path.join(base_dir, '..', 'frontend', 'static')
@@ -30,18 +36,6 @@ rac_dist_dir = os.path.join(site_root, 'rac', 'frontend', 'dist')
 STAFF_COOKIE = 'smt_staff'
 STAFF_TOKEN = 'smt-session-token'
 RAC_FRONTEND_URL = os.environ.get('RAC_FRONTEND_URL', 'http://127.0.0.1:5173')
-
-
-def rac_api_base():
-    explicit = (os.environ.get('RAC_API_URL') or '').strip().rstrip('/')
-    if explicit:
-        return explicit
-    hostport = (os.environ.get('RAC_API_HOSTPORT') or '').strip()
-    if hostport:
-        if '://' in hostport:
-            return hostport.rstrip('/')
-        return 'http://' + hostport
-    return 'http://127.0.0.1:3000'
 
 app = Flask(
     __name__,
@@ -68,6 +62,20 @@ def require_staff_page():
     if is_staff_request():
         return None
     return redirect('/admin')
+
+
+app.register_blueprint(rac_bp, url_prefix='/api/v1')
+
+
+@app.before_request
+def protect_rac_api():
+    if not request.path.startswith('/api/v1'):
+        return None
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True})
+    if not is_staff_request():
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    return None
 
 
 def send_inquiry_email(data):
@@ -1662,23 +1670,7 @@ def admin_dispatch(path):
     proxied = _proxy_to(RAC_FRONTEND_URL, path)
     if proxied is not None:
         return proxied
-    api_configured = bool(os.environ.get('RAC_API_HOSTPORT') or os.environ.get('RAC_API_URL'))
-    return render_template('dispatch_offline.html', configured=api_configured), 503
-
-
-@app.route('/api/v1/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
-@app.route('/api/v1/<path:path>', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
-def rac_api_proxy(path):
-    denied = require_staff_page()
-    if denied:
-        return jsonify({"success": False, "message": "Unauthorized"}), 401
-    proxied = _proxy_to(rac_api_base(), 'api/v1/' + path)
-    if proxied is None:
-        return jsonify({
-            "success": False,
-            "message": "Dispatch API is starting or unavailable. Wait about a minute and refresh."
-        }), 503
-    return proxied
+    return render_template('dispatch_offline.html', configured=True), 503
 
 
 if __name__ == '__main__':

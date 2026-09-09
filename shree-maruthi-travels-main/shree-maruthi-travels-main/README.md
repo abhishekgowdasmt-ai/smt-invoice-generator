@@ -47,5 +47,4 @@ The server runs on **`http://localhost:5000`** by default.
     - [Invoice generator](http://localhost:5000/admin/invoices/)
     - [Trip sheet generator](http://localhost:5000/admin/trips)
     - [RAC dispatch](http://localhost:5000/admin/dispatch/) — RAC login: `admin@dispatch.local` / `Admin@12345`.
-      - Local: `docker compose up --build` from this folder.
-      - Render: website image builds the React app; `smt-rac-api` + Postgres serve the API. Apply `render.yaml` from the repo root.
+      Drivers, bookings, and assignments are stored in **Zoho Sheet** (worksheets `RAC_Drivers`, `RAC_Bookings`, `RAC_Assignments`, `RAC_Uploads`, `RAC_Messages`) using the same Zoho API keys as inquiries. If Zoho keys are missing, data is saved locally in `backend/rac_data.json`.
