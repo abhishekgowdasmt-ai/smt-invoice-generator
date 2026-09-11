@@ -5,46 +5,31 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Shree Maruthi Travels — Invoice Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&display=swap">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Libre+Baskerville:wght@700&display=swap">
   <link rel="stylesheet" href="styles.css">
-  <style>
-    .staff-tool-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 16px;
-      background: #0c355e;
-      color: #fff;
-      font-size: 13px;
-    }
-    .staff-tool-bar a { color: #fff; font-weight: 650; }
-    @media print { .staff-tool-bar { display: none !important; } }
-  </style>
 </head>
 <body>
-  <div class="staff-tool-bar">
-    <span>SMT staff tools — Invoice generator</span>
-    <a href="/admin">Back to portal</a>
-  </div>
   <header class="app-header">
     <div class="brand">
       <img src="assets/logo.png" alt="SMT">
       <div>
-        <h1>Shree Maruthi Travels</h1>
-        <p>Invoice generator — fill the variables, print the same format</p>
+        <h1>Invoice generator</h1>
+        <p>Shree Maruthi Travels · staff tool</p>
       </div>
     </div>
     <div class="header-actions">
+      <a class="btn ghost" href="/admin">← Portal</a>
       <button type="button" class="btn ghost" id="resetBtn">New invoice</button>
-      <button type="button" class="btn secondary" id="printBtn" title="Choose Save as PDF, paper size A4, margins None">Print / Save PDF</button>
+      <button type="button" class="btn" id="printBtn" title="Choose Save as PDF, paper size A4, margins None">Print / Save PDF</button>
     </div>
   </header>
 
   <div class="layout">
     <aside class="form-pane">
-      <div class="card">
-        <h2>Start from a client</h2>
-        <p class="hint">Presets fill bill-to details and the matching template from your old invoices. Amounts can still be edited. To save a file, click <b>Print / Save PDF</b>, choose printer <b>Save as PDF</b>, paper <b>A4</b>, margins <b>None</b>.</p>
+      <div class="card accent">
+        <h2>1 · Client</h2>
+        <p class="hint">Pick a client to fill bill-to, GST, and the matching layout. Change the amount for this month, then print.</p>
         <div class="row">
           <div>
             <label for="preset">Client preset</label>
@@ -65,7 +50,7 @@
       </div>
 
       <div class="card">
-        <h2>Invoice</h2>
+        <h2>2 · Invoice</h2>
         <div class="row cols-2">
           <div>
             <label for="invoiceNo">Invoice number</label>
@@ -143,7 +128,7 @@
       </div>
 
       <div class="card">
-        <h2>Bill to</h2>
+        <h2>3 · Bill to</h2>
         <div class="row">
           <div>
             <label for="billToName">Recipient name</label>
@@ -179,7 +164,7 @@
       </div>
 
       <div class="card">
-        <h2>Line items</h2>
+        <h2>4 · Line items</h2>
         <div class="items-head"><span>Description / location</span><span>Amount</span><span></span></div>
         <div id="items"></div>
         <button type="button" class="btn small" id="addItem" style="margin:8px 0 12px">+ Add row</button>
@@ -311,6 +296,13 @@
     </aside>
 
     <main class="preview-pane">
+      <div class="preview-toolbar">
+        <div>
+          <strong>Live preview</strong>
+          <span>A4 · what you print</span>
+        </div>
+        <span class="preview-tip">Print → Save as PDF · paper A4 · margins None</span>
+      </div>
       <div id="previewWrap" class="preview-wrap">
         <div id="invoice" class="invoice sheet-shadow"></div>
       </div>
