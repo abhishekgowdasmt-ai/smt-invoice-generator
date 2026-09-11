@@ -126,6 +126,28 @@ const PRESETS = {
     sgst: 2.5,
     items: [{ description: "Cab Hire Charges (Honeywell)", amount: "565435" }],
   },
+  schaeffler: {
+    label: "Schaeffler (via Traveltime)",
+    template: "gst",
+    invoicePrefix: "SMT-TTM",
+    billToName: "TRAVELTIME MOBILITY INDIA PRIVATE LIMITED",
+    billToAddress:
+      "9TH MAIN, 1207/343 & 1207/1/343/1, HSR LAYOUT, 7TH SECTOR, Bengaluru, Bengaluru Urban, Karnataka, 560102",
+    billToGstin: "29AACCT4425H1ZA",
+    billToState: "Karnataka",
+    billToStateCode: "29",
+    clientName: "Schaeffler",
+    cgst: 2.5,
+    sgst: 2.5,
+    igst: 0,
+    dateStyle: "short",
+    roundOff: true,
+    bank: "BANK OF BARODA",
+    accountNo: "07640200003590",
+    ifsc: "BARB0JAYANA",
+    branchGst: "Jayanagar, Bengaluru",
+    items: [{ description: "Cab Hire Charges (Schaeffler)", amount: "56129" }],
+  },
   iter: {
     label: "ITER Mobility",
     template: "direct",
@@ -725,6 +747,13 @@ function applyPreset(id, keepAmounts = false) {
   if (p.gracePeriod) $("gracePeriod").value = p.gracePeriod;
   if (p.paymentMethod) $("paymentMethod").value = p.paymentMethod;
   if (p.notes) $("notes").value = p.notes;
+  if (p.subject) $("subject").value = p.subject;
+  if (p.dateStyle) $("dateStyle").value = p.dateStyle;
+  if (p.roundOff != null) $("roundOff").checked = !!p.roundOff;
+  $("coBank").value = p.bank || COMPANY_DEFAULT.bank;
+  $("coAccountNo").value = p.accountNo || COMPANY_DEFAULT.accountNo;
+  $("coIfsc").value = p.ifsc || COMPANY_DEFAULT.ifsc;
+  $("coBranchGst").value = p.branchGst || COMPANY_DEFAULT.branchGst;
   if (p.subject) $("subject").value = p.subject;
   $("items").innerHTML = "";
   (p.items || [{ description: "", amount: "" }]).forEach((it) => {
