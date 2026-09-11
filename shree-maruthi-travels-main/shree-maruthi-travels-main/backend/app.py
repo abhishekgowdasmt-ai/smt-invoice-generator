@@ -1687,7 +1687,10 @@ def admin_trips_generate():
         try:
             trip_mod.generate_trip_sheets(excel_path, pdf_path, watermark)
         except Exception as err:
-            return render_template('admin_trips.html', error=str(err)), 400
+            return render_template(
+                'admin_trips.html',
+                error=f'Could not build the PDF: {err}',
+            ), 400
         with open(pdf_path, 'rb') as pdf:
             data = pdf.read()
     resp = make_response(data)

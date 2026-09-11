@@ -1,3 +1,6 @@
+import os
+import re
+
 import pandas as pd
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
@@ -7,7 +10,42 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
-import os
+
+
+COLUMN_ALIASES = {
+    'END LOACTION': 'END LOCATION',
+    'END LOCATIONS': 'END LOCATION',
+    'PLANNED START': 'PLAND START',
+    'MOBILE NO': 'MOBIL NO',
+    'MOBILE': 'MOBIL NO',
+    'EMPLOYEE NAME': 'EMP NAME',
+    'DRIVER NAME': 'NAME',
+}
+
+
+def _norm_header(value):
+    return re.sub(r'\s+', ' ', str(value or '').strip().upper())
+
+
+def _prepare_frame(excel_file_path):
+    df = pd.read_excel(excel_file_path)
+    df.columns = [_norm_header(column) for column in df.columns]
+    df = df.rename(columns=COLUMN_ALIASES)
+    if 'SL NO' not in df.columns:
+        raise ValueError(
+            'Excel is missing a SL NO column. Use the same trip-sheet Excel headers as usual.'
+        )
+    df = df[df['SL NO'].astype(str).str.isnumeric()]
+    return df.reset_index(drop=True)
+
+
+def cell(row, *names):
+    for name in names:
+        if name in row.index:
+            value = row[name]
+            if not pd.isna(value):
+                return value
+    return ''
 
 
 # -------------------------------------------------
@@ -27,9 +65,7 @@ def safe_number(value):
 # -------------------------------------------------
 def generate_trip_sheets(excel_file_path, output_pdf_path, watermark_image_path):
 
-    df = pd.read_excel(excel_file_path)
-    df = df[df["SL NO"].astype(str).str.isnumeric()]
-    df = df.reset_index(drop=True)
+    df = _prepare_frame(excel_file_path)
 
     # ---------- WATERMARK ----------
     def draw_watermark(canvas, doc):
@@ -107,8 +143,8 @@ def generate_trip_sheets(excel_file_path, output_pdf_path, watermark_image_path)
     # ---------- LOOP EACH RECORD ----------
     for _, r in df.iterrows():
 
-        parking = safe_number(r.get("PARKING"))
-        toll = safe_number(r.get("TOLL"))
+        parking = safe_number(cell(r, "PARKING"))
+        toll = safe_number(cell(r, "TOLL"))
         parking_toll = parking + toll
 
         table_data = [
@@ -120,32 +156,30 @@ def generate_trip_sheets(excel_file_path, output_pdf_path, watermark_image_path)
             ), "", "", "", ""],
             [P("Mob. No.: +91 96326 53666", "CenterSmall"), "", "", "", ""],
 
-            [P("Trip Sheet No:", "Label"), P(r["SL NO"]),
-             P("TRIP SHEET", "Label"), P("Date:", "Label"), P(r["DATE"])],
+            [P("Trip Sheet No:", "Label"), P(cell(r, "SL NO")),
+             P("TRIP SHEET", "Label"), P("Date:", "Label"), P(cell(r, "DATE"))],
 
-            # ✅ FIXED HERE
-            [P("Guest Name:", "Label"), P(r["EMP NAME"]), "", "", ""],
+            [P("Guest Name:", "Label"), P(cell(r, "EMP NAME")), "", "", ""],
 
-            [P("Cab Booked:", "Label"), P(r["CAB TYPE"]),
-             P("Car No:", "Label"), P(r["CAB REG NO"]), ""],
+            [P("Cab Booked:", "Label"), P(cell(r, "CAB TYPE")),
+             P("Car No:", "Label"), P(cell(r, "CAB REG NO")), ""],
 
-            # ✅ FIXED HERE
-            [P("Driver Name:", "Label"), P(r["NAME"]),
-             P("Driver Mob:", "Label"), P(r["MOBIL NO"]), ""],
+            [P("Driver Name:", "Label"), P(cell(r, "NAME")),
+             P("Driver Mob:", "Label"), P(cell(r, "MOBIL NO")), ""],
 
-            [P("Reporting Time:", "Label"), P(r["PICKUP TIME"]),
-             P("Duty Type:", "Label"), P(r["DUTY TYPE"]), ""],
+            [P("Reporting Time:", "Label"), P(cell(r, "PICKUP TIME")),
+             P("Duty Type:", "Label"), P(cell(r, "DUTY TYPE")), ""],
 
-            [P("Start Location:", "Label"), P(r["PLAND START"]),
-             P("End Location:", "Label"), P(r["END LOCATION"]), ""],
+            [P("Start Location:", "Label"), P(cell(r, "PLAND START")),
+             P("End Location:", "Label"), P(cell(r, "END LOCATION")), ""],
 
-            [P("Start Time:", "Label"), P(r["PICKUP TIME"]),
-             P("End Time:", "Label"), P(r["END TIME"]),
-             P(r["TOTAL HRS SMT"])],
+            [P("Start Time:", "Label"), P(cell(r, "PICKUP TIME")),
+             P("End Time:", "Label"), P(cell(r, "END TIME")),
+             P(cell(r, "TOTAL HRS SMT"))],
 
-            [P("Start Km:", "Label"), P(r["START KM"]),
-             P("End Km:", "Label"), P(r["END KM"]),
-             P(r["SMT TOTAL KM"])],
+            [P("Start Km:", "Label"), P(cell(r, "START KM")),
+             P("End Km:", "Label"), P(cell(r, "END KM")),
+             P(cell(r, "SMT TOTAL KM"))],
 
             [P("Parking / Toll:", "Label"), P(parking_toll),
              P("Service City:", "Label"), P("Bengaluru"), ""],
