@@ -237,6 +237,45 @@ const BookingDetailPage = () => {
           </div>
 
           <div className="detail-section">
+            <h2>Driver payment</h2>
+            <div className="detail-grid">
+              <div className="detail-row">
+                <label>Status</label>
+                <span className="badge" style={{ backgroundColor: String(booking.driver_payment_status || '').toLowerCase() === 'paid' ? '#2ecc71' : '#e67e22' }}>
+                  {String(booking.driver_payment_status || '').toLowerCase() === 'paid' ? 'Paid' : 'Unpaid'}
+                </span>
+              </div>
+              {booking.driver_paid_at && (
+                <div className="detail-row">
+                  <label>Paid at</label>
+                  <span>{new Date(booking.driver_paid_at).toLocaleString()}</span>
+                </div>
+              )}
+              {booking.assignedDriver?.driver_name && (
+                <div className="detail-row">
+                  <label>Pay to</label>
+                  <span>{booking.assignedDriver.driver_name}</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={async () => {
+                const paid = String(booking.driver_payment_status || '').toLowerCase() === 'paid'
+                try {
+                  await API.updateBookingPayment(booking.booking_id, { paid: !paid })
+                  loadBooking()
+                } catch (err) {
+                  alert(err.message)
+                }
+              }}
+              className="btn-primary"
+              style={{ marginTop: '12px', backgroundColor: String(booking.driver_payment_status || '').toLowerCase() === 'paid' ? '#e67e22' : '#2ecc71' }}
+            >
+              {String(booking.driver_payment_status || '').toLowerCase() === 'paid' ? 'Mark unpaid' : 'Mark driver paid'}
+            </button>
+          </div>
+
+          <div className="detail-section">
             <h2>Assignment</h2>
             {booking.assigned_driver_id ? (
               <div className="detail-grid">

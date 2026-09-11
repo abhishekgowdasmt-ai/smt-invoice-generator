@@ -35,6 +35,7 @@ export const API = {
   getBookings: (params) => apiCall(`/bookings?${new URLSearchParams(params)}`),
   getBooking: (id) => apiCall(`/bookings/${id}`),
   updateBookingStatus: (id, status) => apiCall(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateBookingPayment: (id, data) => apiCall(`/bookings/${id}/payment`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   // Upload
   uploadExcel: (file) => {

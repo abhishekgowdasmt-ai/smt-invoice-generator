@@ -50,11 +50,21 @@ COLUMN_MAPPING = {
     'PARKING': 'parking',
     'AMOUNT': 'amount',
     'REMARKS': 'remarks',
+    'DRIVER PAID': 'driver_payment_status',
+    'PAYMENT STATUS': 'driver_payment_status',
+    'DRIVER PAYMENT': 'driver_payment_status',
 }
 
 
 def _truthy(value):
-    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+    return str(value or '').strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _driver_payment_status(value):
+    text = str(value or '').strip().lower()
+    if text in ('paid', 'yes', 'y', '1', 'true', 'done'):
+        return 'Paid'
+    return 'Unpaid'
 
 
 def _paginate(rows, page, limit):
@@ -252,6 +262,11 @@ def dashboard_summary():
             'assigned_rides': sum(1 for row in bookings if row.get('status') == 'Assigned'),
             'completed_rides': sum(1 for row in bookings if row.get('status') == 'Completed'),
             'cancelled_rides': sum(1 for row in bookings if row.get('status') == 'Cancelled'),
+            'unpaid_driver_payments': sum(
+                1 for row in bookings
+                if row.get('status') in ('Assigned', 'Completed')
+                and _driver_payment_status(row.get('driver_payment_status')) != 'Paid'
+            ),
             'message_sent_count': sum(1 for row in messages if row.get('send_status') == 'sent'),
             'message_failed_count': sum(1 for row in messages if row.get('send_status') in ('failed', 'skipped')),
             'upload_timestamp': datetime.utcnow().isoformat() + 'Z',
@@ -362,6 +377,7 @@ def list_bookings():
     date = request.args.get('date') or ''
     status = request.args.get('status') or ''
     search = (request.args.get('search') or '').strip().lower()
+    payment = request.args.get('payment') or ''
     assigned = request.args.get('assigned_driver_id') or ''
     rows = rac_store.all_rows('bookings')
     if date:
@@ -378,6 +394,12 @@ def list_bookings():
     stats_rows = list(rows)
     if status:
         rows = [row for row in rows if row.get('status') == status]
+    if payment:
+        want_paid = payment.lower() == 'paid'
+        rows = [
+            row for row in rows
+            if (_driver_payment_status(row.get('driver_payment_status')) == 'Paid') == want_paid
+        ]
     sort_by = request.args.get('sort_by') or 'created_at'
     reverse = (request.args.get('sort_order') or 'DESC').upper() != 'ASC'
     rows.sort(key=lambda row: str(row.get(sort_by) or ''), reverse=reverse)
@@ -391,6 +413,14 @@ def list_bookings():
             'assigned': sum(1 for row in stats_rows if row.get('status') == 'Assigned'),
             'completed': sum(1 for row in stats_rows if row.get('status') == 'Completed'),
             'cancelled': sum(1 for row in stats_rows if row.get('status') == 'Cancelled'),
+            'driver_unpaid': sum(
+                1 for row in stats_rows
+                if _driver_payment_status(row.get('driver_payment_status')) != 'Paid'
+            ),
+            'driver_paid': sum(
+                1 for row in stats_rows
+                if _driver_payment_status(row.get('driver_payment_status')) == 'Paid'
+            ),
         },
         'pagination': {'page': page, 'limit': limit, 'total': total},
     })
@@ -418,6 +448,29 @@ def update_booking_status(booking_id):
     payload = request.get_json(silent=True) or {}
     rac_store.update_one('bookings', 'booking_id', booking_id, {'status': payload.get('status')})
     return jsonify({'success': True, 'message': 'Booking status updated'})
+
+
+@rac_bp.route('/bookings/<booking_id>/payment', methods=['PATCH'])
+@require_rac
+def update_booking_payment(booking_id):
+    booking = rac_store.find_one('bookings', 'booking_id', booking_id)
+    if not booking:
+        return jsonify({'success': False, 'message': 'Booking not found'}), 404
+    payload = request.get_json(silent=True) or {}
+    paid = payload.get('paid')
+    if paid is None:
+        status = _driver_payment_status(payload.get('driver_payment_status') or payload.get('status'))
+    else:
+        status = 'Paid' if paid in (True, 'true', '1', 1, 'Paid', 'paid', 'yes') else 'Unpaid'
+    notes = (payload.get('notes') or payload.get('driver_payment_notes') or booking.get('driver_payment_notes') or '')[:500]
+    amount = payload.get('amount', booking.get('amount') or '')
+    rac_store.update_one('bookings', 'booking_id', booking_id, {
+        'driver_payment_status': status,
+        'driver_paid_at': datetime.utcnow().isoformat() + 'Z' if status == 'Paid' else '',
+        'driver_payment_notes': notes,
+        'driver_paid_amount': amount,
+    })
+    return jsonify({'success': True, 'message': f'Driver payment marked {status}', 'driver_payment_status': status})
 
 
 @rac_bp.route('/uploads/template.xlsx', methods=['GET'])
@@ -550,14 +603,24 @@ def upload_excel():
             errors.append({'row_number': row_number, 'booking_id': booking_id, 'error': '; '.join(missing)})
             continue
         existing_ids.add(booking_id)
+        payment_status = _driver_payment_status(mapped.get('driver_payment_status'))
+        field_values = {}
+        for key in COLUMN_MAPPING.values():
+            if key == 'driver_payment_status':
+                continue
+            field_values[key] = '' if mapped.get(key) is None else mapped.get(key)
         processed.append({
-            **{key: ('' if mapped.get(key) is None else mapped.get(key)) for key in COLUMN_MAPPING.values()},
+            **field_values,
             'booking_id': rac_store.new_id('bkg'),
             'source_booking_id': booking_id,
             'status': 'Unassigned',
             'upload_batch_id': batch_id,
             'assigned_driver_id': '',
             'assigned_at': '',
+            'driver_payment_status': payment_status,
+            'driver_paid_at': datetime.utcnow().isoformat() + 'Z' if payment_status == 'Paid' else '',
+            'driver_payment_notes': '',
+            'driver_paid_amount': mapped.get('amount') or '',
         })
 
     rac_store.insert('uploads', {

@@ -1,18 +1,27 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
 import { API } from '../services/api'
 
 const BookingsPage = () => {
+  const [searchParams] = useSearchParams()
   const [bookings, setBookings] = useState([])
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ page: 1, limit: 50, status: '', search: '', date: '' })
+  const [savingId, setSavingId] = useState(null)
+  const [filters, setFilters] = useState({
+    page: 1,
+    limit: 50,
+    status: '',
+    search: '',
+    date: '',
+    payment: searchParams.get('payment') || '',
+  })
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
 
   useEffect(() => {
     loadBookings()
-  }, [filters.page, filters.status, filters.date])
+  }, [filters.page, filters.status, filters.date, filters.payment])
 
   const loadBookings = async () => {
     setLoading(true)
@@ -22,7 +31,8 @@ const BookingsPage = () => {
         limit: filters.limit,
         ...(filters.status && { status: filters.status }),
         ...(filters.search && { search: filters.search }),
-        ...(filters.date && { date: filters.date })
+        ...(filters.date && { date: filters.date }),
+        ...(filters.payment && { payment: filters.payment })
       }
       const response = await API.getBookings(params)
       setBookings(response.data)
@@ -38,6 +48,20 @@ const BookingsPage = () => {
   const handleSearch = (e) => {
     e.preventDefault()
     setFilters({ ...filters, page: 1 })
+  }
+
+  const isPaid = (booking) => String(booking.driver_payment_status || '').toLowerCase() === 'paid'
+
+  const togglePayment = async (booking) => {
+    setSavingId(booking.booking_id)
+    try {
+      await API.updateBookingPayment(booking.booking_id, { paid: !isPaid(booking) })
+      await loadBookings()
+    } catch (err) {
+      alert(err.message)
+    } finally {
+      setSavingId(null)
+    }
   }
 
   const renderStatusBadge = (status) => {
@@ -81,6 +105,10 @@ const BookingsPage = () => {
               <span className="card-label" style={{ fontSize: '12px', color: '#666' }}>🚫 Cancelled</span>
               <h2 style={{ margin: '5px 0', fontSize: '24px' }}>{summary.cancelled}</h2>
             </div>
+            <div className="card" style={{ padding: '15px', borderLeft: '4px solid #e67e22' }}>
+              <span className="card-label" style={{ fontSize: '12px', color: '#666' }}>💸 Driver unpaid</span>
+              <h2 style={{ margin: '5px 0', fontSize: '24px' }}>{summary.driver_unpaid || 0}</h2>
+            </div>
           </div>
         )}
 
@@ -116,6 +144,16 @@ const BookingsPage = () => {
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
             </select>
+            <select
+              value={filters.payment}
+              onChange={(e) => setFilters({ ...filters, payment: e.target.value, page: 1 })}
+              className="input"
+              style={{ width: 'auto' }}
+            >
+              <option value="">All payments</option>
+              <option value="Unpaid">Driver unpaid</option>
+              <option value="Paid">Driver paid</option>
+            </select>
             <button type="submit" className="btn-primary">Search</button>
           </form>
         </div>
@@ -135,6 +173,7 @@ const BookingsPage = () => {
                   <th>Duty Type</th>
                   <th>Amount</th>
                   <th>Status</th>
+                  <th>Driver pay</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -149,6 +188,21 @@ const BookingsPage = () => {
                     <td>{booking.duty_type}</td>
                     <td className="fw-600">₹{booking.amount}</td>
                     <td>{renderStatusBadge(booking.status)}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-small"
+                        disabled={savingId === booking.booking_id}
+                        onClick={() => togglePayment(booking)}
+                        style={{
+                          backgroundColor: isPaid(booking) ? '#2ecc71' : '#e67e22',
+                          color: 'white',
+                          border: 'none'
+                        }}
+                      >
+                        {savingId === booking.booking_id ? '…' : isPaid(booking) ? 'Paid' : 'Unpaid'}
+                      </button>
+                    </td>
                     <td>
                       <Link to={`/bookings/${booking.booking_id}`} className="btn-small">View</Link>
                     </td>

@@ -70,6 +70,9 @@ const UploadPage = () => {
       <div className="container">
         <h1>Upload Excel Bookings</h1>
         <p className="text-muted" style={{ marginBottom: '16px' }}>
+          Use the same Excel format as today. After upload, mark driver paid on the Bookings page. Payments are saved in Zoho Sheet with the booking.
+        </p>
+        <p className="text-muted" style={{ marginBottom: '16px' }}>
           Use the SMT column headers. Download a sample file if you are unsure.
           {' '}
           <button type="button" className="btn-secondary" onClick={downloadTemplate}>Download template</button>

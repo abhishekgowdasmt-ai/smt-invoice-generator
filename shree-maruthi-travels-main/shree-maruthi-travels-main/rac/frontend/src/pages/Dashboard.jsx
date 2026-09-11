@@ -73,6 +73,11 @@ const Dashboard = () => {
               <h2>{summary.cancelled_rides || 0}</h2>
               <p className="card-subtitle">Rejected/Cancelled</p>
             </div>
+            <Link to="/bookings?payment=Unpaid" className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <span className="card-label">💸 Driver unpaid</span>
+              <h2>{summary.unpaid_driver_payments || 0}</h2>
+              <p className="card-subtitle">Assigned/completed, not paid</p>
+            </Link>
           </div>
         ) : (
           <p className="loading">Loading statistics...</p>
