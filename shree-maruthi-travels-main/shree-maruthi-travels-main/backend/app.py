@@ -1679,13 +1679,12 @@ def admin_trips_generate():
     trip_mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(trip_mod)
 
-    watermark = os.path.join(trips_dir, 'hanuman.png')
     with tempfile.TemporaryDirectory() as tmp:
         excel_path = os.path.join(tmp, 'input.xlsx')
         pdf_path = os.path.join(tmp, 'Trip_Sheets.pdf')
         upload.save(excel_path)
         try:
-            trip_mod.generate_trip_sheets(excel_path, pdf_path, watermark)
+            trip_mod.generate_trip_sheets(excel_path, pdf_path)
         except Exception as err:
             return render_template(
                 'admin_trips.html',

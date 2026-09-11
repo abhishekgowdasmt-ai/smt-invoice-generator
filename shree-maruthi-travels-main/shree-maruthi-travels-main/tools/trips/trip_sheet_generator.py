@@ -1,4 +1,3 @@
-import os
 import re
 
 import pandas as pd
@@ -9,7 +8,6 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
 from reportlab.lib.units import mm
-from reportlab.lib.utils import ImageReader
 
 
 COLUMN_ALIASES = {
@@ -63,36 +61,10 @@ def safe_number(value):
 # -------------------------------------------------
 # MAIN PDF GENERATION FUNCTION
 # -------------------------------------------------
-def generate_trip_sheets(excel_file_path, output_pdf_path, watermark_image_path):
+def generate_trip_sheets(excel_file_path, output_pdf_path, watermark_image_path=None):
 
     df = _prepare_frame(excel_file_path)
 
-    # ---------- WATERMARK ----------
-    def draw_watermark(canvas, doc):
-        if not os.path.exists(watermark_image_path):
-            return
-
-        canvas.saveState()
-        canvas.setFillAlpha(0.07)
-
-        img = ImageReader(watermark_image_path)
-        w, h = A4
-
-        img_w = 120 * mm
-        img_h = 120 * mm
-
-        canvas.drawImage(
-            img,
-            (w - img_w) / 2,
-            (h - img_h) / 2,
-            img_w,
-            img_h,
-            mask="auto"
-        )
-
-        canvas.restoreState()
-
-    # ---------- DOCUMENT ----------
     doc = SimpleDocTemplate(
         output_pdf_path,
         pagesize=A4,
@@ -228,8 +200,4 @@ def generate_trip_sheets(excel_file_path, output_pdf_path, watermark_image_path)
         story.append(PageBreak())
 
     # ---------- BUILD ----------
-    doc.build(
-        story,
-        onFirstPage=draw_watermark,
-        onLaterPages=draw_watermark
-    )
+    doc.build(story)
