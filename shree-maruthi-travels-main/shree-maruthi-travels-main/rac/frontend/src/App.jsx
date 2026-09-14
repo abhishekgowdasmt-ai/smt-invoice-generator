@@ -9,6 +9,7 @@ import BookingDetailPage from './pages/BookingDetailPage'
 import DriversPage from './pages/DriversPage'
 import AssignmentPage from './pages/AssignmentPage'
 import MessagesPage from './pages/MessagesPage'
+import InsightsPage from './pages/InsightsPage'
 import WhatsAppSettings from './pages/WhatsAppSettings'
 
 // Auth Context
@@ -164,6 +165,7 @@ function App() {
           <Route path="/drivers" element={<ProtectedRoute><DriversPage /></ProtectedRoute>} />
           <Route path="/assignment" element={<ProtectedRoute><AssignmentPage /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
+          <Route path="/insights" element={<ProtectedRoute><InsightsPage /></ProtectedRoute>} />
           <Route path="/whatsapp-qr" element={<ProtectedRoute><WhatsAppSettings /></ProtectedRoute>} />
         </Routes>
       </BrowserRouter>

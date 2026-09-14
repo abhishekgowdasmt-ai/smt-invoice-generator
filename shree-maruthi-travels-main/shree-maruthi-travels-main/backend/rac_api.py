@@ -262,6 +262,7 @@ def dashboard_summary():
             'assigned_rides': sum(1 for row in bookings if row.get('status') == 'Assigned'),
             'completed_rides': sum(1 for row in bookings if row.get('status') == 'Completed'),
             'cancelled_rides': sum(1 for row in bookings if row.get('status') == 'Cancelled'),
+            'total_bookings': len(bookings),
             'unpaid_driver_payments': sum(
                 1 for row in bookings
                 if row.get('status') in ('Assigned', 'Completed')
@@ -271,6 +272,52 @@ def dashboard_summary():
             'message_failed_count': sum(1 for row in messages if row.get('send_status') in ('failed', 'skipped')),
             'upload_timestamp': datetime.utcnow().isoformat() + 'Z',
         }
+    })
+
+
+@rac_bp.route('/dashboard/insights', methods=['GET'])
+@require_rac
+def dashboard_insights():
+    bookings = rac_store.all_rows('bookings')
+    by_month = {}
+    by_driver = {}
+    by_cab = {}
+    by_area = {}
+    total_km = 0.0
+    employees = set()
+    for row in bookings:
+        month = str(row.get('trip_date') or '')[:7]
+        if month:
+            by_month[month] = by_month.get(month, 0) + 1
+        driver = (row.get('source_name') or '').strip() or 'Unknown'
+        by_driver[driver] = by_driver.get(driver, 0) + 1
+        cab = (row.get('cab_type') or 'Unknown').strip() or 'Unknown'
+        by_cab[cab] = by_cab.get(cab, 0) + 1
+        area = (row.get('planned_start') or '').strip() or 'Unknown'
+        by_area[area] = by_area.get(area, 0) + 1
+        try:
+            total_km += float(row.get('total_km') or 0)
+        except (TypeError, ValueError):
+            pass
+        emp = (row.get('employee_name') or '').strip()
+        if emp:
+            employees.add(emp.upper())
+    top = lambda mapping, n=12: [
+        {'name': key, 'count': mapping[key]}
+        for key in sorted(mapping, key=mapping.get, reverse=True)[:n]
+    ]
+    return jsonify({
+        'success': True,
+        'data': {
+            'total_trips': len(bookings),
+            'total_km': round(total_km, 1),
+            'unique_drivers': len(by_driver),
+            'unique_employees': len(employees),
+            'by_month': [{'month': key, 'count': by_month[key]} for key in sorted(by_month)],
+            'top_drivers': top(by_driver),
+            'by_cab': top(by_cab, 8),
+            'top_areas': top(by_area),
+        },
     })
 
 
@@ -375,6 +422,7 @@ def update_driver_status(driver_id):
 @require_rac
 def list_bookings():
     date = request.args.get('date') or ''
+    month = request.args.get('month') or ''
     status = request.args.get('status') or ''
     search = (request.args.get('search') or '').strip().lower()
     payment = request.args.get('payment') or ''
@@ -382,6 +430,8 @@ def list_bookings():
     rows = rac_store.all_rows('bookings')
     if date:
         rows = [row for row in rows if str(row.get('trip_date') or '') == date]
+    if month:
+        rows = [row for row in rows if str(row.get('trip_date') or '').startswith(month)]
     if assigned:
         rows = [row for row in rows if str(row.get('assigned_driver_id') or '') == assigned]
     if search:
@@ -400,7 +450,7 @@ def list_bookings():
             row for row in rows
             if (_driver_payment_status(row.get('driver_payment_status')) == 'Paid') == want_paid
         ]
-    sort_by = request.args.get('sort_by') or 'created_at'
+    sort_by = request.args.get('sort_by') or 'trip_date'
     reverse = (request.args.get('sort_order') or 'DESC').upper() != 'ASC'
     rows.sort(key=lambda row: str(row.get(sort_by) or ''), reverse=reverse)
     page_rows, page, limit, total = _paginate(rows, request.args.get('page'), request.args.get('limit'))

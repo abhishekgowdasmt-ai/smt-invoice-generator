@@ -20,6 +20,7 @@ const Navigation = () => {
         <Link to="/dashboard">Dashboard</Link>
         <Link to="/drivers">Drivers</Link>
         <Link to="/bookings">Bookings</Link>
+        <Link to="/insights">Insights</Link>
         <Link to="/upload">Upload</Link>
         <Link to="/assignment">Assign</Link>
         <Link to="/messages">Messages</Link>

@@ -147,6 +147,37 @@ def _load_zoho():
     return data if any_ok else None
 
 
+def _attach_history(data):
+    import rac_history
+    pending = []
+    existing = {str(row.get('source_booking_id')) for row in data['bookings']}
+    for row in rac_history.load_history_bookings():
+        if row.get('source_booking_id') in existing:
+            continue
+        item = dict(row)
+        item['created_at'] = item.get('created_at') or _now()
+        item['updated_at'] = item.get('updated_at') or _now()
+        data['bookings'].append(item)
+        existing.add(str(item.get('source_booking_id')))
+        pending.append(item)
+    if pending and not any(str(row.get('batch_id')) == rac_history.HISTORY_BATCH for row in data['uploads']):
+        data['uploads'].append({
+            'batch_id': rac_history.HISTORY_BATCH,
+            'file_name': 'MONTH OF MAY TO AUGUST FULL DUTY XL RAC 2026.xlsx',
+            'file_size': 0,
+            'uploaded_by': 'history-import',
+            'uploaded_at': _now(),
+            'total_rows': len(pending),
+            'success_rows': len(pending),
+            'failed_rows': 0,
+            'import_status': 'completed',
+            'error_summary': [],
+            'created_at': _now(),
+            'updated_at': _now(),
+        })
+    return pending
+
+
 def _seed_if_needed(data):
     if not data['drivers']:
         stamped = []
@@ -158,18 +189,30 @@ def _seed_if_needed(data):
         data['drivers'] = stamped
         if zoho_sheet.zoho_configured():
             zoho_sheet.add_records(SHEETS['drivers'], [_stringify(row) for row in stamped])
-    return data
+    pending_history = _attach_history(data)
+    return data, pending_history
 
 
 def load():
     global _data
+    pending_history = []
     with _lock:
         if _data is not None:
             return _data
         data = _load_zoho() or _load_json() or _empty()
-        _data = _seed_if_needed(data)
+        data, pending_history = _seed_if_needed(data)
+        _data = data
         _save_json(_data)
-        return _data
+    if pending_history and zoho_sheet.zoho_configured():
+        def _push_history():
+            chunk = 80
+            for start in range(0, len(pending_history), chunk):
+                zoho_sheet.add_records(
+                    SHEETS['bookings'],
+                    [_stringify(row) for row in pending_history[start:start + chunk]],
+                )
+        threading.Thread(target=_push_history, daemon=True).start()
+    return _data
 
 
 def all_rows(kind):
@@ -190,10 +233,10 @@ def insert(kind, row):
     item = dict(row)
     item['created_at'] = item.get('created_at') or _now()
     item['updated_at'] = _now()
+    load()
     with _lock:
-        data = load()
-        data[kind].append(item)
-        _save_json(data)
+        _data[kind].append(item)
+        _save_json(_data)
     if zoho_sheet.zoho_configured():
         zoho_sheet.add_records(SHEETS[kind], [_stringify(item)])
     return item
@@ -208,27 +251,29 @@ def insert_many(kind, rows):
         stored.append(item)
     if not stored:
         return []
+    load()
     with _lock:
-        data = load()
-        data[kind].extend(stored)
-        _save_json(data)
+        _data[kind].extend(stored)
+        _save_json(_data)
     if zoho_sheet.zoho_configured():
-        zoho_sheet.add_records(SHEETS[kind], [_stringify(row) for row in stored])
+        chunk = 80
+        for start in range(0, len(stored), chunk):
+            zoho_sheet.add_records(SHEETS[kind], [_stringify(row) for row in stored[start:start + chunk]])
     return stored
 
 
 def update_one(kind, id_field, id_value, changes):
     updated = None
+    load()
     with _lock:
-        data = load()
-        for row in data[kind]:
+        for row in _data[kind]:
             if str(row.get(id_field, '')) == str(id_value):
                 row.update(changes)
                 row['updated_at'] = _now()
                 updated = dict(row)
                 break
         if updated:
-            _save_json(data)
+            _save_json(_data)
     if updated and zoho_sheet.zoho_configured():
         zoho_sheet.update_record(SHEETS[kind], id_field, id_value, _stringify(updated))
     return updated

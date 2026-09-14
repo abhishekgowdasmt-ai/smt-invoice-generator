@@ -16,12 +16,13 @@ const BookingsPage = () => {
     search: '',
     date: '',
     payment: searchParams.get('payment') || '',
+    month: searchParams.get('month') || '',
   })
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
 
   useEffect(() => {
     loadBookings()
-  }, [filters.page, filters.status, filters.date, filters.payment])
+  }, [filters.page, filters.status, filters.date, filters.payment, filters.month])
 
   const loadBookings = async () => {
     setLoading(true)
@@ -32,7 +33,8 @@ const BookingsPage = () => {
         ...(filters.status && { status: filters.status }),
         ...(filters.search && { search: filters.search }),
         ...(filters.date && { date: filters.date }),
-        ...(filters.payment && { payment: filters.payment })
+        ...(filters.payment && { payment: filters.payment }),
+        ...(filters.month && { month: filters.month })
       }
       const response = await API.getBookings(params)
       setBookings(response.data)
@@ -82,6 +84,7 @@ const BookingsPage = () => {
       <Navigation />
       <div className="container">
         <h1>Bookings</h1>
+        <p className="card-subtitle" style={{ marginBottom: '16px' }}>All-time history, including May–August 2026 duties. Filter by month to drill in.</p>
 
         {summary && (
           <div className="kpi-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
@@ -122,6 +125,18 @@ const BookingsPage = () => {
               className="input"
               style={{ flex: '1', minWidth: '200px' }}
             />
+            <select
+              value={filters.month}
+              onChange={(e) => setFilters({ ...filters, month: e.target.value, page: 1 })}
+              className="input"
+              style={{ width: 'auto' }}
+            >
+              <option value="">All months</option>
+              <option value="2026-05">May 2026</option>
+              <option value="2026-06">June 2026</option>
+              <option value="2026-07">July 2026</option>
+              <option value="2026-08">August 2026</option>
+            </select>
             <input
               type="date"
               value={filters.date}

@@ -91,6 +91,7 @@ export const API = {
 
   // Dashboard
   getDashboardSummary: () => apiCall('/dashboard/summary'),
+  getInsights: () => apiCall('/dashboard/insights'),
 
   // WhatsApp
   getWhatsappStatus: () => apiCall('/whatsapp/status')

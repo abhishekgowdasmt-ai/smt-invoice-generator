@@ -78,6 +78,11 @@ const Dashboard = () => {
               <h2>{summary.unpaid_driver_payments || 0}</h2>
               <p className="card-subtitle">Assigned/completed, not paid</p>
             </Link>
+            <Link to="/bookings" className="card" style={{ textDecoration: 'none', color: 'inherit' }}>
+              <span className="card-label">📚 All history</span>
+              <h2>{summary.total_bookings || 0}</h2>
+              <p className="card-subtitle">Every stored trip</p>
+            </Link>
           </div>
         ) : (
           <p className="loading">Loading statistics...</p>
@@ -86,6 +91,7 @@ const Dashboard = () => {
         <div className="dashboard-actions">
           <h2>Quick Actions</h2>
           <div className="action-buttons">
+            <Link to="/insights" className="btn-primary">📊 Insights</Link>
             <Link to="/upload" className="btn-primary">📤 Upload Excel</Link>
             <Link to="/bookings" className="btn-primary">📋 View Bookings</Link>
             <Link to="/assignment" className="btn-primary">🎯 Assign Drivers</Link>
