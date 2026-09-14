@@ -2,6 +2,7 @@
 import json
 import os
 import threading
+import time
 import uuid
 from datetime import datetime
 
@@ -211,8 +212,15 @@ def load():
                     SHEETS['bookings'],
                     [_stringify(row) for row in pending_history[start:start + chunk]],
                 )
+                time.sleep(0.4)
         threading.Thread(target=_push_history, daemon=True).start()
     return _data
+
+
+def reset():
+    global _data
+    with _lock:
+        _data = None
 
 
 def all_rows(kind):
@@ -259,6 +267,7 @@ def insert_many(kind, rows):
         chunk = 80
         for start in range(0, len(stored), chunk):
             zoho_sheet.add_records(SHEETS[kind], [_stringify(row) for row in stored[start:start + chunk]])
+            time.sleep(0.4)
     return stored
 
 

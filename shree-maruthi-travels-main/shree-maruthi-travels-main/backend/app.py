@@ -9,10 +9,9 @@ from datetime import datetime
 from flask import Flask, request, jsonify, render_template, redirect, send_from_directory, Response, make_response
 from dotenv import load_dotenv
 
-# Load environment variables from local .env if present
-load_dotenv()
-
 base_dir = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(base_dir, '..', '.env'))
+load_dotenv(os.path.join(base_dir, '.env'))
 if base_dir not in sys.path:
     sys.path.insert(0, base_dir)
 
@@ -1650,6 +1649,30 @@ def admin_invoices(filename='index.html'):
     if denied:
         return denied
     return send_from_directory(invoices_dir, filename)
+
+
+@app.route('/admin/zoho', methods=['GET'])
+def admin_zoho():
+    denied = require_staff_page()
+    if denied:
+        return denied
+    from zoho_sheet import connection_status
+    return render_template('admin_zoho.html', status=connection_status())
+
+
+@app.route('/admin/zoho/connect', methods=['POST'])
+def admin_zoho_connect():
+    if not is_staff_request():
+        return jsonify({'success': False, 'message': 'Login required'}), 401
+    from zoho_sheet import connection_status, ensure_app_worksheets, exchange_grant_code
+    payload = request.get_json(silent=True) or request.form
+    result = exchange_grant_code((payload.get('code') or '').strip())
+    if result.get('success'):
+        ensure_app_worksheets()
+        import rac_store
+        rac_store.reset()
+    result['status'] = connection_status()
+    return jsonify(result)
 
 
 @app.route('/admin/trips', methods=['GET'])

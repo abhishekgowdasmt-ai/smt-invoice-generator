@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zoho Sheet | SMT Portal</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body style="background-color: var(--bg-main); min-height: 100vh;">
+    <div class="jmr-topbar-wrap">
+        <div class="jmr-topbar" style="justify-content: space-between; padding: 0.75rem 1.5rem;">
+            <strong class="company-name">SHREE MARUTHI TRAVELS</strong>
+            <a href="/admin" class="call-btn-top" style="text-decoration:none;">Back to portal</a>
+        </div>
+    </div>
+    <main class="container" style="max-width: 720px; margin: 2.5rem auto; padding: 0 1.25rem;">
+        <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px;">
+            <h1 style="color: var(--primary); margin-bottom: 0.5rem;">Zoho Sheet store</h1>
+            <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+                RAC bookings, drivers, uploads, messages, and website inquiries all write into
+                <a href="{{ status.sheet_url }}" target="_blank" rel="noopener">this spreadsheet</a>.
+            </p>
+            <p style="margin-bottom: 1rem;">
+                Status:
+                {% if status.connected %}
+                <strong style="color:#059669;">connected</strong>
+                {% else %}
+                <strong style="color:#b45309;">waiting for a grant code</strong>
+                {% endif %}
+            </p>
+            <ol style="color: var(--text-secondary); line-height: 1.6; padding-left: 1.25rem;">
+                <li>Open <a href="https://api-console.zoho.in/" target="_blank" rel="noopener">Zoho API console (India)</a> and this client.</li>
+                <li>Choose <strong>Self Client → Generate Code</strong>.</li>
+                <li>Scope: <code>ZohoSheet.dataAPI.READ,ZohoSheet.dataAPI.UPDATE</code></li>
+                <li>Time: 10 minutes. Generate, then paste the code below immediately.</li>
+            </ol>
+            <form id="zoho-form" style="margin-top: 1.25rem;">
+                <label for="code" style="display:block; margin-bottom: 0.4rem;">Grant code</label>
+                <textarea id="code" name="code" rows="3" required placeholder="1000.xxxx" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid #d1d5db;"></textarea>
+                <button class="btn btn-primary" type="submit" style="margin-top: 0.85rem;">Connect this sheet</button>
+            </form>
+            <p id="zoho-result" style="margin-top: 1rem; white-space: pre-wrap;"></p>
+        </section>
+    </main>
+    <script>
+        document.getElementById('zoho-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const resultEl = document.getElementById('zoho-result');
+            resultEl.textContent = 'Connecting…';
+            const response = await fetch('/admin/zoho/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ code: document.getElementById('code').value.trim() })
+            });
+            const data = await response.json();
+            if (data.success) {
+                resultEl.style.color = '#059669';
+                resultEl.textContent = data.message + (data.refresh_token ? '\n\nAlso add this as ZOHO_REFRESH_TOKEN on Render:\n' + data.refresh_token : '');
+            } else {
+                resultEl.style.color = '#b45309';
+                resultEl.textContent = data.message || 'Could not connect';
+            }
+        });
+    </script>
+</body>
+</html>

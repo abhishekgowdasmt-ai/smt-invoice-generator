@@ -3,6 +3,7 @@ Attendance-App-main/
 **/__pycache__/
 **/node_modules/
 **/.env
+**/.zoho_refresh_token
 **/venv/
 **/database.db
 *.pyc

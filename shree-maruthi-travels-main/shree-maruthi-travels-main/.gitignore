@@ -7,6 +7,7 @@ __pycache__/
 backend/venv/
 venv/
 .env
+backend/.zoho_refresh_token
 
 # Local database (use Zoho Sheet in production)
 backend/database.db
