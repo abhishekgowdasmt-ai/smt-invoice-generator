@@ -921,6 +921,168 @@ body {
   text-align: center;
 }
 
+.insight-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.insight-panel h3 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.insight-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(160px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.insight-chart {
+  min-height: 180px;
+}
+
+.insight-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.insight-bar-row {
+  display: grid;
+  grid-template-columns: minmax(72px, 110px) 1fr 42px;
+  gap: 8px;
+  align-items: center;
+}
+
+.insight-bar-label {
+  font-size: 12px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insight-bar-track {
+  height: 12px;
+  background: #eef1f8;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.insight-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  min-width: 4px;
+}
+
+.insight-bar-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #333;
+  text-align: right;
+}
+
+.insight-columns {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  height: 210px;
+  padding-top: 8px;
+}
+
+.insight-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+
+.insight-col-track {
+  flex: 1;
+  width: 100%;
+  max-width: 48px;
+  background: #eef1f8;
+  border-radius: 8px 8px 4px 4px;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.insight-col-fill {
+  width: 100%;
+  min-height: 6px;
+  border-radius: 8px 8px 0 0;
+}
+
+.insight-col-label,
+.insight-col-value {
+  font-size: 12px;
+  color: #555;
+}
+
+.insight-col-value {
+  font-weight: 700;
+  color: #333;
+}
+
+.insight-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.insight-donut {
+  width: 150px;
+  height: 150px;
+  flex-shrink: 0;
+}
+
+.insight-donut-total {
+  font-size: 18px;
+  font-weight: 700;
+  fill: #333;
+}
+
+.insight-donut-caption {
+  font-size: 11px;
+  fill: #888;
+}
+
+.insight-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #444;
+}
+
+.insight-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.insight-legend strong {
+  margin-left: auto;
+}
+
+.insight-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;
@@ -997,6 +1159,14 @@ body {
 
   .kpi-cards {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .insight-split {
+    grid-template-columns: 1fr;
   }
 
   .table {
