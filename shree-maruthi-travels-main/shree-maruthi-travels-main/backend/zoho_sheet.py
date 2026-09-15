@@ -194,7 +194,10 @@ def _sheet_url():
 
 
 def _sheet_headers(token):
-    return {'Authorization': f'Zoho-oauthtoken {token}'}
+    return {
+        'Authorization': f'Zoho-oauthtoken {token}',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+    }
 
 
 def _sheet_call(payload, http='post', timeout=45):
@@ -212,10 +215,29 @@ def _sheet_call(payload, http='post', timeout=45):
         return None
 
 
+def list_worksheets():
+    result = _sheet_call({'method': 'worksheet.list'})
+    names = []
+    if not result:
+        return names
+    for key in ('worksheet_names', 'worksheets', 'sheet_names'):
+        value = result.get(key)
+        if isinstance(value, list):
+            for item in value:
+                if isinstance(item, str):
+                    names.append(item)
+                elif isinstance(item, dict):
+                    names.append(item.get('worksheet_name') or item.get('sheet_name') or item.get('name') or '')
+    return [name for name in names if name]
+
+
 def ensure_worksheet(worksheet_name):
+    existing = {name.lower() for name in list_worksheets()}
+    if worksheet_name.lower() in existing:
+        return True
     result = _sheet_call({
         'method': 'worksheet.create',
-        'worksheet_name': worksheet_name,
+        'new_sheet_name': worksheet_name,
     })
     if result and result.get('status') == 'success':
         print(f'[ZOHO] Created worksheet {worksheet_name}')
@@ -225,7 +247,7 @@ def ensure_worksheet(worksheet_name):
         return True
     if result:
         print(f'[ZOHO] worksheet.create {worksheet_name}: {result}')
-    return bool(result)
+    return False
 
 
 def ensure_app_worksheets():
