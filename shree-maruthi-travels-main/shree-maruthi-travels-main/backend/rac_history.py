@@ -29,7 +29,7 @@ def load_history_bookings():
             'pickup_time': str(row.get('pickup_time') or ''),
             'end_time': str(row.get('end_time') or ''),
             'total_hours_text': str(row.get('total_hours_text') or ''),
-            'cab_type': row.get('cab_type') or '',
+            'cab_type': (row.get('cab_type') or '').strip().title(),
             'employee_name': row.get('employee_name') or row.get('source_name') or 'Unknown',
             'start_km': row.get('start_km') or 0,
             'end_km': row.get('end_km') or 0,

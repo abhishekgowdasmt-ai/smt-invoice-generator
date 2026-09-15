@@ -60,6 +60,13 @@ def _truthy(value):
     return str(value or '').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
+def _title_label(value, fallback='Unknown'):
+    text = str(value or '').strip()
+    if not text:
+        return fallback
+    return text.title()
+
+
 def _driver_payment_status(value):
     text = str(value or '').strip().lower()
     if text in ('paid', 'yes', 'y', '1', 'true', 'done'):
@@ -297,7 +304,7 @@ def dashboard_insights():
                 by_month[month] = by_month.get(month, 0) + 1
             driver = text(row.get('source_name'))
             by_driver[driver] = by_driver.get(driver, 0) + 1
-            cab = text(row.get('cab_type'))
+            cab = _title_label(row.get('cab_type'))
             by_cab[cab] = by_cab.get(cab, 0) + 1
             area = text(row.get('planned_start'))
             by_area[area] = by_area.get(area, 0) + 1
