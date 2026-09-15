@@ -10,6 +10,14 @@ ZOHO_ACCOUNTS_URL = 'https://accounts.zoho.in/oauth/v2/token'
 WORKDRIVE_API = 'https://www.zohoapis.in/workdrive/api/v1'
 TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.workdrive_refresh_token')
 SCOPES = 'WorkDrive.files.CREATE,WorkDrive.files.READ,WorkDrive.files.UPDATE'
+DEFAULT_MY_FOLDERS = 'fdt9ecc0dfce8be504750a9fd402ab05c6ff8'
+KIND_FOLDERS = {
+    'trip-excel': 'Trip_Sheets',
+    'trip-pdf': 'Trip_Sheets',
+    'invoice': 'Invoices',
+    'manual': 'Invoices',
+}
+_folder_cache = {}
 
 _access_token_cache = {'token': None, 'expires_at': 0}
 
@@ -46,7 +54,7 @@ def _save_refresh_token(token):
 
 
 def folder_id():
-    return (os.environ.get('WORKDRIVE_FOLDER_ID') or '').strip()
+    return (os.environ.get('WORKDRIVE_FOLDER_ID') or DEFAULT_MY_FOLDERS).strip()
 
 
 def configured():
@@ -61,7 +69,7 @@ def connection_status():
         'has_folder_id': bool(folder_id()),
         'folder_id': folder_id(),
         'scopes': SCOPES,
-        'folder_url': f'https://workdrive.zoho.in/folder/{folder_id()}' if folder_id() else '',
+        'folder_url': 'https://workdrive.zoho.in/fdt9ecc0dfce8be504750a9fd402ab05c6ff8/privatespace/folders/files',
     }
 
 
@@ -121,7 +129,51 @@ def _access_token():
     return token
 
 
-def upload_bytes(filename, content, parent=None):
+def _headers(token):
+    return {
+        'Authorization': f'Zoho-oauthtoken {token}',
+        'Accept': 'application/vnd.api+json',
+    }
+
+
+def _list_children(parent, token, limit=100):
+    try:
+        resp = requests.get(
+            f'{WORKDRIVE_API}/files/{quote(parent)}/files',
+            headers=_headers(token),
+            params={'page[limit]': min(int(limit), 200)},
+            timeout=30,
+        )
+        payload = resp.json()
+    except Exception as exc:
+        print(f'[WORKDRIVE] list error: {exc}')
+        return []
+    return payload.get('data') or []
+
+
+def folder_id_for_kind(kind):
+    wanted = KIND_FOLDERS.get((kind or '').strip().lower())
+    if not wanted:
+        return folder_id()
+    cached = _folder_cache.get(wanted.lower())
+    if cached:
+        return cached
+    token = _access_token()
+    if not token:
+        return folder_id()
+    for item in _list_children(folder_id(), token):
+        attrs = item.get('attributes') or {}
+        name = str(attrs.get('name') or attrs.get('display_attr_name') or '').strip()
+        if not attrs.get('is_folder') and str(attrs.get('type') or '').lower() != 'folder':
+            continue
+        if name.lower() == wanted.lower():
+            found = item.get('id') or attrs.get('resource_id') or folder_id()
+            _folder_cache[wanted.lower()] = found
+            return found
+    return folder_id()
+
+
+def upload_bytes(filename, content, parent=None, kind=''):
     if not configured():
         return {'ok': False, 'skipped': True, 'message': 'WorkDrive is not configured'}
     token = _access_token()
@@ -133,7 +185,7 @@ def upload_bytes(filename, content, parent=None):
     }
     data = {
         'filename': name,
-        'parent_id': parent or folder_id(),
+        'parent_id': parent or folder_id_for_kind(kind),
         'override-name-exist': 'false',
     }
     try:
@@ -177,32 +229,23 @@ def list_files(limit=100):
     token = _access_token()
     if not token:
         return []
-    try:
-        resp = requests.get(
-            f'{WORKDRIVE_API}/files/{quote(folder_id())}/files',
-            headers={
-                'Authorization': f'Zoho-oauthtoken {token}',
-                'Accept': 'application/vnd.api+json',
-            },
-            params={'page[limit]': min(int(limit), 200)},
-            timeout=30,
-        )
-        payload = resp.json()
-    except Exception as exc:
-        print(f'[WORKDRIVE] list error: {exc}')
-        return []
-    items = payload.get('data') or []
+    parents = [folder_id()]
+    for name in ('Invoices', 'Trip_Sheets'):
+        found = folder_id_for_kind('invoice' if name == 'Invoices' else 'trip-pdf')
+        if found and found not in parents:
+            parents.append(found)
     out = []
-    for item in items:
-        attrs = item.get('attributes') or {}
-        file_id = item.get('id') or attrs.get('resource_id') or ''
-        if attrs.get('is_folder'):
-            continue
-        out.append({
-            'id': file_id,
-            'name': attrs.get('name') or attrs.get('display_attr_name') or '',
-            'created_at': attrs.get('created_time') or '',
-            'size': (attrs.get('storage_info') or {}).get('size') or '',
-            'permalink': f'https://workdrive.zoho.in/file/{file_id}' if file_id else '',
-        })
+    for parent in parents:
+        for item in _list_children(parent, token, limit):
+            attrs = item.get('attributes') or {}
+            file_id = item.get('id') or attrs.get('resource_id') or ''
+            if attrs.get('is_folder') or str(attrs.get('type') or '').lower() == 'folder':
+                continue
+            out.append({
+                'id': file_id,
+                'name': attrs.get('name') or attrs.get('display_attr_name') or '',
+                'created_at': attrs.get('created_time') or '',
+                'size': (attrs.get('storage_info') or {}).get('size') or '',
+                'permalink': f'https://workdrive.zoho.in/file/{file_id}' if file_id else '',
+            })
     return out

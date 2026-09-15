@@ -19,7 +19,7 @@ def archive_bytes(kind, filename, content, uploaded_by=None):
     safe_name = f'{stamp}_{kind}_{filename}'.replace('/', '-').replace('\\', '-')
     try:
         import zoho_workdrive
-        result = zoho_workdrive.upload_bytes(safe_name, content)
+        result = zoho_workdrive.upload_bytes(safe_name, content, kind=kind)
     except Exception as exc:
         print(f'[ARCHIVE] WorkDrive upload failed: {exc}')
         return {'ok': False, 'message': str(exc)}
