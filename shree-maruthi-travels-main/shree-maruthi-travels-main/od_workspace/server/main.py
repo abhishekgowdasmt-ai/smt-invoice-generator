@@ -319,6 +319,11 @@ async def import_bookings(
     if not rows:
         raise HTTPException(status_code=400, detail="No RAC bookings found in that file")
     result = BIZ.import_bookings(rows)
+    try:
+        import file_archive
+        file_archive.archive_bytes("od-import", file.filename or "od-import.xlsx", payload)
+    except Exception as exc:
+        print(f"[OD] WorkDrive archive skipped: {exc}")
     return {"ok": True, **result}
 
 

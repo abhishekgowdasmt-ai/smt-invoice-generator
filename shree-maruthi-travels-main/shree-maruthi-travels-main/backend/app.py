@@ -1742,6 +1742,46 @@ def admin_zoho_connect():
     return jsonify(result)
 
 
+@app.route('/admin/files', methods=['GET'])
+def admin_files():
+    denied = require_staff_page()
+    if denied:
+        return denied
+    import zoho_workdrive
+    files = []
+    error = ''
+    try:
+        files = zoho_workdrive.list_files()
+    except Exception as exc:
+        error = str(exc)
+    return render_template('admin_files.html', status=zoho_workdrive.connection_status(), files=files, error=error)
+
+
+@app.route('/admin/files/connect', methods=['POST'])
+def admin_files_connect():
+    if not is_staff_request():
+        return jsonify({'success': False, 'message': 'Login required'}), 401
+    import zoho_workdrive
+    payload = request.get_json(silent=True) or request.form
+    result = zoho_workdrive.exchange_grant_code((payload.get('code') or '').strip())
+    result['status'] = zoho_workdrive.connection_status()
+    return jsonify(result)
+
+
+@app.route('/api/admin/files', methods=['POST'])
+def admin_files_upload():
+    if not is_staff_request():
+        return jsonify({'error': 'Unauthorized Access'}), 401
+    upload = request.files.get('file')
+    if not upload or not upload.filename:
+        return jsonify({'error': 'Choose a file'}), 400
+    kind = (request.form.get('kind') or 'upload').strip() or 'upload'
+    import file_archive
+    result = file_archive.archive_bytes(kind, upload.filename, upload.read())
+    status = 201 if result.get('ok') else 400
+    return jsonify(result), status
+
+
 @app.route('/admin/trips', methods=['GET'])
 def admin_trips():
     denied = require_staff_page()
@@ -1780,8 +1820,16 @@ def admin_trips_generate():
                 'admin_trips.html',
                 error=f'Could not build the PDF: {err}',
             ), 400
+        with open(excel_path, 'rb') as excel_handle:
+            excel_bytes = excel_handle.read()
         with open(pdf_path, 'rb') as pdf:
             data = pdf.read()
+    try:
+        import file_archive
+        file_archive.archive_bytes('trip-excel', upload.filename, excel_bytes)
+        file_archive.archive_bytes('trip-pdf', 'Trip_Sheets.pdf', data)
+    except Exception as exc:
+        print(f'[TRIPS] WorkDrive archive skipped: {exc}')
     resp = make_response(data)
     resp.headers['Content-Type'] = 'application/pdf'
     resp.headers['Content-Disposition'] = 'attachment; filename=Trip_Sheets.pdf'

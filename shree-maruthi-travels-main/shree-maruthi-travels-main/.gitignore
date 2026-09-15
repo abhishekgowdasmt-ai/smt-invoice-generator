@@ -8,6 +8,7 @@ backend/venv/
 venv/
 .env
 backend/.zoho_refresh_token
+backend/.workdrive_refresh_token
 PERSONAL_NOTES_SECRETS.txt
 *_SECRETS.txt
 

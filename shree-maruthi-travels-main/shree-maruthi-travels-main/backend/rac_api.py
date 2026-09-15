@@ -635,9 +635,10 @@ def upload_excel():
     name = upload.filename.lower()
     if not name.endswith(('.xlsx', '.xls')):
         return jsonify({'success': False, 'message': 'Only Excel files are allowed'}), 400
+    raw = upload.read()
     try:
         import pandas as pd
-        frame = pd.read_excel(io.BytesIO(upload.read()))
+        frame = pd.read_excel(io.BytesIO(raw))
     except Exception as exc:
         return jsonify({'success': False, 'message': f'Could not read Excel: {exc}'}), 400
     if frame.empty:
@@ -709,6 +710,11 @@ def upload_excel():
     })
     if processed:
         rac_store.insert_many('bookings', processed)
+    try:
+        import file_archive
+        file_archive.archive_bytes('rac-upload', upload.filename, raw, request.rac_user.get('email'))
+    except Exception as exc:
+        print(f'[RAC] WorkDrive archive skipped: {exc}')
     return jsonify({
         'success': True,
         'batch_id': batch_id,

@@ -21,6 +21,7 @@ APP_WORKSHEETS = (
     'RAC_Assignments',
     'RAC_Uploads',
     'RAC_Messages',
+    'SMT_Files',
 )
 
 _access_token_cache = {'token': None, 'expires_at': 0}

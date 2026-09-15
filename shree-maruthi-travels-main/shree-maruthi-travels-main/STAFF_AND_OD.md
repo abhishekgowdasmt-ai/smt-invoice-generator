@@ -117,6 +117,26 @@ GOOGLE_CLIENT_SECRET=
 
 plus the existing RAC `ZOHO_*` keys, and the `LEDGER_ZOHO_*` keys from the AIC ledger screenshot (mapped to the `LEDGER_` names). Copy values from local `.env`. Leave `GOOGLE_CLIENT_SECRET` empty in git.
 
+## Zoho WorkDrive file history
+
+PDFs and Excel are not stored in Zoho Vault. They go to **WorkDrive**.
+
+Staff page: `/admin/files`
+
+Auto-saved when connected:
+
+- RAC Excel upload
+- Trip sheet Excel + generated PDF
+- OD workspace Excel import
+- Any file dropped on File history
+
+Setup:
+
+1. Create WorkDrive folder `SMT History`. Copy folder id from the URL into `WORKDRIVE_FOLDER_ID`.
+2. Zoho API console Self Client → Generate Code with  
+   `WorkDrive.files.CREATE,WorkDrive.files.READ,WorkDrive.files.UPDATE`
+3. Paste the code on `/admin/files`. Put the new refresh token on the host as `WORKDRIVE_REFRESH_TOKEN` (do not replace `ZOHO_REFRESH_TOKEN`).
+
 ## Local test
 
 ```bat

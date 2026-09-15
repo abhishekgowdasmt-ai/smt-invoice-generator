@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File history | SMT Portal</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body style="background-color: var(--bg-main); min-height: 100vh;">
+    <div class="jmr-topbar-wrap">
+        <div class="jmr-topbar" style="justify-content: space-between; padding: 0.75rem 1.5rem;">
+            <strong class="company-name">SHREE MARUTHI TRAVELS</strong>
+            <a href="/admin" class="call-btn-top" style="text-decoration:none;">Back to portal</a>
+        </div>
+    </div>
+    <main class="container" style="max-width: 860px; margin: 2.5rem auto; padding: 0 1.25rem;">
+        <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px;">
+            <h1 style="color: var(--primary); margin-bottom: 0.5rem;">Zoho WorkDrive history</h1>
+            <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+                RAC Excel uploads, trip Excel + PDFs, OD imports, and files you drop here are stored in WorkDrive.
+            </p>
+            <p style="margin-bottom: 1rem;">
+                Status:
+                {% if status.connected %}
+                <strong style="color:#059669;">connected</strong>
+                {% if status.folder_url %}
+                · <a href="{{ status.folder_url }}" target="_blank" rel="noopener">open folder</a>
+                {% endif %}
+                {% else %}
+                <strong style="color:#b45309;">needs grant code + folder id</strong>
+                {% endif %}
+            </p>
+            <ol style="color: var(--text-secondary); line-height: 1.6; padding-left: 1.25rem;">
+                <li>In WorkDrive create a folder named <strong>SMT History</strong>.</li>
+                <li>Open that folder. Copy the id after <code>/folder/</code> or <code>/folders/</code> in the URL. Put it on the host as <code>WORKDRIVE_FOLDER_ID</code>.</li>
+                <li>Open <a href="https://api-console.zoho.in/" target="_blank" rel="noopener">Zoho API console (India)</a>, same Self Client as Sheet.</li>
+                <li>Generate Code with scope:<br><code>{{ status.scopes }}</code></li>
+                <li>Paste the code below within 10 minutes. Do not replace the RAC Sheet refresh token.</li>
+            </ol>
+            <form id="wd-form" style="margin-top: 1.25rem;">
+                <label for="code" style="display:block; margin-bottom: 0.4rem;">WorkDrive grant code</label>
+                <textarea id="code" name="code" rows="3" required placeholder="1000.xxxx" style="width:100%; padding:0.75rem; border-radius:8px; border:1px solid #d1d5db;"></textarea>
+                <button class="btn btn-primary" type="submit" style="margin-top: 0.85rem;">Connect WorkDrive</button>
+            </form>
+            <p id="wd-result" style="margin-top: 1rem; white-space: pre-wrap;"></p>
+        </section>
+
+        <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px; margin-top: 1.5rem;">
+            <h2 style="margin-bottom: 0.75rem;">Upload a file</h2>
+            <form id="upload-form">
+                <input type="file" name="file" required>
+                <button class="btn btn-primary" type="submit" style="margin-top: 0.75rem;">Save to WorkDrive</button>
+            </form>
+            <p id="upload-result" style="margin-top: 0.75rem;"></p>
+        </section>
+
+        <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px; margin-top: 1.5rem;">
+            <h2 style="margin-bottom: 0.75rem;">Recent files</h2>
+            {% if error %}
+            <p style="color:#b45309;">{{ error }}</p>
+            {% endif %}
+            {% if files %}
+            <ul style="line-height: 1.7;">
+                {% for file in files %}
+                <li>
+                    <a href="{{ file.permalink }}" target="_blank" rel="noopener">{{ file.name }}</a>
+                    <span style="color: var(--text-muted); font-size: 0.85rem;">{{ file.created_at }} {{ file.size }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p style="color: var(--text-muted);">No files listed yet. Connect WorkDrive, then generate a trip sheet or upload RAC Excel.</p>
+            {% endif %}
+        </section>
+    </main>
+    <script>
+        document.getElementById('wd-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const resultEl = document.getElementById('wd-result');
+            resultEl.textContent = 'Connecting…';
+            const response = await fetch('/admin/files/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ code: document.getElementById('code').value.trim() })
+            });
+            const data = await response.json();
+            if (data.success) {
+                resultEl.style.color = '#059669';
+                resultEl.textContent = data.message + (data.refresh_token ? '\n\nAdd this as WORKDRIVE_REFRESH_TOKEN on Render:\n' + data.refresh_token : '');
+            } else {
+                resultEl.style.color = '#b45309';
+                resultEl.textContent = data.message || 'Could not connect';
+            }
+        });
+        document.getElementById('upload-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const resultEl = document.getElementById('upload-result');
+            resultEl.textContent = 'Saving…';
+            const body = new FormData(event.target);
+            body.append('kind', 'manual');
+            const response = await fetch('/api/admin/files', { method: 'POST', credentials: 'same-origin', body });
+            const data = await response.json();
+            if (data.ok) {
+                resultEl.style.color = '#059669';
+                resultEl.textContent = 'Saved. Refresh to see it in the list.';
+            } else {
+                resultEl.style.color = '#b45309';
+                resultEl.textContent = data.message || data.error || 'Could not save';
+            }
+        });
+    </script>
+</body>
+</html>
