@@ -10,6 +10,7 @@ from flask import Flask, request, jsonify, render_template, redirect, send_from_
 from dotenv import load_dotenv
 from itsdangerous import BadSignature, SignatureExpired
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(base_dir, '..', '.env'))
@@ -43,6 +44,7 @@ app = Flask(
     template_folder=os.path.abspath(template_dir),
     static_folder=os.path.abspath(static_dir)
 )
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 @app.context_processor
 def inject_now():
     return {
@@ -63,7 +65,15 @@ def _zoho_ok():
 
 
 def _cookie_secure():
-    return request.is_secure or request.headers.get('X-Forwarded-Proto', '').lower() == 'https'
+    return request.is_secure or request.headers.get('X-Forwarded-Proto', '').split(',')[0].strip().lower() == 'https'
+
+
+def _google_redirect_uri():
+    proto = (request.headers.get('X-Forwarded-Proto') or request.scheme or 'https').split(',')[0].strip().lower()
+    host = (request.headers.get('X-Forwarded-Host') or request.host or '').split(',')[0].strip()
+    if not host.startswith('127.0.0.1') and not host.startswith('localhost'):
+        proto = 'https'
+    return f'{proto}://{host}/admin/google/callback'
 
 
 def is_staff_request():
@@ -657,7 +667,7 @@ def admin_google_login():
             'admin_forbidden.html',
             message='Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the host.',
         ), 503
-    redirect_uri = request.host_url.rstrip('/') + '/admin/google/callback'
+    redirect_uri = _google_redirect_uri()
     state = staff_auth.dump_state({'next': request.args.get('next') or '/admin'})
     return redirect(staff_auth.google_authorize_url(redirect_uri, state))
 
@@ -670,7 +680,7 @@ def admin_google_callback():
     if error:
         return redirect('/admin?login_error=google')
     code = request.args.get('code') or ''
-    redirect_uri = request.host_url.rstrip('/') + '/admin/google/callback'
+    redirect_uri = _google_redirect_uri()
     email, fail = staff_auth.google_exchange(code, redirect_uri)
     if fail or not email:
         return redirect('/admin?login_error=google')
