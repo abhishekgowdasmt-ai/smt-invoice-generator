@@ -8,6 +8,8 @@ backend/venv/
 venv/
 .env
 backend/.zoho_refresh_token
+PERSONAL_NOTES_SECRETS.txt
+*_SECRETS.txt
 
 # Local database (use Zoho Sheet in production)
 backend/database.db
