@@ -278,47 +278,55 @@ def dashboard_summary():
 @rac_bp.route('/dashboard/insights', methods=['GET'])
 @require_rac
 def dashboard_insights():
-    bookings = rac_store.all_rows('bookings')
-    by_month = {}
-    by_driver = {}
-    by_cab = {}
-    by_area = {}
-    total_km = 0.0
-    employees = set()
-    for row in bookings:
-        month = str(row.get('trip_date') or '')[:7]
-        if month:
-            by_month[month] = by_month.get(month, 0) + 1
-        driver = (row.get('source_name') or '').strip() or 'Unknown'
-        by_driver[driver] = by_driver.get(driver, 0) + 1
-        cab = (row.get('cab_type') or 'Unknown').strip() or 'Unknown'
-        by_cab[cab] = by_cab.get(cab, 0) + 1
-        area = (row.get('planned_start') or '').strip() or 'Unknown'
-        by_area[area] = by_area.get(area, 0) + 1
-        try:
-            total_km += float(row.get('total_km') or 0)
-        except (TypeError, ValueError):
-            pass
-        emp = (row.get('employee_name') or '').strip()
-        if emp:
-            employees.add(emp.upper())
-    top = lambda mapping, n=12: [
-        {'name': key, 'count': mapping[key]}
-        for key in sorted(mapping, key=mapping.get, reverse=True)[:n]
-    ]
-    return jsonify({
-        'success': True,
-        'data': {
-            'total_trips': len(bookings),
-            'total_km': round(total_km, 1),
-            'unique_drivers': len(by_driver),
-            'unique_employees': len(employees),
-            'by_month': [{'month': key, 'count': by_month[key]} for key in sorted(by_month)],
-            'top_drivers': top(by_driver),
-            'by_cab': top(by_cab, 8),
-            'top_areas': top(by_area),
-        },
-    })
+    def text(value, fallback='Unknown'):
+        if value is None:
+            return fallback
+        return str(value).strip() or fallback
+
+    try:
+        bookings = rac_store.all_rows('bookings')
+        by_month = {}
+        by_driver = {}
+        by_cab = {}
+        by_area = {}
+        total_km = 0.0
+        employees = set()
+        for row in bookings:
+            month = str(row.get('trip_date') or '')[:7]
+            if month:
+                by_month[month] = by_month.get(month, 0) + 1
+            driver = text(row.get('source_name'))
+            by_driver[driver] = by_driver.get(driver, 0) + 1
+            cab = text(row.get('cab_type'))
+            by_cab[cab] = by_cab.get(cab, 0) + 1
+            area = text(row.get('planned_start'))
+            by_area[area] = by_area.get(area, 0) + 1
+            try:
+                total_km += float(row.get('total_km') or 0)
+            except (TypeError, ValueError):
+                pass
+            emp = text(row.get('employee_name'), '')
+            if emp:
+                employees.add(emp.upper())
+        top = lambda mapping, n=12: [
+            {'name': key, 'count': mapping[key]}
+            for key in sorted(mapping, key=mapping.get, reverse=True)[:n]
+        ]
+        return jsonify({
+            'success': True,
+            'data': {
+                'total_trips': len(bookings),
+                'total_km': round(total_km, 1),
+                'unique_drivers': len(by_driver),
+                'unique_employees': len(employees),
+                'by_month': [{'month': key, 'count': by_month[key]} for key in sorted(by_month)],
+                'top_drivers': top(by_driver),
+                'by_cab': top(by_cab, 8),
+                'top_areas': top(by_area),
+            },
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'message': f'Could not build insights: {exc}'}), 500
 
 
 @rac_bp.route('/whatsapp/status', methods=['GET'])

@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, redirect, send_from_directory, Response, make_response
 from dotenv import load_dotenv
+from werkzeug.exceptions import HTTPException
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(base_dir, '..', '.env'))
@@ -79,6 +80,15 @@ def require_staff_page():
 
 
 app.register_blueprint(rac_bp, url_prefix='/api/v1')
+
+
+@app.errorhandler(Exception)
+def json_api_errors(exc):
+    if not request.path.startswith('/api/v1'):
+        raise exc
+    if isinstance(exc, HTTPException):
+        return jsonify({'success': False, 'message': exc.description or exc.name}), exc.code or 500
+    return jsonify({'success': False, 'message': str(exc)}), 500
 
 
 @app.before_request

@@ -15,12 +15,17 @@ export const apiCall = async (endpoint, options = {}) => {
     headers: { ...getHeaders(), ...options.headers }
   })
 
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.message || `HTTP ${response.status}`)
+  const contentType = response.headers.get('content-type') || ''
+  const isJson = contentType.includes('application/json')
+  if (!isJson) {
+    throw new Error(response.ok ? 'Server returned a page instead of data. Refresh and try again.' : `Request failed (${response.status})`)
   }
 
-  return response.json()
+  const data = await response.json()
+  if (!response.ok) {
+    throw new Error(data.message || `HTTP ${response.status}`)
+  }
+  return data
 }
 
 export const API = {

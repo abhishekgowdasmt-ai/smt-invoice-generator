@@ -138,17 +138,50 @@ def _load_zoho():
     if not zoho_sheet.zoho_configured():
         return None
     data = _empty()
+    bookings_ok = False
     any_ok = False
     for key, worksheet in SHEETS.items():
-        rows = zoho_sheet.fetch_records(worksheet)
+        try:
+            rows = zoho_sheet.fetch_records(worksheet)
+        except Exception as exc:
+            print(f'[RAC] Zoho fetch {key} failed: {exc}')
+            rows = None
         if rows is None:
             continue
         any_ok = True
         data[key] = [_parse_row(row) for row in rows if row]
-    return data if any_ok else None
+        if key == 'bookings':
+            bookings_ok = True
+    if not any_ok:
+        return None
+    if zoho_sheet.zoho_configured() and not bookings_ok:
+        print('[RAC] Zoho bookings sheet was not readable; using local history instead')
+        return None
+    return data
 
 
-def _attach_history(data):
+def _hydrate_zoho():
+    try:
+        zoho = _load_zoho()
+    except Exception as exc:
+        print(f'[RAC] Zoho hydrate failed: {exc}')
+        return
+    if not zoho:
+        return
+    with _lock:
+        if _data is None:
+            return
+        by_id = {str(row.get('source_booking_id')): row for row in _data.get('bookings') or []}
+        for row in zoho.get('bookings') or []:
+            by_id[str(row.get('source_booking_id'))] = row
+        _data['bookings'] = list(by_id.values())
+        for kind in ('drivers', 'assignments', 'uploads', 'messages'):
+            if zoho.get(kind):
+                _data[kind] = zoho[kind]
+        _save_json(_data)
+
+
+def _attach_history(data, push=True):
     import rac_history
     pending = []
     existing = {str(row.get('source_booking_id')) for row in data['bookings']}
@@ -160,7 +193,8 @@ def _attach_history(data):
         item['updated_at'] = item.get('updated_at') or _now()
         data['bookings'].append(item)
         existing.add(str(item.get('source_booking_id')))
-        pending.append(item)
+        if push:
+            pending.append(item)
     if pending and not any(str(row.get('batch_id')) == rac_history.HISTORY_BATCH for row in data['uploads']):
         data['uploads'].append({
             'batch_id': rac_history.HISTORY_BATCH,
@@ -188,32 +222,20 @@ def _seed_if_needed(data):
             item['updated_at'] = item.get('updated_at') or _now()
             stamped.append(item)
         data['drivers'] = stamped
-        if zoho_sheet.zoho_configured():
-            zoho_sheet.add_records(SHEETS['drivers'], [_stringify(row) for row in stamped])
-    pending_history = _attach_history(data)
-    return data, pending_history
+    _attach_history(data, push=False)
+    return data, []
 
 
 def load():
     global _data
-    pending_history = []
     with _lock:
         if _data is not None:
             return _data
-        data = _load_zoho() or _load_json() or _empty()
-        data, pending_history = _seed_if_needed(data)
+        data = _load_json() or _empty()
+        data, _ = _seed_if_needed(data)
         _data = data
         _save_json(_data)
-    if pending_history and zoho_sheet.zoho_configured():
-        def _push_history():
-            chunk = 80
-            for start in range(0, len(pending_history), chunk):
-                zoho_sheet.add_records(
-                    SHEETS['bookings'],
-                    [_stringify(row) for row in pending_history[start:start + chunk]],
-                )
-                time.sleep(0.4)
-        threading.Thread(target=_push_history, daemon=True).start()
+    threading.Thread(target=_hydrate_zoho, daemon=True).start()
     return _data
 
 

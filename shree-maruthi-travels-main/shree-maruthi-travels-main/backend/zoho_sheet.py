@@ -324,19 +324,35 @@ def fetch_records(worksheet_name):
         return None
     ensure_worksheet(worksheet_name)
     actual = resolve_worksheet(worksheet_name)
-    result = _sheet_call({
-        'method': 'worksheet.records.fetch',
-        'worksheet_name': actual,
-        'header_row': 1,
-    }, http='get', timeout=90)
-    if result and result.get('error_code') == 2884:
-        return []
-    if not result or result.get('status') not in (None, 'success'):
-        if result:
-            print(f'[ZOHO] fetch {worksheet_name}: {result}')
-        return None
-    records = result.get('records') or result.get('data') or []
-    return records if isinstance(records, list) else []
+    records = []
+    start = 1
+    page = 1000
+    while True:
+        result = _sheet_call({
+            'method': 'worksheet.records.fetch',
+            'worksheet_name': actual,
+            'header_row': 1,
+            'start_index': start,
+            'count': page,
+        }, http='get', timeout=90)
+        if result and result.get('error_code') == 2884:
+            return []
+        if not result or result.get('status') not in (None, 'success'):
+            if start == 1:
+                if result:
+                    print(f'[ZOHO] fetch {worksheet_name}: {result}')
+                return None
+            break
+        chunk = result.get('records') or result.get('data') or []
+        if not isinstance(chunk, list) or not chunk:
+            break
+        records.extend(chunk)
+        if len(chunk) < page:
+            break
+        start += len(chunk)
+        if start > 20000:
+            break
+    return records
 
 
 def add_records(worksheet_name, rows):
