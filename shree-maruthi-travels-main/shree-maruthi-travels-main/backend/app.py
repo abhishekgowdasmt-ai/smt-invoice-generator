@@ -8,6 +8,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from flask import Flask, request, jsonify, render_template, redirect, send_from_directory, Response, make_response
 from dotenv import load_dotenv
+from itsdangerous import BadSignature, SignatureExpired
 from werkzeug.exceptions import HTTPException
 
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,7 @@ except ImportError:
     print("[WARN] zoho_sheet module not found — Zoho integration disabled")
 
 from rac_api import rac_bp
+import staff_auth
 
 # Resolve template and static folder relative to this file
 site_root = os.path.abspath(os.path.join(base_dir, '..'))
@@ -33,8 +35,7 @@ db_path = os.path.join(base_dir, 'database.db')
 invoices_dir = os.path.join(site_root, 'tools', 'invoices')
 trips_dir = os.path.join(site_root, 'tools', 'trips')
 rac_dist_dir = os.path.join(site_root, 'rac', 'frontend', 'dist')
-STAFF_COOKIE = 'smt_staff'
-STAFF_TOKEN = os.environ.get('STAFF_TOKEN') or 'smt-session-token'
+STAFF_COOKIE = staff_auth.STAFF_COOKIE
 RAC_FRONTEND_URL = os.environ.get('RAC_FRONTEND_URL', 'http://127.0.0.1:5173')
 
 app = Flask(
@@ -47,6 +48,9 @@ def inject_now():
     return {
         'now': datetime.utcnow,
         'site_url': os.environ.get('PUBLIC_SITE_URL') or 'https://www.shreemaruthitravels.com',
+        'staff': staff_auth.current_staff(),
+        'google_login': staff_auth.google_configured(),
+        'can_od': staff_auth.can_od(),
     }
 
 
@@ -67,16 +71,27 @@ def _cookie_secure():
 
 
 def is_staff_request():
-    if request.cookies.get(STAFF_COOKIE) == STAFF_TOKEN:
-        return True
-    auth_header = request.headers.get('Authorization')
-    return auth_header == f"Bearer {STAFF_TOKEN}"
+    return staff_auth.current_staff() is not None
 
 
 def require_staff_page():
     if is_staff_request():
         return None
     return redirect('/admin')
+
+
+def require_od_page():
+    denied = require_staff_page()
+    if denied:
+        return denied
+    if staff_auth.can_od():
+        return None
+    return render_template('admin_forbidden.html', message='Only Abhishek and the company Gmail can open the OD workspace.'), 403
+
+
+def _set_staff_cookie(resp, token):
+    resp.set_cookie(STAFF_COOKIE, token, httponly=True, samesite='Lax', secure=_cookie_secure(), max_age=60 * 60 * 12)
+    return resp
 
 
 app.register_blueprint(rac_bp, url_prefix='/api/v1')
@@ -619,13 +634,72 @@ def create_inquiry():
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     passcode = data.get('passcode')
-    if passcode == ADMIN_PASSCODE:
-        resp = make_response(jsonify({"authenticated": True, "token": STAFF_TOKEN}), 200)
-        resp.set_cookie(STAFF_COOKIE, STAFF_TOKEN, httponly=True, samesite='Lax', secure=_cookie_secure(), max_age=60 * 60 * 12)
-        return resp
-    return jsonify({"authenticated": False, "error": "Invalid passcode"}), 401
+    if passcode != ADMIN_PASSCODE:
+        return jsonify({"authenticated": False, "error": "Invalid passcode"}), 401
+    token = staff_auth.pin_staff_token()
+    resp = make_response(jsonify({
+        "authenticated": True,
+        "token": token,
+        "email": None,
+        "role": "staff",
+        "can_od": False,
+    }), 200)
+    return _set_staff_cookie(resp, token)
+
+
+@app.route('/api/admin/me', methods=['GET'])
+def admin_me():
+    staff = staff_auth.current_staff()
+    if not staff:
+        return jsonify({'authenticated': False, 'google_login': staff_auth.google_configured()}), 401
+    return jsonify({
+        'authenticated': True,
+        'email': staff.get('email'),
+        'role': staff.get('role'),
+        'can_od': staff_auth.can_od(staff),
+        'google_login': staff_auth.google_configured(),
+    })
+
+
+@app.route('/admin/google/login')
+def admin_google_login():
+    if not staff_auth.google_configured():
+        return render_template(
+            'admin_forbidden.html',
+            message='Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the host.',
+        ), 503
+    redirect_uri = request.host_url.rstrip('/') + '/admin/google/callback'
+    state = staff_auth.dump_state({'next': request.args.get('next') or '/admin'})
+    return redirect(staff_auth.google_authorize_url(redirect_uri, state))
+
+
+@app.route('/admin/google/callback')
+def admin_google_callback():
+    if not staff_auth.google_configured():
+        return redirect('/admin')
+    error = request.args.get('error')
+    if error:
+        return redirect('/admin?login_error=google')
+    code = request.args.get('code') or ''
+    redirect_uri = request.host_url.rstrip('/') + '/admin/google/callback'
+    email, fail = staff_auth.google_exchange(code, redirect_uri)
+    if fail or not email:
+        return redirect('/admin?login_error=google')
+    token = staff_auth.issue_token(email)
+    if not token:
+        return redirect('/admin?login_error=not_allowed')
+    dest = '/admin'
+    try:
+        payload = staff_auth.load_state(request.args.get('state') or '', max_age=600)
+        dest = payload.get('next') or dest
+    except (BadSignature, SignatureExpired, TypeError, ValueError):
+        pass
+    if not dest.startswith('/'):
+        dest = '/admin'
+    resp = redirect(dest)
+    return _set_staff_cookie(resp, token)
 
 
 @app.route('/api/admin/logout', methods=['POST'])
@@ -637,9 +711,7 @@ def admin_logout():
 
 @app.route('/api/inquiries', methods=['GET'])
 def get_inquiries():
-    # Basic Authorization check
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or auth_header != f"Bearer {STAFF_TOKEN}":
+    if not is_staff_request():
         return jsonify({"error": "Unauthorized Access"}), 401
 
     conn = get_db_connection()
@@ -668,8 +740,7 @@ def get_inquiries():
 
 @app.route('/api/inquiries/<int:inquiry_id>/status', methods=['POST'])
 def update_inquiry_status(inquiry_id):
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or auth_header != f"Bearer {STAFF_TOKEN}":
+    if not is_staff_request():
         return jsonify({"error": "Unauthorized Access"}), 401
 
     data = request.get_json()
@@ -688,8 +759,7 @@ def update_inquiry_status(inquiry_id):
 
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or auth_header != f"Bearer {STAFF_TOKEN}":
+    if not is_staff_request():
         return jsonify({"error": "Unauthorized Access"}), 401
 
     conn = get_db_connection()
@@ -1659,6 +1729,15 @@ def admin_invoices(filename='index.html'):
     if denied:
         return denied
     return send_from_directory(invoices_dir, filename)
+
+
+@app.route('/admin/workspace')
+def admin_workspace():
+    denied = require_od_page()
+    if denied:
+        return denied
+    staff = staff_auth.current_staff() or {}
+    return render_template('admin_workspace.html', staff=staff)
 
 
 @app.route('/admin/zoho', methods=['GET'])

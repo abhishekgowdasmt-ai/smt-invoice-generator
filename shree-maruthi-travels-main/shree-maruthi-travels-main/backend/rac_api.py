@@ -228,7 +228,14 @@ def _whatsapp_body(booking):
 
 @rac_bp.route('/auth/staff', methods=['GET'])
 def staff_session():
-    return jsonify({'success': True, 'token': TOKEN.dumps(RAC_USER), 'user': RAC_USER})
+    import staff_auth
+    staff = staff_auth.current_staff()
+    user = dict(RAC_USER)
+    if staff and staff.get('email') and staff.get('email') != 'pin@local':
+        user['email'] = staff['email']
+        user['first_name'] = staff['email'].split('@')[0]
+        user['role'] = 'admin' if staff.get('role') == 'od' else 'staff'
+    return jsonify({'success': True, 'token': TOKEN.dumps(user), 'user': user})
 
 
 @rac_bp.route('/auth/login', methods=['POST'])

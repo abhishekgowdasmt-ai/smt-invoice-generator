@@ -3,22 +3,66 @@
 let allInquiries = [];
 let smtToken = sessionStorage.getItem('smt_token');
 let currentCabIdForDocs = null;
+let staffSession = { role: 'staff', can_od: false, email: null };
 
-// Page Load Authentication Check
-window.onload = function() {
-    if (smtToken) {
-        // Automatically reveal dashboard and load inquiries tab
-        document.getElementById('admin-login-overlay').classList.add('hidden');
-        document.getElementById('admin-workspace').style.display = 'flex';
-        switchTab('inquiries');
-    } else {
-        document.getElementById('admin-login-overlay').classList.remove('hidden');
-        document.getElementById('admin-workspace').style.display = 'none';
-        document.getElementById('passcode-input').focus();
+function applyStaffSession(me) {
+    staffSession = {
+        email: me.email || null,
+        role: me.role || 'staff',
+        can_od: !!me.can_od,
+    };
+    smtToken = smtToken || 'session';
+    sessionStorage.setItem('smt_token', smtToken);
+    const nav = document.getElementById('od-workspace-nav');
+    if (nav) nav.style.display = staffSession.can_od ? '' : 'none';
+    const label = document.getElementById('staff-session-label');
+    if (label) {
+        label.textContent = staffSession.email && staffSession.email !== 'pin@local'
+            ? staffSession.email
+            : (staffSession.can_od ? 'OD access' : 'Staff PIN session');
+    }
+    const hint = document.getElementById('google-login-hint');
+    if (hint) hint.style.display = me.google_login ? 'none' : 'block';
+}
+
+function showLoginOverlay(me) {
+    document.getElementById('admin-login-overlay').classList.remove('hidden');
+    document.getElementById('admin-workspace').style.display = 'none';
+    document.getElementById('passcode-input').focus();
+    const hint = document.getElementById('google-login-hint');
+    if (hint) hint.style.display = me && me.google_login ? 'none' : 'block';
+    const params = new URLSearchParams(window.location.search);
+    const errorEl = document.getElementById('login-error');
+    if (params.get('login_error') === 'not_allowed') {
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'This Gmail is not on the SMT staff list.';
+    } else if (params.get('login_error') === 'google') {
+        errorEl.style.display = 'block';
+        errorEl.textContent = 'Google Sign-In failed. Try again or use the emergency PIN.';
+    }
+}
+
+function revealWorkspace(me) {
+    applyStaffSession(me || {});
+    document.getElementById('admin-login-overlay').classList.add('hidden');
+    document.getElementById('admin-workspace').style.display = 'flex';
+    switchTab('inquiries');
+}
+
+window.onload = async function() {
+    try {
+        const response = await fetch('/api/admin/me', { credentials: 'same-origin' });
+        const me = await response.json();
+        if (response.ok && me.authenticated) {
+            revealWorkspace(me);
+            return;
+        }
+        showLoginOverlay(me);
+    } catch (err) {
+        showLoginOverlay({ google_login: false });
     }
 };
 
-// --- LOGIN & AUTHENTICATION ---
 async function verifyAdminPasscode() {
     const passcode = document.getElementById('passcode-input').value;
     const errorEl = document.getElementById('login-error');
@@ -26,6 +70,7 @@ async function verifyAdminPasscode() {
     try {
         const response = await fetch('/api/admin/login', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json'
             },
@@ -38,11 +83,8 @@ async function verifyAdminPasscode() {
             smtToken = result.token;
             sessionStorage.setItem('smt_token', smtToken);
             errorEl.style.display = 'none';
-            document.getElementById('admin-login-overlay').classList.add('hidden');
-            document.getElementById('admin-workspace').style.display = 'flex';
+            revealWorkspace(result);
             document.getElementById('passcode-input').value = '';
-            
-            switchTab('inquiries');
         } else {
             errorEl.style.display = 'block';
             errorEl.textContent = result.error || "Verification failed.";
@@ -63,10 +105,9 @@ function handleLoginKey(event) {
 function adminLogout() {
     sessionStorage.removeItem('smt_token');
     smtToken = null;
-    fetch('/api/admin/logout', { method: 'POST' }).finally(() => {
-        document.getElementById('admin-login-overlay').classList.remove('hidden');
-        document.getElementById('admin-workspace').style.display = 'none';
-        document.getElementById('inquiries-table-body').innerHTML = '';
+    staffSession = { role: 'staff', can_od: false, email: null };
+    fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' }).finally(() => {
+        window.location.href = '/admin';
     });
 }
 

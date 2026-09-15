@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OD workspace | SMT Portal</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body style="background-color: var(--bg-main); min-height: 100vh;">
+    <div class="jmr-topbar-wrap">
+        <div class="jmr-topbar" style="justify-content: space-between; padding: 0.75rem 1.5rem;">
+            <strong class="company-name">SHREE MARUTHI TRAVELS</strong>
+            <a href="/admin" class="call-btn-top" style="text-decoration:none;">Back to portal</a>
+        </div>
+    </div>
+    <main class="container" style="max-width: 720px; margin: 2.5rem auto; padding: 0 1.25rem;">
+        <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px;">
+            <h1 style="color: var(--primary); margin-bottom: 0.5rem;">OD workspace</h1>
+            <p style="color: var(--text-muted); margin-bottom: 1.25rem;">
+                Signed in as <strong>{{ staff.email }}</strong>. This ledger stays off the public site and is limited to
+                <code>abhishekgowdasmt@gmail.com</code> and <code>shreemaruthitravels5999@gmail.com</code>.
+            </p>
+            <p style="color: var(--text-secondary); line-height: 1.6;">
+                The OD app is not mixed into the customer website. After Google Sign-In is live on the host,
+                this page is where that ledger will mount. Veeru and Bhaskar keep SMT ops, RAC, invoices, and trips — not this workspace.
+            </p>
+        </section>
+    </main>
+</body>
+</html>
