@@ -260,15 +260,6 @@ def ensure_worksheet(worksheet_name):
     if result:
         print(f'[ZOHO] worksheet.create {worksheet_name}: {result}')
     return False
-    if result and result.get('status') == 'success':
-        print(f'[ZOHO] Created worksheet {worksheet_name}')
-        return True
-    message = str(result).lower() if result else ''
-    if 'already' in message or 'exist' in message:
-        return True
-    if result:
-        print(f'[ZOHO] worksheet.create {worksheet_name}: {result}')
-    return False
 
 
 def ensure_app_worksheets():
