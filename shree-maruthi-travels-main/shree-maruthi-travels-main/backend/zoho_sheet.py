@@ -272,6 +272,40 @@ def ensure_app_worksheets():
     return ok
 
 
+def ensure_header_row(worksheet_name, columns):
+    columns = [str(col) for col in columns if col]
+    if not columns:
+        return False
+    result = _sheet_call({
+        'method': 'range.content.set',
+        'worksheet_name': worksheet_name,
+        'start_row': 1,
+        'start_column': 1,
+        'data': ','.join(columns),
+    })
+    if result and result.get('status') == 'success':
+        return True
+    result = _sheet_call({
+        'method': 'cell.content.set',
+        'worksheet_name': worksheet_name,
+        'row': 1,
+        'column': 1,
+        'content': columns[0],
+    })
+    if not result or result.get('status') != 'success':
+        print(f'[ZOHO] header {worksheet_name}: {result}')
+        return False
+    for index, name in enumerate(columns[1:], start=2):
+        _sheet_call({
+            'method': 'cell.content.set',
+            'worksheet_name': worksheet_name,
+            'row': 1,
+            'column': index,
+            'content': name,
+        })
+    return True
+
+
 def fetch_records(worksheet_name):
     if not zoho_configured():
         return None
@@ -281,6 +315,8 @@ def fetch_records(worksheet_name):
         'worksheet_name': worksheet_name,
         'header_row': 1,
     }, http='get', timeout=90)
+    if result and result.get('error_code') == 2884:
+        return []
     if not result or result.get('status') not in (None, 'success'):
         if result:
             print(f'[ZOHO] fetch {worksheet_name}: {result}')
@@ -299,6 +335,14 @@ def add_records(worksheet_name, rows):
         'header_row': 1,
         'json_data': json.dumps(rows),
     }, timeout=60)
+    if result and result.get('error_code') == 2884:
+        ensure_header_row(worksheet_name, list(rows[0].keys()))
+        result = _sheet_call({
+            'method': 'worksheet.records.add',
+            'worksheet_name': worksheet_name,
+            'header_row': 1,
+            'json_data': json.dumps(rows),
+        }, timeout=60)
     ok = bool(result) and result.get('status') == 'success'
     if not ok:
         print(f'[ZOHO] add {worksheet_name}: {result}')
