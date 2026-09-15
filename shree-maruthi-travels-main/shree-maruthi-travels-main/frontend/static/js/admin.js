@@ -17,9 +17,7 @@ function applyStaffSession(me) {
     if (nav) nav.style.display = staffSession.can_od ? '' : 'none';
     const label = document.getElementById('staff-session-label');
     if (label) {
-        label.textContent = staffSession.email && staffSession.email !== 'pin@local'
-            ? staffSession.email
-            : (staffSession.can_od ? 'OD access' : 'Staff PIN session');
+        label.textContent = staffSession.email || '';
     }
     const hint = document.getElementById('google-login-hint');
     if (hint) hint.style.display = me.google_login ? 'none' : 'block';
@@ -28,7 +26,6 @@ function applyStaffSession(me) {
 function showLoginOverlay(me) {
     document.getElementById('admin-login-overlay').classList.remove('hidden');
     document.getElementById('admin-workspace').style.display = 'none';
-    document.getElementById('passcode-input').focus();
     const hint = document.getElementById('google-login-hint');
     if (hint) hint.style.display = me && me.google_login ? 'none' : 'block';
     const params = new URLSearchParams(window.location.search);
@@ -38,7 +35,7 @@ function showLoginOverlay(me) {
         errorEl.textContent = 'This Gmail is not on the SMT staff list.';
     } else if (params.get('login_error') === 'google') {
         errorEl.style.display = 'block';
-        errorEl.textContent = 'Google Sign-In failed. Try again or use the emergency PIN.';
+        errorEl.textContent = 'Google Sign-In failed. Use an approved SMT Gmail.';
     }
 }
 
@@ -62,45 +59,6 @@ window.onload = async function() {
         showLoginOverlay({ google_login: false });
     }
 };
-
-async function verifyAdminPasscode() {
-    const passcode = document.getElementById('passcode-input').value;
-    const errorEl = document.getElementById('login-error');
-
-    try {
-        const response = await fetch('/api/admin/login', {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ passcode: passcode })
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.authenticated) {
-            smtToken = result.token;
-            sessionStorage.setItem('smt_token', smtToken);
-            errorEl.style.display = 'none';
-            revealWorkspace(result);
-            document.getElementById('passcode-input').value = '';
-        } else {
-            errorEl.style.display = 'block';
-            errorEl.textContent = result.error || "Verification failed.";
-        }
-    } catch (err) {
-        console.error("Login Error:", err);
-        errorEl.style.display = 'block';
-        errorEl.textContent = "Unable to connect to login server.";
-    }
-}
-
-function handleLoginKey(event) {
-    if (event.key === 'Enter') {
-        verifyAdminPasscode();
-    }
-}
 
 function adminLogout() {
     sessionStorage.removeItem('smt_token');

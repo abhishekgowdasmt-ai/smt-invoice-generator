@@ -29,4 +29,6 @@ rac/frontend/dist/
 backend/wa_bridge/node_modules/
 backend/wa_bridge/auth/
 tools/trips/__pycache__/
+od_workspace/data/
+od_workspace/.venv/
 

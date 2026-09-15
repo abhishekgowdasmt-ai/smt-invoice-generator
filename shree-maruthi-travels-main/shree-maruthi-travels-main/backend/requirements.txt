@@ -5,3 +5,8 @@ python-dotenv>=1.0.0
 pandas<3.0.0
 reportlab
 openpyxl
+python-dateutil>=2.9.0
+fastapi>=0.115.0
+uvicorn>=0.30.0
+python-multipart>=0.0.9
+a2wsgi>=1.10.0

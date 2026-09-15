@@ -54,10 +54,6 @@ def inject_now():
     }
 
 
-# Admin passcode for local authorization
-ADMIN_PASSCODE = os.environ.get('ADMIN_PASSCODE') or '5999'
-
-
 def _zoho_ok():
     try:
         from zoho_sheet import zoho_configured
@@ -634,19 +630,10 @@ def create_inquiry():
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
-    data = request.get_json(silent=True) or {}
-    passcode = data.get('passcode')
-    if passcode != ADMIN_PASSCODE:
-        return jsonify({"authenticated": False, "error": "Invalid passcode"}), 401
-    token = staff_auth.pin_staff_token()
-    resp = make_response(jsonify({
-        "authenticated": True,
-        "token": token,
-        "email": None,
-        "role": "staff",
-        "can_od": False,
-    }), 200)
-    return _set_staff_cookie(resp, token)
+    return jsonify({
+        "authenticated": False,
+        "error": "PIN login is removed. Sign in with an approved SMT Gmail.",
+    }), 410
 
 
 @app.route('/api/admin/me', methods=['GET'])
@@ -1731,15 +1718,6 @@ def admin_invoices(filename='index.html'):
     return send_from_directory(invoices_dir, filename)
 
 
-@app.route('/admin/workspace')
-def admin_workspace():
-    denied = require_od_page()
-    if denied:
-        return denied
-    staff = staff_auth.current_staff() or {}
-    return render_template('admin_workspace.html', staff=staff)
-
-
 @app.route('/admin/zoho', methods=['GET'])
 def admin_zoho():
     denied = require_staff_page()
@@ -1831,6 +1809,28 @@ def admin_dispatch(path):
     if proxied is not None:
         return proxied
     return render_template('dispatch_offline.html', configured=True), 503
+
+
+def _mount_od_workspace():
+    od_root = os.path.join(site_root, 'od_workspace')
+    if not os.path.isdir(os.path.join(od_root, 'server')):
+        print('[WARN] OD workspace folder is missing')
+        return
+    if od_root not in sys.path:
+        sys.path.insert(0, od_root)
+    try:
+        from a2wsgi import ASGIMiddleware
+        from werkzeug.middleware.dispatcher import DispatcherMiddleware
+        from server.main import app as od_app
+    except Exception as exc:
+        print(f'[WARN] OD workspace not mounted: {exc}')
+        return
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/admin/workspace': ASGIMiddleware(od_app),
+    })
+
+
+_mount_od_workspace()
 
 
 if __name__ == '__main__':

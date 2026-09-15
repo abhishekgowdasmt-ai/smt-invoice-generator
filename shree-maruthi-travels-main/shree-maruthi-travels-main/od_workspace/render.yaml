@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: private-workspace
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: LEDGER_PASSWORD
+        sync: false
+      - key: LEDGER_SESSION_SECRET
+        generateValue: true
+      - key: ZOHO_CLIENT_ID
+        sync: false
+      - key: ZOHO_CLIENT_SECRET
+        sync: false
+      - key: ZOHO_REFRESH_TOKEN
+        sync: false
+      - key: ZOHO_RESOURCE_ID
+        sync: false
+      - key: ZOHO_ACCOUNTS_URL
+        value: https://accounts.zoho.in
+      - key: ZOHO_API_BASE
+        value: https://sheet.zoho.in/api/v2

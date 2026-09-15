@@ -1,0 +1,16 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.streamlit/secrets.toml
+data/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db
+*.xlsx
+*.xls

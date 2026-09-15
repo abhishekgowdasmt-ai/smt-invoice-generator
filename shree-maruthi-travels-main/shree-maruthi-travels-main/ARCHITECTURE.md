@@ -108,13 +108,14 @@ Logs helpdesk chatbot conversations for quality assurance and analytical reviews
     ```
 
 ### Admin / Supervisor Interfaces (Requires Authorization)
-*Note: Protected endpoints require the HTTP Header: `Authorization: Bearer smt-session-token`.*
+Staff sign in with Google. See `STAFF_AND_OD.md`. PIN `/api/admin/login` is removed (410).
 
-* **`POST /api/admin/login`**
-  * **Description:** Validates supervisor passcode (local passcode `5999`).
-  * **Payload (JSON):** `{"passcode": "5999"}`
-  * **Response (200 OK):** `{"authenticated": true, "token": "smt-session-token"}`
-  * **Response (401 Unauthorized):** `{"authenticated": false, "error": "Invalid passcode"}`
+* **`GET /api/admin/me`**
+  * **Description:** Current staff session from cookie `smt_staff`.
+  * **Response (200):** `{ "authenticated": true, "email": "...", "role": "staff"|"od", "can_od": true|false }`
+  * **Response (401):** not signed in.
+
+* **`GET /admin/google/login`** — starts Google OAuth. Callback: `/admin/google/callback`.
 
 * **`GET /api/inquiries`**
   * **Description:** Retrieves all client inquiries from newest to oldest.

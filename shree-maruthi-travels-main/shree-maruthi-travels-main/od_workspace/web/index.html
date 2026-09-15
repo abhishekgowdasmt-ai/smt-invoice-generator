@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shree Maruthi Travels</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@360;440;520;600;700&display=swap" rel="stylesheet" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="stylesheet" href="/admin/workspace/assets/css/app.css?v=7" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body class="locked">
+  <div class="atmosphere" aria-hidden="true">
+    <div class="orb orb-a"></div>
+    <div class="orb orb-b"></div>
+    <div class="orb orb-c"></div>
+    <div class="grain"></div>
+  </div>
+
+  <section id="lock" class="lock">
+    <div class="lock-panel">
+      <p class="eyebrow">Private book</p>
+      <h1>The ledger<br /><em>stays unseen.</em></h1>
+      <p class="lock-copy">Shree Maruthi Travels books and the BOB overdraft. Sign in with Google on the SMT portal.</p>
+      <form id="lock-form">
+        <p id="lock-error" class="error" hidden></p>
+      </form>
+    </div>
+  </section>
+
+  <div id="shell" class="shell" hidden>
+    <aside class="rail">
+      <div class="mark">S</div>
+      <div class="switch">
+        <button type="button" id="ws-smt" class="on">Travels</button>
+        <button type="button" id="ws-od">OD 99L</button>
+      </div>
+      <nav id="smt-nav">
+        <button data-view="smt-home" class="active">This month</button>
+        <button data-view="smt-income">Income</button>
+        <button data-view="smt-rac">RAC</button>
+        <button data-view="smt-ets">ETS</button>
+        <button data-view="smt-other">Insurance / other</button>
+        <button data-view="smt-drivers">Drivers</button>
+        <button data-view="smt-people">Partners / loans</button>
+        <button data-view="smt-savings">Savings</button>
+        <button data-view="smt-notes">Notes</button>
+      </nav>
+      <nav id="od-nav" hidden>
+        <button data-view="overview">Overview</button>
+        <button data-view="entry">New entry</button>
+        <button data-view="ledger">Ledger</button>
+        <button data-view="insights">Insights</button>
+        <button data-view="interest">Interest</button>
+        <button data-view="settings">Settings</button>
+      </nav>
+      <button id="lock-btn" class="ghost">Lock</button>
+    </aside>
+
+    <main>
+      <section id="view-smt-home" class="view active">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Shree Maruthi Travels</p>
+            <h2>This month</h2>
+            <p class="muted">Corporate cabs · ET, insurance, RAC</p>
+          </div>
+          <label class="month-pick">Month<input type="month" id="biz-month" /></label>
+        </header>
+        <div class="stat-row three" id="biz-hero"></div>
+        <div class="split">
+          <article class="card"><p class="label">Income mix</p><canvas id="biz-in-chart"></canvas></article>
+          <article class="card"><p class="label">Spend mix</p><canvas id="biz-out-chart"></canvas></article>
+        </div>
+        <div class="split">
+          <article class="card month"><p class="label">Income streams</p><ul id="biz-streams"></ul></article>
+          <article class="card month"><p class="label">RAC cash gap</p><ul id="biz-rac"></ul></article>
+        </div>
+        <article class="card"><p class="label">Latest movements</p><div id="biz-recent" class="statement"></div></article>
+        <article class="card" id="biz-storage"></article>
+      </section>
+
+      <section id="view-smt-income" class="view">
+        <header class="top"><div><p class="eyebrow">In</p><h2>Income</h2><p class="muted">Employee transport, insurance, RAC (billed monthly).</p></div></header>
+        <form id="biz-income-form" class="card form-grid">
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Stream
+            <select name="stream">
+              <option>Employee transport</option>
+              <option>Insurance</option>
+              <option>RAC</option>
+            </select>
+          </label>
+          <label>Amount (₹)<input type="number" name="amount" min="0" step="0.01" required /></label>
+          <label>Company / client<input name="party" placeholder="Corporate name" /></label>
+          <label>Mode<select name="mode"><option>NEFT</option><option>IMPS</option><option>UPI</option><option>Cheque</option><option>Other</option></select></label>
+          <label>Invoice / ref<input name="reference" /></label>
+          <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+          <button class="wide primary" type="submit">Save income</button>
+        </form>
+        <article class="card"><div id="biz-income-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-smt-rac" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Amazon RAC</p>
+            <h2>Bookings & 48-hour pay</h2>
+            <p class="muted">Daily Amazon duties. Pass pickup/drop to the driver, pay within 48 hours. Sedan, Ertiga, Crysta each have their own rate.</p>
+          </div>
+        </header>
+        <div class="stat-row" id="rac-sla-hero"></div>
+        <form id="rac-import-form" class="card form-grid">
+          <p class="wide label">Upload Excel</p>
+          <p class="wide muted">Same columns as your May–August RAC sheet: Booking ID, Date, Name, Cab type, Duty type, kms, pickup, route.</p>
+          <label class="wide">Excel file<input type="file" name="file" accept=".xlsx,.xls" required /></label>
+          <label>Already paid?
+            <select name="paid">
+              <option value="unpaid">No — track 48 hours from now</option>
+              <option value="paid">Yes — historical, skip SLA clock</option>
+            </select>
+          </label>
+          <button class="primary" type="submit">Import bookings</button>
+          <p id="rac-import-msg" class="wide form-msg"></p>
+        </form>
+        <form id="rac-rates-form" class="card form-grid">
+          <p class="wide label">Driver pay rates (₹)</p>
+          <p class="wide muted">Set what you pay for each vehicle. Custom hour/km uses 4/40, 8/80 or 12/120 when those match, otherwise type the amount on the booking.</p>
+          <div id="rac-rates-grid" class="wide"></div>
+          <button class="primary" type="submit">Save rates</button>
+        </form>
+        <form id="rac-booking-form" class="card form-grid">
+          <p class="wide label">Add one booking</p>
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Booking ID<input name="booking_id" placeholder="B260503-SB6D" /></label>
+          <label>Vehicle
+            <select name="vehicle">
+              <option>Sedan</option>
+              <option>Ertiga</option>
+              <option>Crysta</option>
+            </select>
+          </label>
+          <label>Package
+            <select name="package" id="rac-package">
+              <option>12hrs / 120km</option>
+              <option>8hrs / 80km</option>
+              <option>4hrs / 40km</option>
+              <option>Airport</option>
+              <option>Outstation</option>
+              <option>Drop</option>
+              <option>Custom</option>
+            </select>
+          </label>
+          <label>Hours<select name="duty_hours" id="rac-hours"></select></label>
+          <label>Kms<select name="duty_kms" id="rac-kms"></select></label>
+          <label>Pay to driver (₹)<input type="number" name="amount" id="rac-amount" min="0" step="0.01" /></label>
+          <label>Driver<input name="driver" required /></label>
+          <label>Cab reg<input name="cab_reg" /></label>
+          <label>Pickup<input name="pickup" /></label>
+          <label>Pickup time<input name="pickup_time" placeholder="07:00" /></label>
+          <label>Employee / Amazon ID<input name="employee" /></label>
+          <label>Actual kms<input type="number" name="kms" min="0" step="1" /></label>
+          <label class="wide">Route / drop<textarea name="route" rows="2"></textarea></label>
+          <button class="wide primary" type="submit">Save booking</button>
+        </form>
+        <article class="card rac-block">
+          <p class="label">Sedan</p>
+          <div id="rac-sedan" class="statement"></div>
+        </article>
+        <article class="card rac-block">
+          <p class="label">Ertiga</p>
+          <div id="rac-ertiga" class="statement"></div>
+        </article>
+        <article class="card rac-block">
+          <p class="label">Crysta</p>
+          <div id="rac-crysta" class="statement"></div>
+        </article>
+      </section>
+
+      <section id="view-smt-ets" class="view">
+        <header class="top"><div><p class="eyebrow">ETS</p><h2>Employee transport</h2><p class="muted">Monthly corporate cab duties — salaries, diesel advances, cab EMI, daily pay.</p></div></header>
+        <div class="stat-row three" id="ets-hero"></div>
+        <form id="biz-ets-form" class="card form-grid">
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Category
+            <select name="category">
+              <option>Driver salary</option>
+              <option>Diesel advance</option>
+              <option>Cab EMI</option>
+              <option>ETS daily pay</option>
+              <option>ETS other</option>
+            </select>
+          </label>
+          <label>Amount (₹)<input type="number" name="amount" min="0" step="0.01" required /></label>
+          <label>Paid to<input name="party" placeholder="Driver / vendor" /></label>
+          <label>Vehicle / cab<input name="vehicle" /></label>
+          <label>Mode<select name="mode"><option>UPI</option><option>Cash</option><option>NEFT</option><option>IMPS</option><option>OD</option><option>Other</option></select></label>
+          <label>Ref<input name="reference" /></label>
+          <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+          <button class="wide primary" type="submit">Save ETS expense</button>
+        </form>
+        <article class="card"><div id="ets-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-smt-other" class="view">
+        <header class="top"><div><p class="eyebrow">Other</p><h2>Insurance & other spend</h2><p class="muted">Insurance costs, partners, loans, cards, food, office.</p></div></header>
+        <div class="stat-row three" id="other-hero"></div>
+        <form id="biz-other-form" class="card form-grid">
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Category
+            <select name="category">
+              <option>Insurance</option>
+              <option>Partner payout</option>
+              <option>Loan payment</option>
+              <option>Credit card payment</option>
+              <option>Food / daily</option>
+              <option>Office / admin</option>
+              <option>Custom</option>
+            </select>
+          </label>
+          <label>Amount (₹)<input type="number" name="amount" min="0" step="0.01" required /></label>
+          <label>Paid to<input name="party" /></label>
+          <label>Mode<select name="mode"><option>UPI</option><option>NEFT</option><option>IMPS</option><option>Cash</option><option>Credit card</option><option>OD</option><option>Other</option></select></label>
+          <label>Ref<input name="reference" /></label>
+          <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+          <button class="wide primary" type="submit">Save expense</button>
+        </form>
+        <article class="card"><div id="other-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-smt-drivers" class="view">
+        <header class="top"><div><p class="eyebrow">Fleet</p><h2>Drivers</h2><p class="muted">Salary + diesel advance + RAC (48-hour) payouts.</p></div></header>
+        <div class="stat-row three" id="biz-driver-hero"></div>
+        <article class="card"><div id="biz-driver-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-smt-people" class="view">
+        <header class="top"><div><p class="eyebrow">Books</p><h2>Partners, loans, cards</h2></div></header>
+        <form id="biz-partner-form" class="card form-grid">
+          <p class="wide label">Partner</p>
+          <label>Name<input name="name" required /></label>
+          <label>Share %<input name="share_pct" type="number" step="0.1" /></label>
+          <label class="wide">Notes<input name="notes" /></label>
+          <button class="primary" type="submit">Save partner</button>
+        </form>
+        <article class="card"><div id="biz-partner-list" class="statement"></div></article>
+        <form id="biz-loan-form" class="card form-grid">
+          <p class="wide label">Loan</p>
+          <label>Name<input name="name" required /></label>
+          <label>Lender<input name="lender" /></label>
+          <label>Principal<input name="principal" type="number" /></label>
+          <label>EMI<input name="emi" type="number" /></label>
+          <label>Outstanding<input name="outstanding" type="number" /></label>
+          <label>Notes<input name="notes" /></label>
+          <button class="primary" type="submit">Save loan</button>
+        </form>
+        <article class="card"><div id="biz-loan-list" class="statement"></div></article>
+        <form id="biz-card-form" class="card form-grid">
+          <p class="wide label">Credit card</p>
+          <label>Name<input name="name" required /></label>
+          <label>Last 4<input name="last4" maxlength="4" /></label>
+          <label>Limit<input name="limit" type="number" /></label>
+          <label>Outstanding<input name="outstanding" type="number" /></label>
+          <button class="primary" type="submit">Save card</button>
+        </form>
+        <article class="card"><div id="biz-card-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-smt-savings" class="view">
+        <header class="top"><div><p class="eyebrow">Keep</p><h2>Savings</h2><p class="muted">Named pots plus a custom note on each save.</p></div></header>
+        <form id="biz-save-form" class="card form-grid">
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Pot / way<input name="category" placeholder="Emergency, tax, diesel reserve…" required /></label>
+          <label>Amount (₹)<input type="number" name="amount" min="0" step="0.01" required /></label>
+          <label>Source<input name="party" placeholder="From RAC surplus, salary…" /></label>
+          <label class="wide">Note<textarea name="notes" rows="2"></textarea></label>
+          <button class="wide primary" type="submit">Save pot</button>
+        </form>
+        <article class="card month"><p class="label">Pots this month</p><ul id="biz-pots"></ul></article>
+        <article class="card"><div id="biz-save-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-smt-notes" class="view">
+        <header class="top"><div><p class="eyebrow">Memo</p><h2>Custom notes</h2></div></header>
+        <form id="biz-note-form" class="card form-grid">
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Title<input name="party" required /></label>
+          <label class="wide">Note<textarea name="notes" rows="4" required></textarea></label>
+          <button class="wide primary" type="submit">Save note</button>
+        </form>
+        <article class="card"><div id="biz-note-list" class="statement"></div></article>
+      </section>
+
+      <section id="view-overview" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow" id="ov-kicker">Bank of Baroda</p>
+            <h2>Overdraft</h2>
+            <p class="muted" id="ov-sub">Private account</p>
+          </div>
+          <div class="pills">
+            <span id="storage-pill" class="pill">Local</span>
+            <span class="pill dim">99 Lakh facility</span>
+          </div>
+        </header>
+
+        <div class="hero">
+          <div class="hero-copy">
+            <p class="label">Available to draw</p>
+            <p class="display" id="ov-available">₹0.00</p>
+            <div class="meter"><i id="ov-meter"></i></div>
+            <p class="muted" id="ov-meter-label">₹0 used of ₹99.00 L</p>
+            <div class="stat-row">
+              <div><span>Outstanding</span><b id="ov-out">₹0.00</b></div>
+              <div><span>Sanctioned</span><b id="ov-limit">₹99,00,000.00</b></div>
+              <div><span>Rate</span><b id="ov-rate">12.00%</b></div>
+              <div><span>Entries</span><b id="ov-count">0</b></div>
+            </div>
+          </div>
+          <div class="ring-card">
+            <svg viewBox="0 0 140 140" class="ring">
+              <defs>
+                <linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#2f9e5f" />
+                  <stop offset="100%" stop-color="#7ed9a2" />
+                </linearGradient>
+              </defs>
+              <circle cx="70" cy="70" r="56" class="ring-track" />
+              <circle cx="70" cy="70" r="56" class="ring-value" id="ov-ring" />
+            </svg>
+            <div class="ring-label">
+              <small>Utilised</small>
+              <strong id="ov-util">0%</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="split">
+          <article class="card">
+            <p class="label">Running outstanding</p>
+            <canvas id="ov-chart" height="120"></canvas>
+          </article>
+          <article class="card month">
+            <p class="label">This month</p>
+            <ul id="ov-month"></ul>
+          </article>
+        </div>
+
+        <article class="card">
+          <p class="label">Recent movements</p>
+          <div id="ov-txns" class="statement"></div>
+        </article>
+      </section>
+
+      <section id="view-entry" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Post</p>
+            <h2>New entry</h2>
+            <p class="muted" id="entry-sub">Record a drawdown, credit, or bank debit.</p>
+          </div>
+        </header>
+        <form id="entry-form" class="card form-grid">
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Type
+            <select name="type">
+              <option>Drawdown</option>
+              <option>Credit</option>
+              <option>Interest</option>
+              <option>Charge</option>
+              <option>Adjustment</option>
+            </select>
+          </label>
+          <label>Amount (₹)<input type="number" name="amount" min="0" step="0.01" required /></label>
+          <label>Category<select name="category" id="entry-category"></select></label>
+          <label>Mode
+            <select name="mode">
+              <option>NEFT</option><option>RTGS</option><option>IMPS</option><option>UPI</option>
+              <option>Cheque</option><option>Cash</option><option>Internal</option>
+              <option>Standing instruction</option><option>Other</option>
+            </select>
+          </label>
+          <label>Paid to / from<input name="counterparty" /></label>
+          <label class="wide">Purpose<input name="purpose" /></label>
+          <label>Project<input name="project" placeholder="Site, stock, personal" /></label>
+          <label>UTR / reference<input name="reference" /></label>
+          <label class="wide">Notes<textarea name="notes" rows="3"></textarea></label>
+          <button class="wide primary" type="submit">Save to ledger</button>
+          <p id="entry-msg" class="wide form-msg"></p>
+        </form>
+      </section>
+
+      <section id="view-ledger" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Statement</p>
+            <h2>All movements</h2>
+            <p class="muted" id="ledger-sub">Filter and edit any row.</p>
+          </div>
+        </header>
+        <div class="filters card">
+          <input id="ledger-search" placeholder="Search purpose, party, UTR" />
+          <select id="ledger-type">
+            <option value="">All types</option>
+            <option>Drawdown</option><option>Credit</option><option>Interest</option><option>Charge</option><option>Adjustment</option>
+          </select>
+        </div>
+        <article class="card">
+          <div id="ledger-txns" class="statement"></div>
+        </article>
+        <form id="edit-form" class="card form-grid" hidden>
+          <input type="hidden" name="id" />
+          <label>Date<input type="date" name="date" required /></label>
+          <label>Type<select name="type">
+            <option>Drawdown</option><option>Credit</option><option>Interest</option><option>Charge</option><option>Adjustment</option>
+          </select></label>
+          <label>Amount<input type="number" name="amount" min="0" step="0.01" required /></label>
+          <label>Category<select name="category" id="edit-category"></select></label>
+          <label>Mode<select name="mode">
+            <option>NEFT</option><option>RTGS</option><option>IMPS</option><option>UPI</option>
+            <option>Cheque</option><option>Cash</option><option>Internal</option>
+            <option>Standing instruction</option><option>Other</option>
+          </select></label>
+          <label>Party<input name="counterparty" /></label>
+          <label class="wide">Purpose<input name="purpose" /></label>
+          <label>Project<input name="project" /></label>
+          <label>Reference<input name="reference" /></label>
+          <label class="wide">Notes<textarea name="notes" rows="2"></textarea></label>
+          <button class="primary" type="submit">Update</button>
+          <button type="button" id="delete-btn" class="danger">Delete</button>
+        </form>
+      </section>
+
+      <section id="view-insights" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Allocation</p>
+            <h2>Where the limit went</h2>
+          </div>
+        </header>
+        <div class="stat-row three" id="ins-stats"></div>
+        <div class="split">
+          <article class="card"><p class="label">By category</p><canvas id="cat-chart"></canvas></article>
+          <article class="card"><p class="label">By month</p><canvas id="mon-chart"></canvas></article>
+        </div>
+      </section>
+
+      <section id="view-interest" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Daily product</p>
+            <h2>Interest estimator</h2>
+            <p class="muted">Compare the bank method with Interest rows you posted.</p>
+          </div>
+        </header>
+        <div class="filters card">
+          <label>From<input type="date" id="int-start" /></label>
+          <label>To<input type="date" id="int-end" /></label>
+          <label>Rate %<input type="number" id="int-rate" step="0.05" /></label>
+          <button id="int-run" class="primary" type="button">Recalculate</button>
+        </div>
+        <div class="stat-row" id="int-stats"></div>
+        <article class="card"><canvas id="int-chart" height="120"></canvas></article>
+      </section>
+
+      <section id="view-settings" class="view">
+        <header class="top">
+          <div>
+            <p class="eyebrow">Setup</p>
+            <h2>Facility & storage</h2>
+          </div>
+        </header>
+        <article class="card" id="zoho-box"></article>
+        <form id="facility-form" class="card form-grid">
+          <label>Bank<input name="bank" /></label>
+          <label>Product<input name="product" /></label>
+          <label>Limit (₹)<input name="limit" type="number" step="1" /></label>
+          <label>Rate % p.a.<input name="rate" type="number" step="0.05" /></label>
+          <label>Sanction date<input name="sanction_date" type="date" /></label>
+          <label>Opening outstanding<input name="opening_outstanding" type="number" step="1" /></label>
+          <label>Holder<input name="holder_name" /></label>
+          <label>A/c last 4<input name="account_last4" maxlength="4" /></label>
+          <label class="wide">Branch<input name="branch" /></label>
+          <label class="wide">Notes<textarea name="notes" rows="3"></textarea></label>
+          <button class="wide primary" type="submit">Save facility</button>
+        </form>
+        <form id="cat-form" class="card">
+          <p class="label">Categories</p>
+          <textarea id="cat-text" rows="10"></textarea>
+          <button class="primary" type="submit">Save categories</button>
+        </form>
+      </section>
+    </main>
+  </div>
+  <script src="/admin/workspace/assets/js/app.js?v=6"></script>
+  <script src="/admin/workspace/assets/js/business.js?v=6"></script>
+</body>
+</html>

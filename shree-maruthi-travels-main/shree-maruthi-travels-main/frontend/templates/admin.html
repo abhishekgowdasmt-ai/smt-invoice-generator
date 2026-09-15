@@ -14,16 +14,10 @@
         <div class="login-card">
             <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo" style="height: 56px; width: auto; object-fit: contain; margin: 0 auto 1.5rem auto; display: block;">
             <h2>Supervisor Verification</h2>
-            <p>Sign in with an approved SMT Gmail. OD workspace is only for Abhishek and the company Gmail.</p>
+            <p>Sign in with an approved SMT Gmail. The OD ledger is only for Abhishek and the company Gmail.</p>
             <a class="btn btn-primary" id="google-login-btn" href="/admin/google/login" style="width: 100%; justify-content: center; text-decoration: none; margin-bottom: 1.25rem;">Continue with Google</a>
-            <p id="google-login-hint" style="display:none; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">Google Sign-In is not on this host yet. PIN still opens SMT ops, not the OD ledger.</p>
-            <div class="form-group" style="text-align: left;">
-                <label for="passcode-input">Emergency PIN</label>
-                <input type="password" id="passcode-input" placeholder="••••" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.3em;" onkeydown="handleLoginKey(event)">
-                <div class="login-error" id="login-error">Invalid passcode PIN. Please try again.</div>
-            </div>
-            
-            <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="verifyAdminPasscode()">Unlock with PIN</button>
+            <p id="google-login-hint" style="display:none; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the host, then use Continue with Google.</p>
+            <div class="login-error" id="login-error"></div>
             <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 0.75rem;" onclick="window.location.href='/'">🏠 Return to Homepage</button>
         </div>
     </div>

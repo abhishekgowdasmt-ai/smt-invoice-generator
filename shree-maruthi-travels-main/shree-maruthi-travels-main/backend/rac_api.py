@@ -231,7 +231,7 @@ def staff_session():
     import staff_auth
     staff = staff_auth.current_staff()
     user = dict(RAC_USER)
-    if staff and staff.get('email') and staff.get('email') != 'pin@local':
+    if staff and staff.get('email'):
         user['email'] = staff['email']
         user['first_name'] = staff['email'].split('@')[0]
         user['role'] = 'admin' if staff.get('role') == 'od' else 'staff'

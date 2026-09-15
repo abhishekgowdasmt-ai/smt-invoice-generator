@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ ./backend/
 COPY frontend/ ./frontend/
 COPY tools/ ./tools/
+COPY od_workspace/ ./od_workspace/
 COPY start.sh ./start.sh
 COPY --from=rac-frontend /ui/dist ./rac/frontend/dist
 COPY --from=wa-bridge /wa/node_modules ./backend/wa_bridge/node_modules

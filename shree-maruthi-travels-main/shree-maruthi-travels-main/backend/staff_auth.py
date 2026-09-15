@@ -59,10 +59,6 @@ def issue_token(email):
     return _SERIALIZER.dumps({'email': email, 'role': role})
 
 
-def pin_staff_token():
-    return _SERIALIZER.dumps({'email': 'pin@local', 'role': 'staff'})
-
-
 def dump_state(payload):
     return _SERIALIZER.dumps(payload)
 
@@ -72,21 +68,19 @@ def load_state(value, max_age=600):
 
 
 def read_token(token):
-    if not token:
+    if not token or token == STAFF_TOKEN:
         return None
-    if token == STAFF_TOKEN:
-        return {'email': 'pin@local', 'role': 'staff', 'legacy': True}
     try:
         data = _SERIALIZER.loads(token, max_age=60 * 60 * 12)
     except (BadSignature, SignatureExpired, TypeError, ValueError):
         return None
     email = str(data.get('email') or '').strip().lower()
-    if email == 'pin@local':
-        return {'email': email, 'role': 'staff', 'legacy': True}
+    if not email or email == 'pin@local':
+        return None
     role = role_for(email)
     if not role:
         return None
-    return {'email': email, 'role': role, 'legacy': False}
+    return {'email': email, 'role': role}
 
 
 def token_from_request():
