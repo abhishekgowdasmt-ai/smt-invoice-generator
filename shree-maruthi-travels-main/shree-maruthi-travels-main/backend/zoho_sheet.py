@@ -146,7 +146,7 @@ def inquiry_worksheet_name():
     configured = (os.environ.get('ZOHO_INQUIRY_SHEET') or '').strip()
     names = list_worksheets()
     wanted = [configured, 'Enquiries', 'enquiries', 'Inquiries', 'Sheet1']
-    lower = {name.lower(): name for name in names}
+    lower = {name.strip().lower(): name.strip() for name in names}
     for name in wanted:
         if name and name.lower() in lower:
             return lower[name.lower()]
@@ -243,9 +243,22 @@ def list_worksheets():
     return [name for name in names if name]
 
 
+def resolve_worksheet(worksheet_name):
+    wanted = (worksheet_name or '').strip().lower()
+    if not wanted:
+        return worksheet_name
+    for name in list_worksheets():
+        if name.strip().lower() == wanted:
+            return name
+    return worksheet_name
+
+
 def ensure_worksheet(worksheet_name):
-    existing = {name.lower(): name for name in list_worksheets()}
-    if worksheet_name.lower() in existing:
+    actual = resolve_worksheet(worksheet_name)
+    if (actual or '').strip().lower() == (worksheet_name or '').strip().lower() and actual in list_worksheets():
+        return True
+    existing = {name.strip().lower(): name for name in list_worksheets()}
+    if (worksheet_name or '').strip().lower() in existing:
         return True
     result = _sheet_call({
         'method': 'worksheet.create',
@@ -310,9 +323,10 @@ def fetch_records(worksheet_name):
     if not zoho_configured():
         return None
     ensure_worksheet(worksheet_name)
+    actual = resolve_worksheet(worksheet_name)
     result = _sheet_call({
         'method': 'worksheet.records.fetch',
-        'worksheet_name': worksheet_name,
+        'worksheet_name': actual,
         'header_row': 1,
     }, http='get', timeout=90)
     if result and result.get('error_code') == 2884:
@@ -329,17 +343,18 @@ def add_records(worksheet_name, rows):
     if not rows or not zoho_configured():
         return False
     ensure_worksheet(worksheet_name)
+    actual = resolve_worksheet(worksheet_name)
     result = _sheet_call({
         'method': 'worksheet.records.add',
-        'worksheet_name': worksheet_name,
+        'worksheet_name': actual,
         'header_row': 1,
         'json_data': json.dumps(rows),
     }, timeout=60)
     if result and result.get('error_code') == 2884:
-        ensure_header_row(worksheet_name, list(rows[0].keys()))
+        ensure_header_row(actual, list(rows[0].keys()))
         result = _sheet_call({
             'method': 'worksheet.records.add',
-            'worksheet_name': worksheet_name,
+            'worksheet_name': actual,
             'header_row': 1,
             'json_data': json.dumps(rows),
         }, timeout=60)
@@ -353,9 +368,10 @@ def update_record(worksheet_name, id_field, id_value, data):
     if not zoho_configured():
         return False
     ensure_worksheet(worksheet_name)
+    actual = resolve_worksheet(worksheet_name)
     result = _sheet_call({
         'method': 'worksheet.records.update',
-        'worksheet_name': worksheet_name,
+        'worksheet_name': actual,
         'header_row': 1,
         'criteria': f'("{id_field}"="{id_value}")',
         'data': json.dumps(data),
