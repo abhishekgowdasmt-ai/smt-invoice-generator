@@ -15,6 +15,7 @@ ZOHO_SHEET_API_URL = 'https://sheet.zoho.in/api/v2'
 TOKEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.zoho_refresh_token')
 APP_WORKSHEETS = (
     'Sheet1',
+    'Enquiries',
     'RAC_Drivers',
     'RAC_Bookings',
     'RAC_Assignments',
@@ -141,6 +142,17 @@ def _get_access_token():
         return None
 
 
+def inquiry_worksheet_name():
+    configured = (os.environ.get('ZOHO_INQUIRY_SHEET') or '').strip()
+    names = list_worksheets()
+    wanted = [configured, 'Enquiries', 'enquiries', 'Inquiries', 'Sheet1']
+    lower = {name.lower(): name for name in names}
+    for name in wanted:
+        if name and name.lower() in lower:
+            return lower[name.lower()]
+    return configured or 'Enquiries'
+
+
 def append_inquiry_to_sheet(inquiry_data):
     token = _get_access_token()
     if not token:
@@ -162,7 +174,7 @@ def append_inquiry_to_sheet(inquiry_data):
     url = f'{ZOHO_SHEET_API_URL}/{_spreadsheet_id()}'
     payload = {
         'method': 'worksheet.records.add',
-        'worksheet_name': 'Sheet1',
+        'worksheet_name': inquiry_worksheet_name(),
         'header_row': 1,
         'json_data': json.dumps([{
             'Timestamp': row_data[0],
@@ -232,13 +244,22 @@ def list_worksheets():
 
 
 def ensure_worksheet(worksheet_name):
-    existing = {name.lower() for name in list_worksheets()}
+    existing = {name.lower(): name for name in list_worksheets()}
     if worksheet_name.lower() in existing:
         return True
     result = _sheet_call({
         'method': 'worksheet.create',
         'new_sheet_name': worksheet_name,
     })
+    if result and result.get('status') == 'success':
+        print(f'[ZOHO] Created worksheet {worksheet_name}')
+        return True
+    message = str(result).lower() if result else ''
+    if 'already' in message or 'exist' in message:
+        return True
+    if result:
+        print(f'[ZOHO] worksheet.create {worksheet_name}: {result}')
+    return False
     if result and result.get('status') == 'success':
         print(f'[ZOHO] Created worksheet {worksheet_name}')
         return True
