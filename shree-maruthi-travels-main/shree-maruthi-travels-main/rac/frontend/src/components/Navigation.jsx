@@ -1,5 +1,5 @@
 import { useAuth } from '../App'
-import { Link } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 
 const Navigation = () => {
   const { logout } = useAuth()
@@ -12,18 +12,18 @@ const Navigation = () => {
   return (
     <nav className="navbar">
       <div className="nav-brand">
-        <h2>Dispatch System</h2>
+        <a href="/admin">SMT Portal</a>
+        <h2>RAC Management</h2>
       </div>
       <div className="nav-links">
-        <a href="/admin">SMT Portal</a>
-        <Link to="/whatsapp-qr">WhatsApp</Link>
-        <Link to="/dashboard">Dashboard</Link>
-        <Link to="/drivers">Drivers</Link>
-        <Link to="/bookings">Bookings</Link>
-        <Link to="/insights">Insights</Link>
-        <Link to="/upload">Upload</Link>
-        <Link to="/assignment">Assign</Link>
-        <Link to="/messages">Messages</Link>
+        <NavLink to="/dashboard">Dashboard</NavLink>
+        <NavLink to="/insights">Insights</NavLink>
+        <NavLink to="/bookings">Bookings</NavLink>
+        <NavLink to="/drivers">Drivers</NavLink>
+        <NavLink to="/assignment">Assign</NavLink>
+        <NavLink to="/upload">Upload</NavLink>
+        <NavLink to="/messages">Messages</NavLink>
+        <NavLink to="/whatsapp-qr">WhatsApp</NavLink>
       </div>
       <div className="nav-user">
         <button onClick={handleLogout}>Logout</button>

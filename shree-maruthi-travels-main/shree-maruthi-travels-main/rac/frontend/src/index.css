@@ -162,10 +162,25 @@ body {
   margin-bottom: 20px;
 }
 
-.nav-brand h2 {
+.nav-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-brand a {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: #667eea;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.nav-brand h2 {
+  color: #333;
   margin: 0;
-  font-size: 1.5em;
+  font-size: 1.15em;
 }
 
 .nav-links {
@@ -184,9 +199,10 @@ body {
   transition: all 0.3s ease;
 }
 
-.nav-links a:hover {
+.nav-links a:hover,
+.nav-links a.active {
   color: #667eea;
-  background-color: #f5f5f5;
+  background-color: #eef1fb;
 }
 
 .nav-user button {
@@ -929,8 +945,16 @@ body {
 }
 
 .insight-panel h3 {
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   color: #333;
+}
+
+.insight-panel .card-subtitle {
+  margin-bottom: 14px;
+}
+
+.insight-wide {
+  grid-column: 1 / -1;
 }
 
 .insight-split {
@@ -938,6 +962,77 @@ body {
   grid-template-columns: minmax(0, 1.2fr) minmax(160px, 0.8fr);
   gap: 16px;
   align-items: start;
+}
+
+.insight-split-wide {
+  grid-template-columns: minmax(0, 1.7fr) minmax(180px, 0.55fr);
+}
+
+.insight-line-wrap {
+  width: 100%;
+}
+
+.insight-line {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.insight-gridline {
+  stroke: #eef1f8;
+  stroke-width: 1;
+}
+
+.insight-axis {
+  fill: #7b8494;
+  font-size: 10px;
+}
+
+.insight-line-fill {
+  fill: rgba(102, 126, 234, 0.12);
+}
+
+.insight-line-path {
+  stroke: #667eea;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.insight-line-km {
+  stroke: #1abc9c;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+}
+
+.insight-line-dot {
+  fill: #667eea;
+}
+
+.insight-line-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #555;
+}
+
+.insight-line-legend .swatch {
+  display: inline-block;
+  width: 16px;
+  height: 3px;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.insight-line-legend .swatch.trips {
+  background: #667eea;
+}
+
+.insight-line-legend .swatch.km {
+  background: #1abc9c;
 }
 
 .insight-chart {
@@ -952,7 +1047,7 @@ body {
 
 .insight-bar-row {
   display: grid;
-  grid-template-columns: minmax(72px, 110px) 1fr 42px;
+  grid-template-columns: minmax(96px, 150px) 1fr 52px;
   gap: 8px;
   align-items: center;
 }

@@ -8,12 +8,23 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body style="background-color: var(--bg-main); min-height: 100vh;">
-    <div class="jmr-topbar-wrap">
-        <div class="jmr-topbar" style="justify-content: space-between; padding: 0.75rem 1.5rem;">
-            <strong class="company-name">SHREE MARUTHI TRAVELS</strong>
-            <a href="/admin" class="call-btn-top" style="text-decoration:none;">Back to portal</a>
+    <header class="admin-topnav">
+        <div class="admin-topnav-inner">
+            <a class="admin-brand" href="/admin">
+                <span>
+                    <strong>SMT Portal</strong>
+                    <small>Trip sheets</small>
+                </span>
+            </a>
+            <nav class="admin-nav">
+                <a class="admin-nav-link" href="/admin/dispatch/">RAC Management</a>
+                <a class="admin-nav-link" href="/admin#tracking">ETS</a>
+                <a class="admin-nav-link" href="/admin#datasource">DataSource</a>
+                <a class="admin-nav-link active" href="/admin/trips">Trip sheets</a>
+                <a class="admin-nav-link" href="/admin/invoices/">Invoice generation</a>
+            </nav>
         </div>
-    </div>
+    </header>
     <main class="container" style="max-width: 640px; margin: 3rem auto; padding: 0 1.25rem;">
         <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px; box-shadow: var(--glow-shadow);">
             <h1 class="section-title" style="font-size: 1.75rem; color: var(--primary); margin-bottom: 0.5rem;">Trip sheet PDF generator</h1>

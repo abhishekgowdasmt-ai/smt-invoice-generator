@@ -67,6 +67,96 @@ def _title_label(value, fallback='Unknown'):
     return text.title()
 
 
+def _person_label(value, fallback='Unknown'):
+    text = re.sub(r'\s+', ' ', str(value or '').strip())
+    return text.title() if text else fallback
+
+
+def _month_key(value):
+    text = str(value or '').strip()
+    match = re.match(r'^(\d{4})-(\d{2})', text)
+    if not match:
+        return None
+    year, month = int(match.group(1)), int(match.group(2))
+    if year < 2024 or year > 2027 or month < 1 or month > 12:
+        return None
+    return f'{year:04d}-{month:02d}'
+
+
+def _cab_group(value):
+    raw = str(value or '').strip()
+    key = re.sub(r'[^a-z0-9]+', '', raw.lower())
+    if not key:
+        return 'Unknown'
+    if 'sedan' in key:
+        return 'Sedan'
+    if 'ertiga' in key or key in ('ertga', 'ertig'):
+        return 'Ertiga'
+    if 'cryst' in key or 'creyst' in key or 'innova' in key:
+        return 'Crysta'
+    if 'ciaz' in key:
+        return 'Ciaz'
+    if 'etios' in key:
+        return 'Etios'
+    if 'dzire' in key or 'swift' in key:
+        return 'Dzire'
+    if 'tempo' in key or 'traveller' in key:
+        return 'Tempo Traveller'
+    return raw.title()
+
+
+def _duty_group(value):
+    raw = str(value or '').strip()
+    key = re.sub(r'[^a-z0-9]+', '', raw.lower())
+    if not key:
+        return 'Unknown'
+    if 'airport' in key:
+        return 'Airport'
+    if 'outstation' in key or key.startswith('outst'):
+        return 'Outstation'
+    if key in ('drop', 'dropt', 'localdrop'):
+        return 'Drop'
+    if '120' in key:
+        return '12 Hrs / 120 Km'
+    if '80' in key:
+        return '8 Hrs / 80 Km'
+    return re.sub(r'\s+', ' ', raw).title()
+
+
+def _area_label(value):
+    text = re.sub(r'\s+', ' ', str(value or '').strip())
+    if not text:
+        return 'Unknown'
+    part = re.split(r'\s+(?:TO|-|–)\s+|/', text, maxsplit=1)[0]
+    return part.title()[:42] or 'Unknown'
+
+
+def _fill_months(by_month):
+    if not by_month:
+        return []
+    keys = sorted(by_month)
+    start_y, start_m = (int(part) for part in keys[0].split('-'))
+    end_y, end_m = (int(part) for part in keys[-1].split('-'))
+    filled = []
+    year, month = start_y, start_m
+    while (year, month) <= (end_y, end_m):
+        key = f'{year:04d}-{month:02d}'
+        item = by_month.get(key) or {'count': 0, 'km': 0.0}
+        filled.append({'month': key, 'count': item['count'], 'km': round(item['km'], 1)})
+        month += 1
+        if month > 12:
+            month = 1
+            year += 1
+    return filled
+
+
+def _ranked(mapping, n=10, value_key='count'):
+    return [
+        {'name': key, value_key: mapping[key]}
+        for key in sorted(mapping, key=mapping.get, reverse=True)[:n]
+    ]
+
+
 def _driver_payment_status(value):
     text = str(value or '').strip().lower()
     if text in ('paid', 'yes', 'y', '1', 'true', 'done'):
@@ -292,40 +382,37 @@ def dashboard_summary():
 @rac_bp.route('/dashboard/insights', methods=['GET'])
 @require_rac
 def dashboard_insights():
-    def text(value, fallback='Unknown'):
-        if value is None:
-            return fallback
-        return str(value).strip() or fallback
-
     try:
         bookings = rac_store.all_rows('bookings')
         by_month = {}
         by_driver = {}
         by_cab = {}
         by_area = {}
+        by_duty = {}
         total_km = 0.0
         employees = set()
         for row in bookings:
-            month = str(row.get('trip_date') or '')[:7]
-            if month:
-                by_month[month] = by_month.get(month, 0) + 1
-            driver = text(row.get('source_name'))
-            by_driver[driver] = by_driver.get(driver, 0) + 1
-            cab = _title_label(row.get('cab_type'))
-            by_cab[cab] = by_cab.get(cab, 0) + 1
-            area = text(row.get('planned_start'))
-            by_area[area] = by_area.get(area, 0) + 1
+            month = _month_key(row.get('trip_date'))
             try:
-                total_km += float(row.get('total_km') or 0)
+                km = float(row.get('total_km') or 0)
             except (TypeError, ValueError):
-                pass
-            emp = text(row.get('employee_name'), '')
+                km = 0.0
+            total_km += km
+            if month:
+                bucket = by_month.setdefault(month, {'count': 0, 'km': 0.0})
+                bucket['count'] += 1
+                bucket['km'] += km
+            driver = _person_label(row.get('driver_name') or row.get('source_name'))
+            by_driver[driver] = by_driver.get(driver, 0) + 1
+            cab = _cab_group(row.get('cab_type'))
+            by_cab[cab] = by_cab.get(cab, 0) + 1
+            area = _area_label(row.get('planned_start'))
+            by_area[area] = by_area.get(area, 0) + 1
+            duty = _duty_group(row.get('duty_type'))
+            by_duty[duty] = by_duty.get(duty, 0) + 1
+            emp = _person_label(row.get('employee_name'), '')
             if emp:
                 employees.add(emp.upper())
-        top = lambda mapping, n=12: [
-            {'name': key, 'count': mapping[key]}
-            for key in sorted(mapping, key=mapping.get, reverse=True)[:n]
-        ]
         return jsonify({
             'success': True,
             'data': {
@@ -333,10 +420,11 @@ def dashboard_insights():
                 'total_km': round(total_km, 1),
                 'unique_drivers': len(by_driver),
                 'unique_employees': len(employees),
-                'by_month': [{'month': key, 'count': by_month[key]} for key in sorted(by_month)],
-                'top_drivers': top(by_driver),
-                'by_cab': top(by_cab, 8),
-                'top_areas': top(by_area),
+                'by_month': _fill_months(by_month),
+                'top_drivers': _ranked(by_driver, 10),
+                'by_cab': _ranked(by_cab, 8),
+                'by_duty': _ranked(by_duty, 8),
+                'top_areas': _ranked(by_area, 10),
             },
         })
     except Exception as exc:

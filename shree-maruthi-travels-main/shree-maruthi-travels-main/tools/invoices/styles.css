@@ -24,7 +24,27 @@ body {
   background: #e8eef5;
 }
 
-button, input, select, textarea { font-family: inherit; }
+.portal-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 20px;
+  background: #0b1220;
+  align-items: center;
+}
+.portal-strip a {
+  color: #c9d4e5;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+.portal-strip a:hover,
+.portal-strip a.is-current {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
 
 .app-header {
   position: sticky;
@@ -444,7 +464,7 @@ table.inv-table th {
 @media print {
   @page { size: A4; margin: 0; }
   html, body { background: #fff; height: auto; }
-  .app-header, .form-pane, .staff-tool-bar, .preview-toolbar { display: none !important; }
+  .app-header, .form-pane, .staff-tool-bar, .preview-toolbar, .portal-strip { display: none !important; }
   .layout { display: block; min-height: auto; }
   .preview-pane { padding: 0; overflow: visible; display: block; }
   .preview-wrap {

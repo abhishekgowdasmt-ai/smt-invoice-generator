@@ -15,6 +15,8 @@ function applyStaffSession(me) {
     sessionStorage.setItem('smt_token', smtToken);
     const nav = document.getElementById('od-workspace-nav');
     if (nav) nav.style.display = staffSession.can_od ? '' : 'none';
+    const odCard = document.getElementById('od-workspace-card');
+    if (odCard) odCard.style.display = staffSession.can_od ? '' : 'none';
     const label = document.getElementById('staff-session-label');
     if (label) {
         label.textContent = staffSession.email || '';
@@ -43,7 +45,9 @@ function revealWorkspace(me) {
     applyStaffSession(me || {});
     document.getElementById('admin-login-overlay').classList.add('hidden');
     document.getElementById('admin-workspace').style.display = 'flex';
-    switchTab('inquiries');
+    const hash = (window.location.hash || '').replace('#', '');
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking'];
+    switchTab(allowed.includes(hash) ? hash : 'home');
 }
 
 window.onload = async function() {
@@ -69,34 +73,60 @@ function adminLogout() {
     });
 }
 
+function toggleAdminNav() {
+    const workspace = document.getElementById('admin-workspace');
+    if (workspace) workspace.classList.toggle('nav-open');
+}
+
+function closeAdminNav() {
+    const workspace = document.getElementById('admin-workspace');
+    if (workspace) workspace.classList.remove('nav-open');
+}
+
+const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev'];
+
 // --- TAB SWITCHER ---
 function switchTab(tabId) {
     if (!smtToken) return;
-    
-    // Hide all tab contents
+
     document.querySelectorAll('.admin-tab-content').forEach(el => {
         el.classList.remove('active');
         el.style.display = 'none';
     });
-    // Remove active class from buttons
-    document.querySelectorAll('.admin-sidebar-menu button').forEach(el => {
+    document.querySelectorAll('.admin-nav-link, .admin-nav-menu button').forEach(el => {
         el.classList.remove('active');
     });
-    
-    // Show selected tab content
+    document.querySelectorAll('.admin-nav-drop').forEach(el => {
+        el.classList.remove('is-current');
+    });
+
     const targetTab = document.getElementById(`tab-${tabId}`);
     if (targetTab) {
         targetTab.classList.add('active');
         targetTab.style.display = 'block';
     }
-    
-    // Activate sidebar button
+
     const targetBtn = document.getElementById(`btn-tab-${tabId}`);
     if (targetBtn) {
         targetBtn.classList.add('active');
     }
-    
-    // Fetch data for the active tab
+
+    if (tabId === 'tracking') {
+        const ets = document.querySelector('[data-group="ets"]');
+        if (ets) ets.classList.add('is-current');
+    }
+    if (DATASOURCE_TABS.includes(tabId)) {
+        const ds = document.querySelector('[data-group="datasource"]');
+        if (ds) ds.classList.add('is-current');
+        const dsBtn = document.getElementById('btn-tab-datasource');
+        if (dsBtn) dsBtn.classList.add('active');
+    }
+
+    closeAdminNav();
+    if (history.replaceState) {
+        history.replaceState(null, '', tabId === 'home' ? '/admin' : `/admin#${tabId}`);
+    }
+
     if (tabId === 'inquiries') {
         fetchDashboardData();
     } else if (tabId === 'cabs') {
@@ -111,6 +141,16 @@ function switchTab(tabId) {
         fetchLiveTrips();
     }
 }
+
+window.addEventListener('hashchange', () => {
+    if (!smtToken) return;
+    const hash = (window.location.hash || '').replace('#', '');
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking'];
+    if (!allowed.includes(hash)) return;
+    const current = document.querySelector('.admin-tab-content.active');
+    if (current && current.id === `tab-${hash}`) return;
+    switchTab(hash);
+});
 
 // --- DATA FETCHING (INQUIRIES) ---
 async function fetchDashboardData() {

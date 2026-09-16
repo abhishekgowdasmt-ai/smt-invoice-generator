@@ -24,95 +24,135 @@
 
     <!-- Main Admin Workspace Layout (Hidden initially until validated) -->
     <div class="admin-layout" id="admin-workspace" style="display:none;">
-        <!-- Sidebar Navigation -->
-        <aside class="admin-sidebar" style="display: flex; flex-direction: column;">
-            <div class="logo" style="margin-bottom: 3rem;">
-                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo" style="height: 38px; width: auto; object-fit: contain;">
-                <div class="logo-text">
-                    <h1 style="font-size: 1.15rem;">SMT Portal</h1>
-                    <p style="font-size: 0.65rem;">Operations Manager</p>
+        <header class="admin-topnav">
+            <div class="admin-topnav-inner">
+                <button type="button" class="admin-nav-toggle" onclick="toggleAdminNav()" aria-label="Open menu">☰</button>
+                <a class="admin-brand" href="/admin" onclick="event.preventDefault(); switchTab('home');">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo">
+                    <span>
+                        <strong>SMT Portal</strong>
+                        <small>Operations</small>
+                    </span>
+                </a>
+                <nav class="admin-nav" id="admin-nav">
+                    <a class="admin-nav-link" href="/admin/dispatch/">RAC Management</a>
+                    <div class="admin-nav-drop" data-group="ets">
+                        <button type="button" class="admin-nav-link" id="btn-tab-tracking" onclick="switchTab('tracking')">ETS</button>
+                        <div class="admin-nav-menu">
+                            <p class="admin-nav-hint">Employee Transportation</p>
+                            <button type="button" onclick="switchTab('tracking')">Live operations map</button>
+                        </div>
+                    </div>
+                    <div class="admin-nav-drop" data-group="datasource">
+                        <button type="button" class="admin-nav-link" id="btn-tab-datasource" onclick="switchTab('datasource')">DataSource</button>
+                        <div class="admin-nav-menu">
+                            <button type="button" id="btn-tab-inquiries" onclick="switchTab('inquiries')">Enquiries and Quotes</button>
+                            <button type="button" id="btn-tab-drivers" onclick="switchTab('drivers')">Drivers Directory</button>
+                            <button type="button" id="btn-tab-companies" onclick="switchTab('companies')">Corporate Clients</button>
+                            <button type="button" id="btn-tab-ev" onclick="switchTab('ev')">EV Fleets</button>
+                            <button type="button" id="btn-tab-cabs" onclick="switchTab('cabs')">Cabs &amp; Documents</button>
+                            <a href="/admin/zoho">Zoho Sheet</a>
+                            <a href="/admin/files">File history</a>
+                            <a id="od-workspace-nav" href="/admin/workspace" style="display:none;">OD workspace</a>
+                        </div>
+                    </div>
+                    <a class="admin-nav-link" href="/admin/trips">Trip sheets</a>
+                    <a class="admin-nav-link" href="/admin/invoices/">Invoice generation</a>
+                </nav>
+                <div class="admin-nav-user">
+                    <span id="staff-session-label"></span>
+                    <a href="/">Site</a>
+                    <button type="button" class="btn btn-secondary" onclick="adminLogout()">Logout</button>
                 </div>
             </div>
-            
-            <ul class="admin-sidebar-menu">
-                <li>
-                    <button class="admin-menu-btn active" id="btn-tab-inquiries" onclick="switchTab('inquiries')">
-                        📋 Inquiries & Quotes
-                    </button>
-                </li>
-                <li>
-                    <button class="admin-menu-btn" id="btn-tab-cabs" onclick="switchTab('cabs')">
-                        🚖 Cabs & Documents
-                    </button>
-                </li>
-                <li>
-                    <button class="admin-menu-btn" id="btn-tab-drivers" onclick="switchTab('drivers')">
-                        👷 Drivers Directory
-                    </button>
-                </li>
-                <li>
-                    <button class="admin-menu-btn" id="btn-tab-companies" onclick="switchTab('companies')">
-                        🏢 Corporate Clients
-                    </button>
-                </li>
-                <li>
-                    <button class="admin-menu-btn" id="btn-tab-ev" onclick="switchTab('ev')">
-                        ⚡ EV Fleet Dashboard
-                    </button>
-                </li>
-                <li>
-                    <button class="admin-menu-btn" id="btn-tab-tracking" onclick="switchTab('tracking')">
-                        🌐 Live map (demo)
-                    </button>
-                </li>
-                <li>
-                    <a class="admin-menu-btn" href="/admin/invoices/" style="display:block;text-decoration:none;">
-                        Invoice generator
-                    </a>
-                </li>
-                <li>
-                    <a class="admin-menu-btn" href="/admin/trips" style="display:block;text-decoration:none;">
-                        Trip sheet generator
-                    </a>
-                </li>
-                <li>
-                    <a class="admin-menu-btn" href="/admin/dispatch/" style="display:block;text-decoration:none;">
-                        RAC dispatch
-                    </a>
-                </li>
-                <li>
-                    <a class="admin-menu-btn" href="/admin/zoho" style="display:block;text-decoration:none;">
-                        Zoho Sheet
-                    </a>
-                </li>
-                <li>
-                    <a class="admin-menu-btn" href="/admin/files" style="display:block;text-decoration:none;">
-                        File history
-                    </a>
-                </li>
-                <li id="od-workspace-nav" style="display:none;">
-                    <a class="admin-menu-btn" href="/admin/workspace" style="display:block;text-decoration:none;">
-                        OD workspace
-                    </a>
-                </li>
-            </ul>
+        </header>
 
-            <div style="margin-top: auto; padding-top: 5rem;">
-                <p id="staff-session-label" style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem;"></p>
-                <button class="btn btn-secondary" style="width: 100%; font-size: 0.85rem; margin-bottom: 0.75rem;" onclick="window.location.href='/'">🏠 Client Homepage</button>
-                <button class="btn btn-secondary" style="width: 100%; font-size: 0.85rem;" onclick="adminLogout()">Logout</button>
-            </div>
-        </aside>
-
-        <!-- Main Content Area -->
         <main class="admin-content">
-            
+            <div class="admin-tab-content" id="tab-home">
+                <header class="admin-page-head">
+                    <div>
+                        <h2>Shree Maruthi Travels</h2>
+                        <p>Choose a section. RAC, ETS, master data, trip sheets, and invoices stay in this top bar.</p>
+                    </div>
+                </header>
+                <div class="portal-grid">
+                    <a class="portal-card" href="/admin/dispatch/">
+                        <span class="portal-card-index">01</span>
+                        <h3>RAC Management</h3>
+                        <p>Bookings, insights, driver assignment, upload, and WhatsApp dispatch.</p>
+                    </a>
+                    <button type="button" class="portal-card" onclick="switchTab('tracking')">
+                        <span class="portal-card-index">02</span>
+                        <h3>ETS</h3>
+                        <p>Employee Transportation — live operations map for corporate commute.</p>
+                    </button>
+                    <button type="button" class="portal-card" onclick="switchTab('datasource')">
+                        <span class="portal-card-index">03</span>
+                        <h3>DataSource</h3>
+                        <p>Drivers, corporate clients, EV fleets, enquiries, cabs, Zoho, and files.</p>
+                    </button>
+                    <a class="portal-card" href="/admin/trips">
+                        <span class="portal-card-index">04</span>
+                        <h3>Trip sheets</h3>
+                        <p>Generate trip-sheet PDFs from the Excel file used on duty.</p>
+                    </a>
+                    <a class="portal-card" href="/admin/invoices/">
+                        <span class="portal-card-index">05</span>
+                        <h3>Invoice generation</h3>
+                        <p>Client invoices, GST formats, and print / save PDF.</p>
+                    </a>
+                </div>
+            </div>
+
+            <div class="admin-tab-content" id="tab-datasource">
+                <header class="admin-page-head">
+                    <div>
+                        <h2>DataSource</h2>
+                        <p>Master lists used across RAC and ETS. Open a register below.</p>
+                    </div>
+                </header>
+                <div class="portal-grid">
+                    <button type="button" class="portal-card" onclick="switchTab('inquiries')">
+                        <h3>Enquiries and Quotes</h3>
+                        <p>Employee transit quote queue and contract status.</p>
+                    </button>
+                    <button type="button" class="portal-card" onclick="switchTab('drivers')">
+                        <h3>Drivers Directory</h3>
+                        <p>Staff roster, licences, and cab associations.</p>
+                    </button>
+                    <button type="button" class="portal-card" onclick="switchTab('companies')">
+                        <h3>Corporate Clients</h3>
+                        <p>Company accounts assigned to the fleet.</p>
+                    </button>
+                    <button type="button" class="portal-card" onclick="switchTab('ev')">
+                        <h3>EV Fleets</h3>
+                        <p>Electric vehicles, utilisation, and charging view.</p>
+                    </button>
+                    <button type="button" class="portal-card" onclick="switchTab('cabs')">
+                        <h3>Cabs &amp; Documents</h3>
+                        <p>Vehicle registry, fuel type, and document status.</p>
+                    </button>
+                    <a class="portal-card" href="/admin/zoho">
+                        <h3>Zoho Sheet</h3>
+                        <p>Live RAC and operations workbook.</p>
+                    </a>
+                    <a class="portal-card" href="/admin/files">
+                        <h3>File history</h3>
+                        <p>Generated PDFs and uploads stored in WorkDrive.</p>
+                    </a>
+                    <a class="portal-card" id="od-workspace-card" href="/admin/workspace" style="display:none;">
+                        <h3>OD workspace</h3>
+                        <p>Bank of Baroda overdraft ledger — Abhishek and company Gmail only.</p>
+                    </a>
+                </div>
+            </div>
+
             <!-- Tab: Inquiries & Quotes -->
-            <div class="admin-tab-content active" id="tab-inquiries">
+            <div class="admin-tab-content" id="tab-inquiries">
                 <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Fleet Quote Inquiries</h2>
-                        <p style="color: var(--text-secondary);">Manage and status employee transit contracts.</p>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">DataSource · Enquiries and Quotes</h2>
+                        <p style="color: var(--text-secondary);">Employee transit quote queue and contract status.</p>
                     </div>
                     <div style="display:flex; gap:0.75rem; align-items:center;">
                         <span id="zoho-status" style="font-size:0.85rem; color: var(--text-secondary);">Zoho: checking…</span>
@@ -350,8 +390,8 @@
             <div class="admin-tab-content" id="tab-tracking" style="display:none;">
                 <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Live Operations Map</h2>
-                        <p style="color: var(--text-secondary);">Demo simulation only — this is not live GPS tracking.</p>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">ETS · Live operations</h2>
+                        <p style="color: var(--text-secondary);">Employee Transportation map (demo) — not live GPS.</p>
                     </div>
                     <div style="display: flex; gap: 0.75rem;">
                         <button class="btn btn-secondary" onclick="simulateTripTick()">Simulate Progress ⏱️</button>
