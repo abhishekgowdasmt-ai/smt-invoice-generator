@@ -4,6 +4,16 @@ import Navigation from '../components/Navigation'
 import { API } from '../services/api'
 import { QRCodeSVG } from 'qrcode.react'
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+const formatTripDate = (value) => {
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) return value || '-'
+  const month = MONTH_NAMES[Number(match[2]) - 1]
+  if (!month) return value
+  return `${Number(match[3])} ${month} ${match[1]}`
+}
+
 const BookingDetailPage = () => {
   const { bookingId } = useParams()
   const navigate = useNavigate()
@@ -147,7 +157,7 @@ const BookingDetailPage = () => {
               </div>
               <div className="detail-row">
                 <label>Trip Date</label>
-                <span>{new Date(booking.trip_date).toLocaleDateString()}</span>
+                <span>{formatTripDate(booking.trip_date)}</span>
               </div>
               <div className="detail-row">
                 <label>Employee Name</label>

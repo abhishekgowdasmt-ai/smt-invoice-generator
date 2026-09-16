@@ -2,7 +2,7 @@
 import io
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import quote
 
@@ -213,29 +213,124 @@ def _parse_excel_date(value):
     if value is None or value == '':
         return None
     if hasattr(value, 'strftime'):
-        return value.strftime('%Y-%m-%d')
-    text = str(value).strip()
-    if '/' in text:
-        parts = text.split('/')
-        if len(parts) == 3:
-            try:
-                day, month, year = int(parts[0]), int(parts[1]), int(parts[2])
-                if year < 100:
-                    year += 2000 if year < 50 else 1900
-                return datetime(year, month, day).strftime('%Y-%m-%d')
-            except ValueError:
-                pass
-    if isinstance(value, (int, float)):
+        year = value.year + 100 if value.year < 2000 else value.year
+        return f'{year:04d}-{value.month:02d}-{value.day:02d}'
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
         try:
-            from datetime import timedelta
             base = datetime(1899, 12, 30)
-            return (base + timedelta(days=float(value))).strftime('%Y-%m-%d')
+            parsed = base + timedelta(days=float(value))
+            year = parsed.year + 100 if parsed.year < 2000 else parsed.year
+            return f'{year:04d}-{parsed.month:02d}-{parsed.day:02d}'
         except (ValueError, OverflowError):
             return None
+    text = str(value).strip().replace(' 00:00:00', '')
+    if text.lower() in ('', 'nan', 'nat', 'none'):
+        return None
+    text = text.replace('.', '-')
+    for fmt in ('%Y-%m-%d', '%d-%b-%y', '%d-%b-%Y', '%d/%m/%Y', '%d/%m/%y', '%d-%m-%Y', '%d-%m-%y', '%m/%d/%Y'):
+        try:
+            parsed = datetime.strptime(text[:20], fmt)
+            year = parsed.year + 100 if parsed.year < 2000 else parsed.year
+            iso = f'{year:04d}-{parsed.month:02d}-{parsed.day:02d}'
+            if fmt == '%m/%d/%Y' and '/' in str(value):
+                return _coerce_trip_date(iso)
+            return iso
+        except ValueError:
+            continue
+    if '/' in str(value):
+        parts = re.split(r'[/-]', str(value).strip())
+        if len(parts) >= 3:
+            try:
+                first, second, year = int(parts[0]), int(parts[1]), int(parts[2][:4])
+                if year < 100:
+                    year += 2000 if year < 50 else 1900
+                return _coerce_trip_date(f'{year:04d}-{second:02d}-{first:02d}')
+            except ValueError:
+                pass
+    return None
+
+
+def _date_from_booking_id(booking_id):
+    text = str(booking_id or '').strip()
+    match = re.match(r'^(\d{2})(\d{2})(\d{2})(?:\D|$)', text)
+    if not match:
+        return None
+    year = 2000 + int(match.group(1))
+    month = int(match.group(2))
+    day = int(match.group(3))
     try:
-        return datetime.strptime(text[:10], '%Y-%m-%d').strftime('%Y-%m-%d')
+        return datetime(year, month, day).date()
     except ValueError:
         return None
+
+
+def _coerce_trip_date(value, booking_id=None):
+    text = str(value or '').strip()
+    match = re.match(r'^(\d{4})-(\d{2})-(\d{2})', text)
+    if not match:
+        parsed = _parse_excel_date(value) if value and not text.startswith('20') else None
+        match = re.match(r'^(\d{4})-(\d{2})-(\d{2})', str(parsed or ''))
+        if not match:
+            return text[:10] if text else ''
+    year, month, day = (int(part) for part in match.groups())
+    try:
+        current = datetime(year, month, day).date()
+    except ValueError:
+        return f'{year:04d}-{month:02d}-{day:02d}'
+    today = datetime.utcnow().date()
+    horizon = today + timedelta(days=7)
+    window_start = datetime(2025, 1, 1).date()
+
+    def valid(yy, mm, dd):
+        try:
+            return datetime(yy, mm, dd).date()
+        except ValueError:
+            return None
+
+    def in_window(dt):
+        return dt is not None and window_start <= dt <= horizon
+
+    swapped = valid(year, day, month) if day <= 12 and month <= 12 and day != month else None
+    id_date = _date_from_booking_id(booking_id)
+    if in_window(current):
+        return current.strftime('%Y-%m-%d')
+    if swapped and in_window(swapped):
+        return swapped.strftime('%Y-%m-%d')
+    if id_date and in_window(id_date):
+        return id_date.strftime('%Y-%m-%d')
+    return current.strftime('%Y-%m-%d')
+
+
+def _format_clock(value):
+    parsed = _parse_time(value)
+    if not parsed:
+        return str(value or '').strip()
+    hour, minute = parsed.split(':')
+    hour = int(hour)
+    suffix = 'AM' if hour < 12 else 'PM'
+    return f'{hour % 12 or 12}:{minute} {suffix}'
+
+
+def _present_booking(row):
+    item = dict(row)
+    item['trip_date'] = _coerce_trip_date(item.get('trip_date'), item.get('source_booking_id'))
+    duty = str(item.get('duty_type') or '').strip()
+    if duty:
+        grouped = _duty_group(duty)
+        item['duty_type'] = duty if grouped == 'Unknown' else grouped
+    name = item.get('employee_name') or item.get('source_name') or ''
+    item['employee_name'] = _person_label(name, '')
+    start = str(item.get('planned_start') or '').strip()
+    item['planned_start'] = re.sub(r'\s+', ' ', start).title() if start else ''
+    if item.get('pickup_time'):
+        item['pickup_time'] = _format_clock(item.get('pickup_time'))
+    if item.get('end_time'):
+        item['end_time'] = _format_clock(item.get('end_time'))
+    if item.get('cab_type'):
+        item['cab_type'] = _cab_group(item.get('cab_type'))
+    item['amount'] = _parse_number(item.get('amount'), 0)
+    item['driver_payment_status'] = _driver_payment_status(item.get('driver_payment_status'))
+    return item
 
 
 def _parse_time(value):
@@ -346,7 +441,20 @@ def _wa_bridge_send(phone, body):
         return False, {'error': str(exc)}
 
 
+def _display_date(value):
+    text = str(value or '').strip()
+    match = re.match(r'^(\d{4})-(\d{2})-(\d{2})', text)
+    if not match:
+        return text or 'N/A'
+    months = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+    year, month, day = match.group(1), int(match.group(2)), int(match.group(3))
+    if month < 1 or month > 12:
+        return text
+    return f'{int(day)} {months[month - 1]} {year}'
+
+
 def _whatsapp_body(booking):
+    booking = _present_booking(booking)
     pickup = (booking.get('pickup_time') or 'N/A')
     end = (booking.get('end_time') or 'N/A')
     route = booking.get('route_text') or 'N/A'
@@ -355,7 +463,7 @@ def _whatsapp_body(booking):
     return (
         'New Ride Assigned\n\n'
         f"Booking ID: {booking.get('source_booking_id')}\n"
-        f"Date: {booking.get('trip_date')}\n"
+        f"Date: {_display_date(booking.get('trip_date'))}\n"
         f"Employee: {booking.get('employee_name')}\n"
         f"Pickup: {booking.get('planned_start') or 'N/A'}\n"
         f"Route: {route}\n"
@@ -494,7 +602,7 @@ def dashboard_insights():
         total_km = 0.0
         employees = set()
         for row in bookings:
-            month = _month_key(row.get('trip_date'))
+            month = _month_key(_coerce_trip_date(row.get('trip_date'), row.get('source_booking_id')))
             try:
                 km = float(row.get('total_km') or 0)
             except (TypeError, ValueError):
@@ -653,7 +761,12 @@ def list_bookings():
     search = (request.args.get('search') or '').strip().lower()
     payment = request.args.get('payment') or ''
     assigned = request.args.get('assigned_driver_id') or ''
-    rows = rac_store.all_rows('bookings')
+    rows = [_present_booking(row) for row in rac_store.all_rows('bookings')]
+    months = sorted({
+        key for key in (
+            str(row.get('trip_date') or '')[:7] for row in rows
+        ) if re.match(r'^\d{4}-\d{2}$', key)
+    })
     if date:
         rows = [row for row in rows if str(row.get('trip_date') or '') == date]
     if month:
@@ -709,6 +822,7 @@ def list_bookings():
                 1 for row in stats_rows
                 if _driver_payment_status(row.get('driver_payment_status')) == 'Paid'
             ),
+            'months': months,
         },
         'pagination': {'page': page, 'limit': limit, 'total': total},
     })
@@ -723,7 +837,7 @@ def get_booking(booking_id):
     assigned = None
     if booking.get('assigned_driver_id'):
         assigned = rac_store.find_one('drivers', 'driver_id', booking.get('assigned_driver_id'))
-    payload = dict(booking)
+    payload = _present_booking(booking)
     payload['assignedDriver'] = assigned
     return jsonify({'success': True, 'data': payload})
 
@@ -872,7 +986,10 @@ def upload_excel():
             field = COLUMN_MAPPING.get(_norm_header(column))
             if field is not None:
                 mapped[field] = value
-        mapped['trip_date'] = _parse_excel_date(mapped.get('trip_date'))
+        mapped['trip_date'] = _coerce_trip_date(
+            _parse_excel_date(mapped.get('trip_date')),
+            mapped.get('source_booking_id'),
+        )
         mapped['pickup_time'] = _parse_time(mapped.get('pickup_time'))
         mapped['end_time'] = _parse_time(mapped.get('end_time'))
         for key in ('start_km', 'end_km', 'total_km', 'driver_hours', 'driver_km', 'toll', 'parking', 'amount'):

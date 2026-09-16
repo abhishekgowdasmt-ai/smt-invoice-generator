@@ -5,12 +5,20 @@ import SortTh from '../components/SortTh'
 import { API } from '../services/api'
 
 const DATE_FIRST = { trip_date: 'DESC', pickup_time: 'ASC', amount: 'DESC' }
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 const formatDate = (value) => {
-  if (!value) return '-'
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return value
-  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) return value || '-'
+  const month = MONTH_NAMES[Number(match[2]) - 1]
+  if (!month) return value
+  return `${Number(match[3])} ${month.slice(0, 3)} ${match[1]}`
+}
+
+const monthLabel = (value) => {
+  const [year, month] = String(value || '').split('-')
+  const name = MONTH_NAMES[Number(month) - 1]
+  return name ? `${name} ${year}` : value
 }
 
 const BookingsPage = () => {
@@ -162,10 +170,12 @@ const BookingsPage = () => {
               style={{ width: 'auto' }}
             >
               <option value="">All months</option>
-              <option value="2026-05">May 2026</option>
-              <option value="2026-06">June 2026</option>
-              <option value="2026-07">July 2026</option>
-              <option value="2026-08">August 2026</option>
+              {(summary?.months || []).map((month) => (
+                <option key={month} value={month}>{monthLabel(month)}</option>
+              ))}
+              {filters.month && !(summary?.months || []).includes(filters.month) && (
+                <option value={filters.month}>{monthLabel(filters.month)}</option>
+              )}
             </select>
             <input
               type="date"
@@ -173,6 +183,7 @@ const BookingsPage = () => {
               onChange={(e) => setFilters({ ...filters, date: e.target.value, page: 1 })}
               className="input"
               style={{ width: 'auto' }}
+              title="Filter by trip date"
             />
             <select
               value={filters.status}
