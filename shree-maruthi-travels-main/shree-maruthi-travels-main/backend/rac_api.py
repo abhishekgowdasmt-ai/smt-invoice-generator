@@ -378,9 +378,15 @@ def create_driver():
     payload = request.get_json(silent=True) or {}
     name = (payload.get('driver_name') or '').strip()
     phone = (payload.get('whatsapp_number') or '').strip()
-    if not name or not phone:
-        return jsonify({'success': False, 'message': 'Driver name and WhatsApp number required'}), 400
-    if rac_store.find_one('drivers', 'whatsapp_number', phone):
+    if not name:
+        return jsonify({'success': False, 'message': 'Driver name is required'}), 400
+    existing_name = next(
+        (row for row in rac_store.all_rows('drivers') if str(row.get('driver_name') or '').strip().lower() == name.lower()),
+        None,
+    )
+    if existing_name:
+        return jsonify({'success': False, 'message': 'Driver name already exists'}), 409
+    if phone and rac_store.find_one('drivers', 'whatsapp_number', phone):
         return jsonify({'success': False, 'message': 'WhatsApp number already exists'}), 409
     driver = rac_store.insert('drivers', {
         'driver_id': rac_store.new_id('drv'),

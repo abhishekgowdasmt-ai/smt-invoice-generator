@@ -142,7 +142,7 @@ const DriversPage = () => {
                 {drivers.map((driver) => (
                   <tr key={driver.driver_id}>
                     <td className="fw-600">{driver.driver_name}</td>
-                    <td>{driver.whatsapp_number}</td>
+                    <td>{driver.whatsapp_number || 'Add later'}</td>
                     <td>{driver.vehicle_number}</td>
                     <td>{driver.vehicle_type}</td>
                     <td>{driver.home_area}</td>
@@ -217,13 +217,12 @@ const DriversPage = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>WhatsApp Number * (E.164)</label>
+                  <label>WhatsApp Number (add later if missing)</label>
                   <input
                     type="tel"
                     value={formData.whatsapp_number}
                     onChange={(e) => setFormData({ ...formData, whatsapp_number: e.target.value })}
                     placeholder="+919876543210"
-                    required
                     className="input"
                   />
                 </div>

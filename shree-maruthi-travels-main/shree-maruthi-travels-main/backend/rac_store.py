@@ -178,6 +178,8 @@ def _hydrate_zoho():
         for kind in ('drivers', 'assignments', 'uploads', 'messages'):
             if zoho.get(kind):
                 _data[kind] = zoho[kind]
+        _attach_drivers(_data)
+        _attach_history(_data, push=False)
         _save_json(_data)
 
 
@@ -198,7 +200,7 @@ def _attach_history(data, push=True):
     if pending and not any(str(row.get('batch_id')) == rac_history.HISTORY_BATCH for row in data['uploads']):
         data['uploads'].append({
             'batch_id': rac_history.HISTORY_BATCH,
-            'file_name': 'MONTH OF MAY TO AUGUST FULL DUTY XL RAC 2026.xlsx',
+            'file_name': 'RAC historical duty workbooks (Nov 2025–Sep 2026)',
             'file_size': 0,
             'uploaded_by': 'history-import',
             'uploaded_at': _now(),
@@ -213,7 +215,25 @@ def _attach_history(data, push=True):
     return pending
 
 
+def _attach_drivers(data):
+    import rac_history
+    existing = {str(row.get('driver_name') or '').strip().lower() for row in data['drivers']}
+    added = []
+    for row in rac_history.load_history_drivers():
+        name = str(row.get('driver_name') or '').strip()
+        if not name or name.lower() in existing:
+            continue
+        item = dict(row)
+        item['created_at'] = item.get('created_at') or _now()
+        item['updated_at'] = item.get('updated_at') or _now()
+        data['drivers'].append(item)
+        existing.add(name.lower())
+        added.append(item)
+    return added
+
+
 def _seed_if_needed(data):
+    _attach_drivers(data)
     if not data['drivers']:
         stamped = []
         for driver in SAMPLE_DRIVERS:

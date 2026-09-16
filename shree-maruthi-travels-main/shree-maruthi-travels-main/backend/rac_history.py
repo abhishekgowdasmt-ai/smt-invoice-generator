@@ -1,9 +1,10 @@
-"""Load May–August 2026 RAC duty history into dispatch bookings."""
+"""Load RAC duty history into dispatch bookings and drivers."""
 import json
 import os
 
-HISTORY_BATCH = 'hist-may-aug-2026'
+HISTORY_BATCH = 'hist-all-duty'
 HISTORY_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'rac_history.json')
+DRIVERS_JSON = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data', 'rac_drivers.json')
 
 
 def load_history_bookings():
@@ -50,3 +51,10 @@ def load_history_bookings():
             'history_source': row.get('history_source') or '',
         })
     return bookings
+
+
+def load_history_drivers():
+    if not os.path.isfile(DRIVERS_JSON):
+        return []
+    with open(DRIVERS_JSON, encoding='utf-8') as handle:
+        return json.load(handle)
