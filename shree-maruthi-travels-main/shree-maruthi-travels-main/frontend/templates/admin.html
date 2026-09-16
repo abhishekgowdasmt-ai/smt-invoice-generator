@@ -25,83 +25,139 @@
     </div>
 
     <!-- Main Admin Workspace Layout (Hidden initially until validated) -->
-    <div class="admin-layout" id="admin-workspace" style="display:none;">
-        <header class="admin-topnav">
-            <div class="admin-topnav-inner">
-                <button type="button" class="admin-nav-toggle" onclick="toggleAdminNav()" aria-label="Open menu">☰</button>
-                <a class="admin-brand" href="/admin" onclick="event.preventDefault(); switchTab('home');">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT Logo">
-                    <span>
-                        <strong>SMT Portal</strong>
-                        <small>Operations</small>
-                    </span>
-                </a>
-                <nav class="admin-nav" id="admin-nav">
-                    <a class="admin-nav-link" href="/admin/dispatch/">RAC Management</a>
-                    <div class="admin-nav-drop" data-group="ets">
-                        <button type="button" class="admin-nav-link" id="btn-tab-tracking" onclick="switchTab('tracking')">ETS</button>
-                        <div class="admin-nav-menu">
-                            <p class="admin-nav-hint">Employee Transportation</p>
-                            <button type="button" onclick="switchTab('tracking')">Live operations map</button>
-                        </div>
+    <div class="admin-layout portal-shell" id="admin-workspace" style="display:none;">
+        <header class="portal-topbar">
+            <button type="button" class="admin-nav-toggle" onclick="toggleAdminNav()" aria-label="Open menu">☰</button>
+            <a class="portal-brand" href="/admin" onclick="event.preventDefault(); switchTab('home');">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT">
+                <span>
+                    <strong>Shree Maruthi Travels</strong>
+                    <small>On Time, Safe, Reliable</small>
+                </span>
+            </a>
+            <div class="portal-topbar-right">
+                <div class="portal-user">
+                    <button type="button" class="portal-user-btn" aria-haspopup="true">
+                        <span class="portal-avatar">A</span>
+                        <span>Admin</span>
+                        <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M5 7.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    </button>
+                    <div class="portal-user-menu">
+                        <p id="staff-session-label"></p>
+                        <a href="/">Public website</a>
+                        <button type="button" onclick="adminLogout()">Logout</button>
                     </div>
-                    <div class="admin-nav-drop" data-group="datasource">
-                        <button type="button" class="admin-nav-link" id="btn-tab-datasource" onclick="switchTab('datasource')">DataSource</button>
-                        <div class="admin-nav-menu">
-                            <button type="button" id="btn-tab-inquiries" onclick="switchTab('inquiries')">Enquiries and Quotes</button>
-                            <button type="button" id="btn-tab-drivers" onclick="switchTab('drivers')">Drivers Directory</button>
-                            <button type="button" id="btn-tab-companies" onclick="switchTab('companies')">Corporate Clients</button>
-                            <button type="button" id="btn-tab-ev" onclick="switchTab('ev')">EV Fleets</button>
-                            <button type="button" id="btn-tab-cabs" onclick="switchTab('cabs')">Cabs &amp; Documents</button>
-                            <a href="/admin/zoho">Zoho Sheet</a>
-                            <a href="/admin/files">File history</a>
-                            <a id="od-workspace-nav" href="/admin/workspace" style="display:none;">OD workspace</a>
-                        </div>
-                    </div>
-                    <a class="admin-nav-link" href="/admin/trips">Trip sheets</a>
-                    <a class="admin-nav-link" href="/admin/invoices/">Invoice generation</a>
-                </nav>
-                <div class="admin-nav-user">
-                    <span id="staff-session-label"></span>
-                    <a href="/">Site</a>
-                    <button type="button" class="btn btn-secondary" onclick="adminLogout()">Logout</button>
                 </div>
+                <button type="button" class="portal-bell" onclick="switchTab('inquiries')" title="Enquiries">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5"/><path d="M9 17a3 3 0 0 0 6 0"/></svg>
+                </button>
             </div>
         </header>
 
+        <div class="portal-body">
+        <aside class="portal-sidebar" id="admin-nav">
+            <nav class="portal-side-nav">
+                <button type="button" class="portal-side-link" id="btn-tab-home" onclick="switchTab('home')">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.6"/><rect x="13" y="3" width="8" height="8" rx="1.6"/><rect x="3" y="13" width="8" height="8" rx="1.6"/><rect x="13" y="13" width="8" height="8" rx="1.6"/></svg>
+                    Dashboard
+                </button>
+                <a class="portal-side-link" href="/admin/dispatch/">
+                    <svg viewBox="0 0 24 24"><path d="M8 7h11M8 12h11M8 17h7"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg>
+                    RAC Management
+                </a>
+                <button type="button" class="portal-side-link" id="btn-tab-tracking" onclick="switchTab('tracking')">
+                    <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 17v2M17 17v2M3 12h18"/></svg>
+                    ETS
+                </button>
+                <div class="admin-nav-drop portal-side-drop" data-group="datasource">
+                    <button type="button" class="portal-side-link" id="btn-tab-datasource" onclick="switchTab('datasource')">
+                        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>
+                        DataSource
+                    </button>
+                    <div class="admin-nav-menu">
+                        <button type="button" id="btn-tab-inquiries" onclick="switchTab('inquiries')">Enquiries and Quotes</button>
+                        <button type="button" id="btn-tab-drivers" onclick="switchTab('drivers')">Drivers Directory</button>
+                        <button type="button" id="btn-tab-companies" onclick="switchTab('companies')">Corporate Clients</button>
+                        <button type="button" id="btn-tab-ev" onclick="switchTab('ev')">EV Fleets</button>
+                        <button type="button" id="btn-tab-cabs" onclick="switchTab('cabs')">Cabs &amp; Documents</button>
+                        <a href="/admin/zoho">Zoho Sheet</a>
+                        <a href="/admin/files">File history</a>
+                        <a id="od-workspace-nav" href="/admin/workspace" style="display:none;">OD workspace</a>
+                    </div>
+                </div>
+                <a class="portal-side-link" href="/admin/trips">
+                    <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h5M9 13h6M9 17h6"/></svg>
+                    Trip sheets
+                </a>
+                <a class="portal-side-link" href="/admin/invoices/">
+                    <svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h3"/></svg>
+                    Invoice generation
+                </a>
+                <div class="portal-side-sep"></div>
+                <button type="button" class="portal-side-link" id="btn-tab-settings" onclick="switchTab('settings')">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.7.9 1.2 1.7 1.4H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1.6z"/></svg>
+                    Settings
+                </button>
+                <button type="button" class="portal-side-link" id="btn-tab-help" onclick="switchTab('help')">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1.3.9-1.3 1.7V14"/><circle cx="12" cy="17" r=".8" fill="currentColor" stroke="none"/></svg>
+                    Help &amp; Support
+                </button>
+            </nav>
+            <div class="portal-side-foot">
+                <img src="{{ url_for('static', filename='images/logo.png') }}" alt="">
+                <span><strong>Shree Maruthi Travels</strong>On Time, Safe, Reliable</span>
+            </div>
+        </aside>
+
         <main class="admin-content">
             <div class="admin-tab-content" id="tab-home">
-                <header class="admin-page-head">
-                    <div>
+                <section class="portal-hero">
+                    <div class="portal-hero-copy">
+                        <p class="portal-kicker">Welcome to</p>
                         <h2>Shree Maruthi Travels</h2>
-                        <p>Choose a section. RAC, ETS, master data, trip sheets, and invoices stay in this top bar.</p>
+                        <p>Manage your transport operations efficiently with our integrated system for bookings, trips, invoices and more.</p>
+                        <ul class="portal-pills">
+                            <li><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> On Time</li>
+                            <li><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3.4 7.7-7 9-3.6-1.3-7-4-7-9V6z"/></svg> Safe</li>
+                            <li><svg viewBox="0 0 24 24"><path d="M8 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM16 14a4 4 0 1 1 0-8 4 4 0 0 1 0 8zM4.5 20a5 5 0 0 1 7 0M12.5 20a5 5 0 0 1 7 0"/></svg> Reliable</li>
+                        </ul>
                     </div>
-                </header>
-                <div class="portal-grid">
-                    <a class="portal-card" href="/admin/dispatch/">
-                        <span class="portal-card-index">01</span>
+                    <div class="portal-hero-art" aria-hidden="true">
+                        <img src="{{ url_for('static', filename='images/commuter_bus.png') }}" alt="">
+                    </div>
+                </section>
+                <div class="dash-grid">
+                    <a class="dash-card tone-orange" href="/admin/dispatch/">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14 19a4.5 4.5 0 0 1 6.5 0"/></svg></span>
                         <h3>RAC Management</h3>
                         <p>Bookings, insights, driver assignment, upload, and WhatsApp dispatch.</p>
+                        <span class="dash-open">Open →</span>
                     </a>
-                    <button type="button" class="portal-card" onclick="switchTab('tracking')">
-                        <span class="portal-card-index">02</span>
+                    <button type="button" class="dash-card tone-blue" onclick="switchTab('tracking')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 17v2M17 17v2M7 12h10"/></svg></span>
                         <h3>ETS</h3>
                         <p>Employee Transportation — live operations map for corporate commute.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <button type="button" class="portal-card" onclick="switchTab('datasource')">
-                        <span class="portal-card-index">03</span>
+                    <button type="button" class="dash-card tone-green" onclick="switchTab('datasource')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span>
                         <h3>DataSource</h3>
                         <p>Drivers, corporate clients, EV fleets, enquiries, cabs, Zoho, and files.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <a class="portal-card" href="/admin/trips">
-                        <span class="portal-card-index">04</span>
+                    <a class="dash-card tone-purple" href="/admin/trips">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h5M9 13h6M9 17h4"/></svg></span>
                         <h3>Trip sheets</h3>
                         <p>Generate trip-sheet PDFs from the Excel file used on duty.</p>
+                        <span class="dash-open">Open →</span>
                     </a>
-                    <a class="portal-card" href="/admin/invoices/">
-                        <span class="portal-card-index">05</span>
-                        <h3>Invoice generation</h3>
-                        <p>Client invoices, GST formats, and print / save PDF.</p>
+                    <a class="dash-card tone-teal dash-wide" href="/admin/invoices/">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h3"/></svg></span>
+                        <div>
+                            <h3>Invoice generation</h3>
+                            <p>Client invoices, GST formats, and print / save PDF.</p>
+                            <span class="dash-open">Open →</span>
+                        </div>
                     </a>
                 </div>
             </div>
@@ -113,39 +169,107 @@
                         <p>Master lists used across RAC and ETS. Open a register below.</p>
                     </div>
                 </header>
-                <div class="portal-grid">
-                    <button type="button" class="portal-card" onclick="switchTab('inquiries')">
+                <div class="dash-grid">
+                    <button type="button" class="dash-card tone-orange" onclick="switchTab('inquiries')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M5 5h14v12H8l-3 3z"/></svg></span>
                         <h3>Enquiries and Quotes</h3>
                         <p>Employee transit quote queue and contract status.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <button type="button" class="portal-card" onclick="switchTab('drivers')">
+                    <button type="button" class="dash-card tone-blue" onclick="switchTab('drivers')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 19a7 7 0 0 1 14 0"/></svg></span>
                         <h3>Drivers Directory</h3>
                         <p>Staff roster, licences, and cab associations.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <button type="button" class="portal-card" onclick="switchTab('companies')">
+                    <button type="button" class="dash-card tone-green" onclick="switchTab('companies')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/></svg></span>
                         <h3>Corporate Clients</h3>
                         <p>Company accounts assigned to the fleet.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <button type="button" class="portal-card" onclick="switchTab('ev')">
+                    <button type="button" class="dash-card tone-purple" onclick="switchTab('ev')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M13 3 6 14h6l-1 7 7-11h-6z"/></svg></span>
                         <h3>EV Fleets</h3>
                         <p>Electric vehicles, utilisation, and charging view.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <button type="button" class="portal-card" onclick="switchTab('cabs')">
+                    <button type="button" class="dash-card tone-orange" onclick="switchTab('cabs')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M4 13h16l-2-6H6z"/><path d="M6 17h.01M18 17h.01M4 13v4h16v-4"/></svg></span>
                         <h3>Cabs &amp; Documents</h3>
                         <p>Vehicle registry, fuel type, and document status.</p>
+                        <span class="dash-open">Open →</span>
                     </button>
-                    <a class="portal-card" href="/admin/zoho">
+                    <a class="dash-card tone-blue" href="/admin/zoho">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h8M8 17h5"/></svg></span>
                         <h3>Zoho Sheet</h3>
                         <p>Live RAC and operations workbook.</p>
+                        <span class="dash-open">Open →</span>
                     </a>
-                    <a class="portal-card" href="/admin/files">
+                    <a class="dash-card tone-green" href="/admin/files">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M4 20V7l5-3 5 3v13M14 7l6-3v13l-6 3"/></svg></span>
                         <h3>File history</h3>
                         <p>Generated PDFs and uploads stored in WorkDrive.</p>
+                        <span class="dash-open">Open →</span>
                     </a>
-                    <a class="portal-card" id="od-workspace-card" href="/admin/workspace" style="display:none;">
+                    <a class="dash-card tone-teal" id="od-workspace-card" href="/admin/workspace" style="display:none;">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg></span>
                         <h3>OD workspace</h3>
                         <p>Bank of Baroda overdraft ledger — Abhishek and company Gmail only.</p>
+                        <span class="dash-open">Open →</span>
                     </a>
+                </div>
+            </div>
+
+            <div class="admin-tab-content" id="tab-settings">
+                <header class="admin-page-head">
+                    <div>
+                        <h2>Settings</h2>
+                        <p>Staff session and tools. Google Sign-In is the only login.</p>
+                    </div>
+                </header>
+                <div class="dash-grid">
+                    <div class="dash-card tone-orange">
+                        <h3>Signed in</h3>
+                        <p id="settings-session-label">Checking session…</p>
+                    </div>
+                    <a class="dash-card tone-blue" href="/admin/dispatch/whatsapp-qr">
+                        <h3>WhatsApp</h3>
+                        <p>Link a phone from RAC Management → WhatsApp so duty messages can send.</p>
+                        <span class="dash-open">Open →</span>
+                    </a>
+                    <a class="dash-card tone-green" href="/admin/zoho">
+                        <h3>Zoho</h3>
+                        <p>Connect or check the operations workbook.</p>
+                        <span class="dash-open">Open →</span>
+                    </a>
+                </div>
+            </div>
+
+            <div class="admin-tab-content" id="tab-help">
+                <header class="admin-page-head">
+                    <div>
+                        <h2>Help &amp; Support</h2>
+                        <p>How this portal is organised for SMT staff.</p>
+                    </div>
+                </header>
+                <div class="dash-grid">
+                    <div class="dash-card tone-orange">
+                        <h3>RAC Management</h3>
+                        <p>Upload duty Excel, assign drivers, view insights, and send WhatsApp after the phone is linked.</p>
+                    </div>
+                    <div class="dash-card tone-blue">
+                        <h3>ETS</h3>
+                        <p>Employee Transportation live map is a demo of corporate commute operations.</p>
+                    </div>
+                    <div class="dash-card tone-green">
+                        <h3>DataSource</h3>
+                        <p>Drivers, clients, EV fleet, enquiries, cabs, Zoho, and file history live here.</p>
+                    </div>
+                    <div class="dash-card tone-purple">
+                        <h3>Need a person?</h3>
+                        <p>Call +91 96119 75999 or write to shreemaruthitravels5999@gmail.com.</p>
+                    </div>
                 </div>
             </div>
 
@@ -576,6 +700,7 @@
             </div>
             
         </main>
+        </div>
     </div>
 
     <!-- Unified Admin Modal Overlay -->

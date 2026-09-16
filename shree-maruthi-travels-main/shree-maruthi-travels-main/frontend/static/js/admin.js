@@ -21,6 +21,15 @@ function applyStaffSession(me) {
     if (label) {
         label.textContent = staffSession.email || '';
     }
+    const settingsLabel = document.getElementById('settings-session-label');
+    if (settingsLabel) {
+        settingsLabel.textContent = staffSession.email || 'Staff session';
+    }
+    const avatar = document.querySelector('.portal-avatar');
+    if (avatar) {
+        const ch = (staffSession.email || 'A').trim().charAt(0).toUpperCase();
+        avatar.textContent = ch || 'A';
+    }
     const hint = document.getElementById('google-login-hint');
     if (hint) hint.style.display = me.google_login ? 'none' : 'block';
 }
@@ -46,7 +55,7 @@ function revealWorkspace(me) {
     document.getElementById('admin-login-overlay').classList.add('hidden');
     document.getElementById('admin-workspace').style.display = 'flex';
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking', 'settings', 'help'];
     switchTab(allowed.includes(hash) ? hash : 'home');
 }
 
@@ -93,7 +102,7 @@ function switchTab(tabId) {
         el.classList.remove('active');
         el.style.display = 'none';
     });
-    document.querySelectorAll('.admin-nav-link, .admin-nav-menu button').forEach(el => {
+    document.querySelectorAll('.portal-side-link, .admin-nav-menu button, .admin-nav-menu a').forEach(el => {
         el.classList.remove('active');
     });
     document.querySelectorAll('.admin-nav-drop').forEach(el => {
@@ -145,7 +154,7 @@ function switchTab(tabId) {
 window.addEventListener('hashchange', () => {
     if (!smtToken) return;
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking', 'settings', 'help'];
     if (!allowed.includes(hash)) return;
     const current = document.querySelector('.admin-tab-content.active');
     if (current && current.id === `tab-${hash}`) return;

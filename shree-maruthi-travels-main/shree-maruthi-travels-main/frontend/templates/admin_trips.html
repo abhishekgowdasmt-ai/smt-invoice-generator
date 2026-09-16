@@ -8,22 +8,15 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
 </head>
 <body style="background-color: var(--bg-main); min-height: 100vh;">
-    <header class="admin-topnav">
-        <div class="admin-topnav-inner">
-            <a class="admin-brand" href="/admin">
-                <span>
-                    <strong>SMT Portal</strong>
-                    <small>Trip sheets</small>
-                </span>
-            </a>
-            <nav class="admin-nav">
-                <a class="admin-nav-link" href="/admin/dispatch/">RAC Management</a>
-                <a class="admin-nav-link" href="/admin#tracking">ETS</a>
-                <a class="admin-nav-link" href="/admin#datasource">DataSource</a>
-                <a class="admin-nav-link active" href="/admin/trips">Trip sheets</a>
-                <a class="admin-nav-link" href="/admin/invoices/">Invoice generation</a>
-            </nav>
-        </div>
+    <header class="portal-topbar">
+        <a class="portal-brand" href="/admin">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" alt="SMT">
+            <span>
+                <strong>Shree Maruthi Travels</strong>
+                <small>On Time, Safe, Reliable</small>
+            </span>
+        </a>
+        <a class="portal-side-link" href="/admin" style="width:auto;">Dashboard</a>
     </header>
     <main class="container" style="max-width: 640px; margin: 3rem auto; padding: 0 1.25rem;">
         <section class="service-card" style="background: var(--bg-surface); padding: 2rem; border-radius: 12px; box-shadow: var(--glow-shadow);">
