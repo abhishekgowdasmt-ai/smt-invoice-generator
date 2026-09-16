@@ -173,13 +173,25 @@ def _paginate(rows, page, limit):
 
 def _auth_user():
     header = request.headers.get('Authorization') or ''
-    if not header.startswith('Bearer '):
-        return None
-    token = header.split(' ', 1)[1].strip()
+    if header.startswith('Bearer '):
+        token = header.split(' ', 1)[1].strip()
+        if token:
+            try:
+                return TOKEN.loads(token, max_age=60 * 60 * 24 * 7)
+            except (BadSignature, SignatureExpired):
+                pass
     try:
-        return TOKEN.loads(token, max_age=60 * 60 * 24 * 7)
-    except (BadSignature, SignatureExpired):
-        return None
+        import staff_auth
+        staff = staff_auth.current_staff()
+    except Exception:
+        staff = None
+    if staff and staff.get('email'):
+        user = dict(RAC_USER)
+        user['email'] = staff['email']
+        user['first_name'] = staff['email'].split('@')[0]
+        user['role'] = 'admin' if staff.get('role') == 'od' else 'staff'
+        return user
+    return None
 
 
 def require_rac(fn):
@@ -187,7 +199,7 @@ def require_rac(fn):
     def wrapped(*args, **kwargs):
         user = _auth_user()
         if not user:
-            return jsonify({'success': False, 'message': 'Unauthorized - No token provided'}), 401
+            return jsonify({'success': False, 'message': 'Unauthorized - Sign in on the SMT portal first'}), 401
         request.rac_user = user
         return fn(*args, **kwargs)
     return wrapped
@@ -358,6 +370,55 @@ def dashboard_summary():
     uploads = rac_store.all_rows('uploads')
     messages = rac_store.all_rows('messages')
     uploaded_today = sum(1 for row in uploads if str(row.get('uploaded_at') or row.get('created_at') or '').startswith(today))
+
+    def when(*values):
+        for value in values:
+            text = str(value or '').strip()
+            if text:
+                return text
+        return ''
+
+    activity = []
+    for row in uploads[-8:]:
+        activity.append({
+            'kind': 'upload',
+            'title': 'Booking uploaded',
+            'detail': row.get('file_name') or 'Excel file added to the system',
+            'at': when(row.get('uploaded_at'), row.get('created_at')),
+        })
+    for row in messages[-10:]:
+        sent = row.get('send_status') == 'sent'
+        activity.append({
+            'kind': 'message' if sent else 'message-fail',
+            'title': 'Message sent' if sent else 'Message failed',
+            'detail': row.get('phone_number') or row.get('driver_name') or 'WhatsApp notification',
+            'at': when(row.get('sent_at'), row.get('created_at'), row.get('updated_at')),
+        })
+    recent_bookings = sorted(
+        bookings,
+        key=lambda row: when(row.get('updated_at'), row.get('created_at'), row.get('trip_date')),
+        reverse=True,
+    )[:12]
+    for row in recent_bookings:
+        status = row.get('status') or ''
+        bid = row.get('source_booking_id') or row.get('booking_id') or ''
+        if status == 'Assigned':
+            activity.append({
+                'kind': 'assigned',
+                'title': 'Driver assigned',
+                'detail': f"{row.get('driver_name') or row.get('source_name') or 'Driver'} · {bid}",
+                'at': when(row.get('updated_at'), row.get('created_at')),
+            })
+        elif status == 'Completed':
+            activity.append({
+                'kind': 'completed',
+                'title': 'Trip completed',
+                'detail': f"{bid} marked as completed",
+                'at': when(row.get('updated_at'), row.get('created_at')),
+            })
+    activity = [item for item in activity if item['at']]
+    activity.sort(key=lambda item: item['at'], reverse=True)
+
     return jsonify({
         'success': True,
         'data': {
@@ -375,6 +436,7 @@ def dashboard_summary():
             'message_sent_count': sum(1 for row in messages if row.get('send_status') == 'sent'),
             'message_failed_count': sum(1 for row in messages if row.get('send_status') in ('failed', 'skipped')),
             'upload_timestamp': datetime.utcnow().isoformat() + 'Z',
+            'recent_activity': activity[:8],
         }
     })
 

@@ -43,6 +43,7 @@ export const AuthProvider = ({ children }) => {
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled && data.success && data.token) {
+          localStorage.setItem('token', data.token)
           setToken(data.token)
           setUser(data.user)
         }

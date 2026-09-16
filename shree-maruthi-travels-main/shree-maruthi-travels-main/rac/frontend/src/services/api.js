@@ -11,6 +11,7 @@ const getHeaders = () => {
 export const apiCall = async (endpoint, options = {}) => {
   const url = `${API_URL}${endpoint}`
   const response = await fetch(url, {
+    credentials: 'same-origin',
     ...options,
     headers: { ...getHeaders(), ...options.headers }
   })
@@ -50,10 +51,9 @@ export const API = {
     
     return fetch(`${API_URL}/uploads/excel`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: {
-        // ONLY set Authorization, let browser auto-set Content-Type to multipart/form-data
-        'Authorization': `Bearer ${token}`
-        // IMPORTANT: Do NOT set Content-Type - browser will auto-set it for FormData
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
       body: formData
     }).then(async (res) => {

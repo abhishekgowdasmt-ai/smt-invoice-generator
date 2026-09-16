@@ -13,7 +13,7 @@ const BookingsPage = () => {
     page: 1,
     limit: 50,
     status: '',
-    search: '',
+    search: searchParams.get('search') || '',
     date: '',
     payment: searchParams.get('payment') || '',
     month: searchParams.get('month') || '',
@@ -21,8 +21,13 @@ const BookingsPage = () => {
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
 
   useEffect(() => {
+    const fromUrl = searchParams.get('search') || ''
+    if (fromUrl && fromUrl !== filters.search) {
+      setFilters((current) => ({ ...current, search: fromUrl, page: 1 }))
+      return
+    }
     loadBookings()
-  }, [filters.page, filters.status, filters.date, filters.payment, filters.month])
+  }, [filters.page, filters.status, filters.date, filters.payment, filters.month, filters.search, searchParams])
 
   const loadBookings = async () => {
     setLoading(true)
