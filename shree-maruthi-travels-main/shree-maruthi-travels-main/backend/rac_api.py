@@ -241,10 +241,50 @@ def _parse_excel_date(value):
 def _parse_time(value):
     if not value:
         return None
-    match = re.search(r'(\d{1,2})[:.](\d{2})', str(value))
+    text = str(value).strip().upper()
+    match = re.search(r'(\d{1,2})[:.](\d{2})', text)
     if not match:
         return None
-    return f'{int(match.group(1)):02d}:{match.group(2)}'
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    if 'PM' in text and hour < 12:
+        hour += 12
+    if 'AM' in text and hour == 12:
+        hour = 0
+    if hour > 23 or minute > 59:
+        return None
+    return f'{hour:02d}:{minute:02d}'
+
+
+def _sort_value(row, field, kind):
+    if '.' in field:
+        current = row
+        for part in field.split('.'):
+            current = (current or {}).get(part) if isinstance(current, dict) else None
+        raw = current
+    else:
+        raw = row.get(field)
+    if kind == 'date':
+        text = str(raw or '').strip()
+        if re.match(r'^\d{4}-\d{2}-\d{2}', text):
+            return text.replace('T', ' ')[:19]
+        parsed = _parse_excel_date(raw)
+        return parsed or '0000-00-00'
+    if kind == 'number':
+        return _parse_number(raw, 0)
+    if kind == 'time':
+        return _parse_time(raw) or '99:99'
+    if kind == 'bool':
+        return 1 if raw in (True, 'true', 'True', 1, '1', 'Paid', 'paid') else 0
+    return str(raw or '').strip().lower()
+
+
+def _sort_rows(rows, sort_by, sort_order, allowed):
+    field = sort_by if sort_by in allowed else next(iter(allowed))
+    kind = allowed[field]
+    reverse = str(sort_order or 'DESC').upper() != 'ASC'
+    rows.sort(key=lambda row: _sort_value(row, field, kind), reverse=reverse)
+    return rows
 
 
 def _parse_number(value, default=0):
@@ -513,7 +553,15 @@ def list_drivers():
             or search in str(row.get('vehicle_number', '')).lower()
             or search in str(row.get('whatsapp_number', '')).lower()
         ]
-    rows.sort(key=lambda row: str(row.get('driver_name') or '').lower())
+    _sort_rows(rows, request.args.get('sort_by') or 'driver_name', request.args.get('sort_order') or 'ASC', {
+        'driver_name': 'text',
+        'whatsapp_number': 'text',
+        'vehicle_number': 'text',
+        'vehicle_type': 'text',
+        'home_area': 'text',
+        'total_assignments': 'number',
+        'active_status': 'bool',
+    })
     page_rows, page, limit, total = _paginate(rows, request.args.get('page'), request.args.get('limit'))
     return jsonify({
         'success': True,
@@ -629,8 +677,20 @@ def list_bookings():
             if (_driver_payment_status(row.get('driver_payment_status')) == 'Paid') == want_paid
         ]
     sort_by = request.args.get('sort_by') or 'trip_date'
-    reverse = (request.args.get('sort_order') or 'DESC').upper() != 'ASC'
-    rows.sort(key=lambda row: str(row.get(sort_by) or ''), reverse=reverse)
+    sort_order = request.args.get('sort_order') or 'DESC'
+    _sort_rows(rows, sort_by, sort_order, {
+        'source_booking_id': 'text',
+        'trip_date': 'date',
+        'employee_name': 'text',
+        'planned_start': 'text',
+        'pickup_time': 'time',
+        'duty_type': 'text',
+        'amount': 'number',
+        'status': 'text',
+        'driver_payment_status': 'text',
+        'cab_type': 'text',
+        'total_km': 'number',
+    })
     page_rows, page, limit, total = _paginate(rows, request.args.get('page'), request.args.get('limit'))
     return jsonify({
         'success': True,
@@ -1002,7 +1062,6 @@ def list_messages():
     rows = rac_store.all_rows('messages')
     if status:
         rows = [row for row in rows if row.get('send_status') == status]
-    rows.sort(key=lambda row: str(row.get('sent_at') or row.get('created_at') or ''), reverse=True)
     enriched = []
     for row in rows:
         item = dict(row)
@@ -1011,6 +1070,14 @@ def list_messages():
         item['booking'] = {'source_booking_id': booking.get('source_booking_id')}
         item['driver'] = {'driver_name': driver.get('driver_name')}
         enriched.append(item)
+    _sort_rows(enriched, request.args.get('sort_by') or 'created_at', request.args.get('sort_order') or 'DESC', {
+        'booking.source_booking_id': 'text',
+        'driver.driver_name': 'text',
+        'phone_number': 'text',
+        'send_status': 'text',
+        'created_at': 'date',
+        'sent_at': 'date',
+    })
     page_rows, page, limit, total = _paginate(enriched, request.args.get('page'), request.args.get('limit'))
     return jsonify({
         'success': True,

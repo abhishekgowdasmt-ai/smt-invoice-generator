@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Navigation from '../components/Navigation'
+import SortTh from '../components/SortTh'
 import { API } from '../services/api'
 
 const DriversPage = () => {
@@ -7,7 +8,7 @@ const DriversPage = () => {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingDriver, setEditingDriver] = useState(null)
-  const [filters, setFilters] = useState({ page: 1, limit: 50, active_only: true, search: '' })
+  const [filters, setFilters] = useState({ page: 1, limit: 50, active_only: true, search: '', sort_by: 'driver_name', sort_order: 'ASC' })
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
   const [formData, setFormData] = useState({
     driver_name: '',
@@ -21,7 +22,7 @@ const DriversPage = () => {
 
   useEffect(() => {
     loadDrivers()
-  }, [filters.page, filters.active_only])
+  }, [filters.page, filters.active_only, filters.sort_by, filters.sort_order])
 
   const loadDrivers = async () => {
     setLoading(true)
@@ -30,6 +31,8 @@ const DriversPage = () => {
         page: filters.page,
         limit: filters.limit,
         active_only: filters.active_only,
+        sort_by: filters.sort_by,
+        sort_order: filters.sort_order,
         ...(filters.search && { search: filters.search })
       }
       const response = await API.getDrivers(params)
@@ -40,6 +43,15 @@ const DriversPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleSort = (field) => {
+    setFilters((current) => {
+      if (current.sort_by === field) {
+        return { ...current, page: 1, sort_order: current.sort_order === 'DESC' ? 'ASC' : 'DESC' }
+      }
+      return { ...current, page: 1, sort_by: field, sort_order: field === 'total_assignments' ? 'DESC' : 'ASC' }
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -128,13 +140,13 @@ const DriversPage = () => {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>WhatsApp</th>
-                  <th>Vehicle</th>
-                  <th>Vehicle Type</th>
-                  <th>Home Area</th>
-                  <th>Assignments</th>
-                  <th>Status</th>
+                  <SortTh field="driver_name" label="Name" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="whatsapp_number" label="WhatsApp" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="vehicle_number" label="Vehicle" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="vehicle_type" label="Vehicle Type" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="home_area" label="Home Area" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="total_assignments" label="Assignments" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="active_status" label="Status" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
                   <th>Actions</th>
                 </tr>
               </thead>

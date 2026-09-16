@@ -325,6 +325,34 @@ body {
   text-align: left;
   font-weight: 600;
   color: #333;
+  white-space: nowrap;
+}
+
+.sort-th {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sort-th:hover,
+.sort-th.is-active {
+  color: #2563eb;
+}
+
+.sort-arrow {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.sort-th.is-active .sort-arrow {
+  color: #2563eb;
 }
 
 .table td {

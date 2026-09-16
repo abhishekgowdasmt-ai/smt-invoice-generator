@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import Navigation from '../components/Navigation'
+import SortTh from '../components/SortTh'
 import { API } from '../services/api'
 import { QRCodeSVG } from 'qrcode.react'
 
@@ -7,12 +8,12 @@ const MessagesPage = () => {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedMessage, setSelectedMessage] = useState(null)
-  const [filters, setFilters] = useState({ page: 1, limit: 50, send_status: '' })
+  const [filters, setFilters] = useState({ page: 1, limit: 50, send_status: '', sort_by: 'created_at', sort_order: 'DESC' })
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
 
   useEffect(() => {
     loadMessages()
-  }, [filters.page, filters.send_status])
+  }, [filters.page, filters.send_status, filters.sort_by, filters.sort_order])
 
   const loadMessages = async () => {
     setLoading(true)
@@ -20,7 +21,9 @@ const MessagesPage = () => {
       const params = {
         page: filters.page,
         limit: filters.limit,
-        ...(filters.send_status && { send_status: filters.send_status })
+        ...(filters.send_status && { send_status: filters.send_status }),
+        sort_by: filters.sort_by,
+        sort_order: filters.sort_order,
       }
       const response = await API.getMessages(params)
       setMessages(response.data)
@@ -30,6 +33,15 @@ const MessagesPage = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleSort = (field) => {
+    setFilters((current) => {
+      if (current.sort_by === field) {
+        return { ...current, page: 1, sort_order: current.sort_order === 'DESC' ? 'ASC' : 'DESC' }
+      }
+      return { ...current, page: 1, sort_by: field, sort_order: field === 'created_at' ? 'DESC' : 'ASC' }
+    })
   }
 
   const renderBadge = (status) => {
@@ -83,11 +95,11 @@ const MessagesPage = () => {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Booking</th>
-                    <th>Driver</th>
-                    <th>Phone</th>
-                    <th>Status</th>
-                    <th>Created</th>
+                    <SortTh field="booking.source_booking_id" label="Booking" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                    <SortTh field="driver.driver_name" label="Driver" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                    <SortTh field="phone_number" label="Phone" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                    <SortTh field="send_status" label="Status" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                    <SortTh field="created_at" label="Created" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
                   </tr>
                 </thead>
                 <tbody>

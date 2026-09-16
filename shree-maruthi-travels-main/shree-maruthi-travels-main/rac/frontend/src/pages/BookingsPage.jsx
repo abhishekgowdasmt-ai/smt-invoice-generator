@@ -1,7 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import Navigation from '../components/Navigation'
+import SortTh from '../components/SortTh'
 import { API } from '../services/api'
+
+const DATE_FIRST = { trip_date: 'DESC', pickup_time: 'ASC', amount: 'DESC' }
+
+const formatDate = (value) => {
+  if (!value) return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return value
+  return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+}
 
 const BookingsPage = () => {
   const [searchParams] = useSearchParams()
@@ -17,6 +27,8 @@ const BookingsPage = () => {
     date: '',
     payment: searchParams.get('payment') || '',
     month: searchParams.get('month') || '',
+    sort_by: 'trip_date',
+    sort_order: 'DESC',
   })
   const [pagination, setPagination] = useState({ page: 1, limit: 50, total: 0 })
 
@@ -27,7 +39,7 @@ const BookingsPage = () => {
       return
     }
     loadBookings()
-  }, [filters.page, filters.status, filters.date, filters.payment, filters.month, filters.search, searchParams])
+  }, [filters.page, filters.status, filters.date, filters.payment, filters.month, filters.search, filters.sort_by, filters.sort_order, searchParams])
 
   const loadBookings = async () => {
     setLoading(true)
@@ -39,7 +51,9 @@ const BookingsPage = () => {
         ...(filters.search && { search: filters.search }),
         ...(filters.date && { date: filters.date }),
         ...(filters.payment && { payment: filters.payment }),
-        ...(filters.month && { month: filters.month })
+        ...(filters.month && { month: filters.month }),
+        sort_by: filters.sort_by,
+        sort_order: filters.sort_order,
       }
       const response = await API.getBookings(params)
       setBookings(response.data)
@@ -55,6 +69,15 @@ const BookingsPage = () => {
   const handleSearch = (e) => {
     e.preventDefault()
     setFilters({ ...filters, page: 1 })
+  }
+
+  const toggleSort = (field) => {
+    setFilters((current) => {
+      if (current.sort_by === field) {
+        return { ...current, page: 1, sort_order: current.sort_order === 'DESC' ? 'ASC' : 'DESC' }
+      }
+      return { ...current, page: 1, sort_by: field, sort_order: DATE_FIRST[field] || 'ASC' }
+    })
   }
 
   const isPaid = (booking) => String(booking.driver_payment_status || '').toLowerCase() === 'paid'
@@ -89,7 +112,9 @@ const BookingsPage = () => {
       <Navigation />
       <div className="container">
         <h1>Bookings</h1>
-        <p className="card-subtitle" style={{ marginBottom: '16px' }}>All-time history, including May–August 2026 duties. Filter by month to drill in.</p>
+        <p className="card-subtitle" style={{ marginBottom: '16px' }}>
+          Click a column heading to sort. Date uses latest first; click again for oldest.
+        </p>
 
         {summary && (
           <div className="kpi-cards" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px', marginBottom: '20px' }}>
@@ -185,15 +210,15 @@ const BookingsPage = () => {
             <table className="table">
               <thead>
                 <tr>
-                  <th>Booking ID</th>
-                  <th>Date</th>
-                  <th>Employee</th>
-                  <th>Pickup</th>
-                  <th>Time</th>
-                  <th>Duty Type</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Driver pay</th>
+                  <SortTh field="source_booking_id" label="Booking ID" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="trip_date" label="Date" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="employee_name" label="Employee" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="planned_start" label="Pickup" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="pickup_time" label="Time" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="duty_type" label="Duty Type" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="amount" label="Amount" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="status" label="Status" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
+                  <SortTh field="driver_payment_status" label="Driver pay" sortBy={filters.sort_by} sortOrder={filters.sort_order} onSort={toggleSort} />
                   <th>Action</th>
                 </tr>
               </thead>
@@ -201,7 +226,7 @@ const BookingsPage = () => {
                 {bookings.map((booking) => (
                   <tr key={booking.booking_id}>
                     <td className="fw-600">{booking.source_booking_id}</td>
-                    <td>{new Date(booking.trip_date).toLocaleDateString()}</td>
+                    <td>{formatDate(booking.trip_date)}</td>
                     <td>{booking.employee_name}</td>
                     <td>{booking.planned_start}</td>
                     <td>{booking.pickup_time}</td>
