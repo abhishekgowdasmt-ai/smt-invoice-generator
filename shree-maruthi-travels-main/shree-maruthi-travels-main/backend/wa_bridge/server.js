@@ -18,6 +18,7 @@ let qr = null
 let ready = false
 let lastError = ''
 let starting = false
+let lastQrLog = 0
 
 function digitsPhone(phone) {
   let digits = String(phone || '').replace(/\D/g, '')
@@ -44,7 +45,11 @@ async function connect() {
         qr = nextQr
         ready = false
         lastError = ''
-        console.log('[wa-bridge] QR ready — scan Linked Devices on your phone')
+        const now = Date.now()
+        if (now - lastQrLog > 60000) {
+          lastQrLog = now
+          console.log('[wa-bridge] waiting for a scan — RAC Management → WhatsApp → Linked devices')
+        }
       }
       if (connection === 'open') {
         ready = true
@@ -54,20 +59,26 @@ async function connect() {
       }
       if (connection === 'close') {
         ready = false
-        const statusCode = lastDisconnect?.error instanceof Boom
-          ? lastDisconnect.error.output?.statusCode
-          : 0
+        const err = lastDisconnect?.error
+        const statusCode = err instanceof Boom ? err.output?.statusCode : 0
+        const message = String(err?.message || err || 'disconnected')
         const loggedOut = statusCode === DisconnectReason.loggedOut
-        lastError = loggedOut ? 'logged_out' : (lastDisconnect?.error?.message || 'disconnected')
-        console.log('[wa-bridge] disconnected', lastError)
+        const qrExpired = /QR refs/i.test(message)
+        lastError = loggedOut ? 'logged_out' : (qrExpired ? 'qr_expired' : message)
         sock = null
         starting = false
-        if (!loggedOut) {
-          setTimeout(() => connect().catch((err) => console.error(err)), 4000)
-        } else {
+        if (loggedOut) {
           qr = null
+          console.log('[wa-bridge] logged out — open RAC → WhatsApp to link again')
+          return
         }
-        return
+        const waitMs = qrExpired ? 30000 : 8000
+        if (qrExpired) {
+          console.log('[wa-bridge] QR expired. Open RAC → WhatsApp and scan the new code.')
+        } else {
+          console.log('[wa-bridge] disconnected', lastError)
+        }
+        setTimeout(() => connect().catch((retryErr) => console.error(retryErr)), waitMs)
       }
     })
   } catch (err) {
@@ -126,7 +137,9 @@ const server = http.createServer(async (req, res) => {
             ? 'Scan this QR in WhatsApp → Linked devices.'
             : lastError === 'logged_out'
               ? 'Logged out. Restart the site or wait for a new QR.'
-              : 'Generating a login QR…',
+              : lastError === 'qr_expired'
+                ? 'QR expired. Keep this page open and scan the new code.'
+                : 'Generating a login QR…',
       })
     }
     if (req.method === 'POST' && req.url === '/send') {

@@ -105,11 +105,18 @@ app.register_blueprint(rac_bp, url_prefix='/api/v1')
 
 @app.errorhandler(Exception)
 def json_api_errors(exc):
-    if not request.path.startswith('/api/v1'):
-        raise exc
     if isinstance(exc, HTTPException):
-        return jsonify({'success': False, 'message': exc.description or exc.name}), exc.code or 500
-    return jsonify({'success': False, 'message': str(exc)}), 500
+        if request.path.startswith('/api/v1'):
+            return jsonify({'success': False, 'message': exc.description or exc.name}), exc.code or 500
+        return exc.get_response()
+    if request.path.startswith('/api/v1'):
+        return jsonify({'success': False, 'message': str(exc)}), 500
+    raise exc
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.static_folder, 'images'), 'logo.png', mimetype='image/png')
 
 
 @app.before_request
