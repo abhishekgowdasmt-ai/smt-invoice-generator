@@ -410,7 +410,7 @@ function footerHtml(co) {
 
 function stampHtml() {
   if (!$("showStamp").checked) return "";
-  return `<img class="stamp" src="assets/stamp.svg" alt="stamp">`;
+  return `<img class="stamp" src="assets/stamp.png?v=3" alt="Shree Maruthi Travels stamp">`;
 }
 
 function taxCell(amount, decimals) {

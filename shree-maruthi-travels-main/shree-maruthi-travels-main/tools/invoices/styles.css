@@ -341,15 +341,16 @@ details.card > summary::after { content: " ▾"; color: var(--blue); }
 .addr-bar .icon-circle { background: #4db7d4; border-color: #0e4f78; }
 
 .stamp {
-  width: 28mm;
-  height: 28mm;
-  opacity: 0.92;
+  width: 38mm;
+  height: auto;
+  opacity: 0.95;
 }
-.sign-block { text-align: center; width: 48mm; margin-left: auto; position: relative; }
+.sign-block { text-align: center; width: 52mm; margin-left: auto; position: relative; }
 .sign-block .stamp {
   position: absolute;
   left: 50%;
-  top: 4mm;
+  top: -2mm;
+  width: 42mm;
   transform: translateX(-50%);
   pointer-events: none;
 }
@@ -418,8 +419,8 @@ table.inv-table th {
   margin-top: 6mm;
 }
 .srt-sign .left { font-weight: 800; }
-.srt-sign .stamp-wrap { position: relative; width: 38mm; height: 32mm; }
-.srt-sign .stamp { position: absolute; right: 0; top: 0; }
+.srt-sign .stamp-wrap { position: relative; width: 46mm; height: 40mm; }
+.srt-sign .stamp { position: absolute; right: 0; top: 0; width: 42mm; height: auto; }
 
 /* GST boxed template */
 .box {
