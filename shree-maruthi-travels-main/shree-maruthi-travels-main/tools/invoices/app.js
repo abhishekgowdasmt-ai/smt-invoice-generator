@@ -11,12 +11,13 @@ const COMPANY_DEFAULT = {
   phone2: "+91 95353 63209",
   email: "info@shreemaruthitravels.com",
   web: "www.shreemaruthitravels.com",
-  bank: "ICICI BANK",
+  bank: "BANK OF BARODA",
   accountName: "SHREE MARUTHI TRAVELS",
-  accountNo: "777705070125",
-  ifsc: "ICIC0004398",
-  branchSrt: "BEML LAYOUT, RR NAGAR",
-  branchGst: "Rajarajeshwari Nagar, Bengaluru",
+  accountNo: "07640200003590",
+  ifsc: "BARB0JAYANA",
+  accountType: "Current",
+  branchSrt: "JAYANAGAR BRANCH, BENGALURU 560011",
+  branchGst: "Jayanagar Branch, Bengaluru 560011",
 };
 
 const PRESETS = {
@@ -288,6 +289,7 @@ function company() {
     accountName: $("coAccountName").value.trim() || COMPANY_DEFAULT.accountName,
     accountNo: $("coAccountNo").value.trim() || COMPANY_DEFAULT.accountNo,
     ifsc: $("coIfsc").value.trim() || COMPANY_DEFAULT.ifsc,
+    accountType: COMPANY_DEFAULT.accountType,
     branchSrt: $("coBranchSrt").value.trim() || COMPANY_DEFAULT.branchSrt,
     branchGst: $("coBranchGst").value.trim() || COMPANY_DEFAULT.branchGst,
   };
@@ -478,7 +480,9 @@ function renderSrt(d, co, t) {
       <div>SAC Code: ${esc(co.sac)}</div>
       <div class="bank">
         <h3>Bank Details</h3>
+        <div>Account Name: <b>${esc(co.accountName)}</b></div>
         <div>Bank Name: <b>${esc(co.bank)}</b></div>
+        <div>Account Type: <b>${esc(co.accountType || "Current")}</b></div>
         <div>Account No: <b>${esc(co.accountNo)}</b></div>
         <div>IFSC Code: <b>${esc(co.ifsc)}</b></div>
         <div>Branch Address : <b>${esc(co.branchSrt)}</b></div>
@@ -592,6 +596,7 @@ function renderGst(d, co, t, variant) {
           <h3>Account Details</h3>
           <div>Account Holder Name: <b>${esc(co.accountName)}</b></div>
           <div>Bank: <b>${esc(co.bank)}</b></div>
+          <div>Account Type: <b>${esc(co.accountType || "Current")}</b></div>
           <div>Account No: <b>${esc(co.accountNo)}</b></div>
           <div>IFSC CODE: <b>${esc(co.ifsc)}</b></div>
           <div>Branch: <b>${esc(co.branchGst)}</b></div>
@@ -632,8 +637,10 @@ function renderDeneb(d, co, t) {
             <div class="kv">Invoice Date: <b>${esc(fmtDate($("invoiceDate").value))}</b></div>
             <div class="kv">Invoice No.: <b>${esc($("invoiceNo").value)}</b></div>
             <div class="kv">Bank Name: <b>${esc(co.bank)}</b></div>
+            <div class="kv">Account Name: <b>${esc(co.accountName)}</b></div>
             <div class="kv">Account No.: <b>${esc(co.accountNo)}</b></div>
             <div class="kv">IFSC Code: <b>${esc(co.ifsc)}</b></div>
+            <div class="kv">Branch: <b>${esc(co.branchGst)}</b></div>
           </div>
         </div>
         <div class="hr" style="padding:6px 7px">
@@ -751,8 +758,10 @@ function applyPreset(id, keepAmounts = false) {
   if (p.dateStyle) $("dateStyle").value = p.dateStyle;
   if (p.roundOff != null) $("roundOff").checked = !!p.roundOff;
   $("coBank").value = p.bank || COMPANY_DEFAULT.bank;
+  $("coAccountName").value = p.accountName || COMPANY_DEFAULT.accountName;
   $("coAccountNo").value = p.accountNo || COMPANY_DEFAULT.accountNo;
   $("coIfsc").value = p.ifsc || COMPANY_DEFAULT.ifsc;
+  $("coBranchSrt").value = p.branchSrt || COMPANY_DEFAULT.branchSrt;
   $("coBranchGst").value = p.branchGst || COMPANY_DEFAULT.branchGst;
   $("items").innerHTML = "";
   (p.items || [{ description: "", amount: "" }]).forEach((it) => {
@@ -805,6 +814,24 @@ function restore() {
   }
 }
 
+function migrateBankDetails() {
+  const bank = ($("coBank").value || "").trim().toUpperCase();
+  const accountNo = ($("coAccountNo").value || "").replace(/\s+/g, "");
+  const ifsc = ($("coIfsc").value || "").trim().toUpperCase();
+  const oldIcici =
+    accountNo === "777705070125" ||
+    ifsc === "ICIC0004398" ||
+    bank === "ICICI BANK" ||
+    bank === "ICICI";
+  if (!oldIcici) return;
+  $("coBank").value = COMPANY_DEFAULT.bank;
+  $("coAccountName").value = COMPANY_DEFAULT.accountName;
+  $("coAccountNo").value = COMPANY_DEFAULT.accountNo;
+  $("coIfsc").value = COMPANY_DEFAULT.ifsc;
+  $("coBranchSrt").value = COMPANY_DEFAULT.branchSrt;
+  $("coBranchGst").value = COMPANY_DEFAULT.branchGst;
+}
+
 function fillCompanyDefaults() {
   $("coName").value = COMPANY_DEFAULT.name;
   $("coAddress").value = COMPANY_DEFAULT.address;
@@ -849,6 +876,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
   fillCompanyDefaults();
   const restored = restore();
+  migrateBankDetails();
   if (!restored) {
     $("invoiceDate").value = todayIso();
     const r = monthRange(-1);
