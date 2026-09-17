@@ -1709,6 +1709,47 @@ body:has(.rac-sidebar) .container {
 .rac-activity em { color: #94a3b8; font-style: normal; font-size: 0.78rem; }
 .rac-empty { color: #7b8798; }
 
+.rac-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+.rac-tabs button {
+  border: 1px solid #d5deea;
+  background: #fff;
+  color: #334155;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.rac-tabs button.is-on {
+  background: #15233b;
+  color: #fff;
+  border-color: #15233b;
+}
+.rac-day-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 16px;
+}
+.rac-day-pills button {
+  border: 1px solid #d5deea;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.rac-day-pills button.is-on {
+  background: #1b6ca8;
+  color: #fff;
+  border-color: #1b6ca8;
+}
+
 .rac-foot {
   margin: 1.1rem 0 0;
   color: #7b8798;

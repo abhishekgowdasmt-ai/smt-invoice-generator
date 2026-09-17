@@ -1,0 +1,6 @@
+python-dotenv
+flask
+playwright
+pillow
+pytesseract
+opencv-python-headless

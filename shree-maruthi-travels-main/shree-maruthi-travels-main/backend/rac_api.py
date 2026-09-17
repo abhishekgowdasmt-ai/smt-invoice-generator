@@ -2,6 +2,7 @@
 import io
 import os
 import re
+import hmac
 from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import quote
@@ -203,6 +204,45 @@ def require_rac(fn):
         request.rac_user = user
         return fn(*args, **kwargs)
     return wrapped
+
+
+def _ingest_key_ok():
+    expected = (os.environ.get('RAC_INGEST_KEY') or '').strip()
+    provided = (request.headers.get('X-Ingest-Key') or '').strip()
+    return bool(expected) and bool(provided) and hmac.compare_digest(expected, provided)
+
+
+def require_rac_or_ingest(fn):
+    @wraps(fn)
+    def wrapped(*args, **kwargs):
+        if _ingest_key_ok():
+            user = dict(RAC_USER)
+            user['role'] = 'ingest'
+            request.rac_user = user
+            return fn(*args, **kwargs)
+        user = _auth_user()
+        if not user:
+            return jsonify({'success': False, 'message': 'Unauthorized - Sign in on the SMT portal first'}), 401
+        request.rac_user = user
+        return fn(*args, **kwargs)
+    return wrapped
+
+
+def _ist_today():
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo('Asia/Kolkata')).date()
+    except Exception:
+        return datetime.utcnow().date()
+
+
+def _payment_update(booking, status, notes=None, amount=None):
+    return {
+        'driver_payment_status': status,
+        'driver_paid_at': datetime.utcnow().isoformat() + 'Z' if status == 'Paid' else '',
+        'driver_payment_notes': (notes if notes is not None else booking.get('driver_payment_notes') or '')[:500],
+        'driver_paid_amount': amount if amount is not None else booking.get('amount') or booking.get('driver_paid_amount') or '',
+    }
 
 
 def _norm_header(value):
@@ -757,6 +797,9 @@ def update_driver_status(driver_id):
 def list_bookings():
     date = request.args.get('date') or ''
     month = request.args.get('month') or ''
+    from_date = request.args.get('from_date') or ''
+    to_date = request.args.get('to_date') or ''
+    days = request.args.get('days') or ''
     status = request.args.get('status') or ''
     search = (request.args.get('search') or '').strip().lower()
     payment = request.args.get('payment') or ''
@@ -768,9 +811,21 @@ def list_bookings():
         ) if re.match(r'^\d{4}-\d{2}$', key)
     })
     if date:
-        rows = [row for row in rows if str(row.get('trip_date') or '') == date]
+        rows = [row for row in rows if str(row.get('trip_date') or '')[:10] == date]
     if month:
         rows = [row for row in rows if str(row.get('trip_date') or '').startswith(month)]
+    if not date and days:
+        try:
+            span = max(1, min(int(days), 31))
+        except (TypeError, ValueError):
+            span = 3
+        start = (_ist_today() - timedelta(days=span - 1)).strftime('%Y-%m-%d')
+        end = _ist_today().strftime('%Y-%m-%d')
+        rows = [row for row in rows if start <= str(row.get('trip_date') or '')[:10] <= end]
+    if from_date:
+        rows = [row for row in rows if str(row.get('trip_date') or '')[:10] >= from_date]
+    if to_date:
+        rows = [row for row in rows if str(row.get('trip_date') or '')[:10] <= to_date]
     if assigned:
         rows = [row for row in rows if str(row.get('assigned_driver_id') or '') == assigned]
     if search:
@@ -823,8 +878,114 @@ def list_bookings():
                 if _driver_payment_status(row.get('driver_payment_status')) == 'Paid'
             ),
             'months': months,
+            'today': _ist_today().strftime('%Y-%m-%d'),
         },
         'pagination': {'page': page, 'limit': limit, 'total': total},
+    })
+
+
+@rac_bp.route('/bookings/ingest', methods=['POST'])
+@require_rac_or_ingest
+def ingest_bookings():
+    payload = request.get_json(silent=True) or {}
+    rows = payload.get('bookings') or payload.get('data') or []
+    if isinstance(payload, dict) and payload.get('booking_id') and not rows:
+        rows = [payload]
+    if not isinstance(rows, list) or not rows:
+        return jsonify({'success': False, 'message': 'No bookings provided'}), 400
+    created = []
+    updated = []
+    errors = []
+    for raw in rows[:200]:
+        if not isinstance(raw, dict):
+            errors.append({'booking_id': '', 'error': 'Row is not an object'})
+            continue
+        source_id = str(raw.get('booking_id') or raw.get('source_booking_id') or '').strip()
+        if not source_id:
+            errors.append({'booking_id': '', 'error': 'booking_id is missing'})
+            continue
+        trip_date = _coerce_trip_date(
+            _parse_excel_date(raw.get('trip_date')) or raw.get('trip_date'),
+            source_id,
+        )
+        pickup = _parse_time(raw.get('trip_time') or raw.get('pickup_time')) or str(raw.get('trip_time') or raw.get('pickup_time') or '').strip()
+        duty = str(raw.get('booking_type') or raw.get('duty_type') or '').strip()
+        cab = str(raw.get('cab_type') or '').strip()
+        start = str(raw.get('planned_start_address') or raw.get('planned_start') or '').strip()
+        existing = rac_store.find_one('bookings', 'source_booking_id', source_id)
+        if existing:
+            changes = {
+                'trip_date': trip_date or existing.get('trip_date'),
+                'pickup_time': pickup or existing.get('pickup_time'),
+                'duty_type': duty or existing.get('duty_type'),
+                'cab_type': cab or existing.get('cab_type'),
+                'planned_start': start or existing.get('planned_start'),
+                'ingest_source': 'whatsapp-group',
+                'ingest_message_id': str(raw.get('source_message_id') or '')[:120],
+            }
+            rac_store.update_one('bookings', 'booking_id', existing.get('booking_id'), changes)
+            updated.append(source_id)
+            continue
+        rac_store.insert('bookings', {
+            'booking_id': rac_store.new_id('bkg'),
+            'source_booking_id': source_id,
+            'trip_date': trip_date,
+            'pickup_time': pickup,
+            'duty_type': duty,
+            'cab_type': cab,
+            'planned_start': start,
+            'employee_name': str(raw.get('employee_name') or 'WhatsApp booking').strip(),
+            'source_name': 'WhatsApp group',
+            'status': 'Unassigned',
+            'upload_batch_id': '',
+            'assigned_driver_id': '',
+            'assigned_at': '',
+            'driver_payment_status': 'Unpaid',
+            'driver_paid_at': '',
+            'driver_payment_notes': '',
+            'driver_paid_amount': '',
+            'amount': _parse_number(raw.get('amount'), 0),
+            'ingest_source': 'whatsapp-group',
+            'ingest_message_id': str(raw.get('source_message_id') or '')[:120],
+            'ingest_confidence': raw.get('confidence') or '',
+        })
+        created.append(source_id)
+    return jsonify({
+        'success': True,
+        'created': created,
+        'updated': updated,
+        'errors': errors,
+        'created_count': len(created),
+        'updated_count': len(updated),
+    }), 201 if created else 200
+
+
+@rac_bp.route('/bookings/payments/bulk', methods=['PATCH'])
+@require_rac
+def bulk_booking_payment():
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get('booking_ids') or []
+    if not isinstance(ids, list) or not ids:
+        return jsonify({'success': False, 'message': 'booking_ids is required'}), 400
+    paid = payload.get('paid')
+    status = _driver_payment_status(payload.get('driver_payment_status') or payload.get('status'))
+    if paid is not None:
+        status = 'Paid' if paid in (True, 'true', '1', 1, 'Paid', 'paid', 'yes') else 'Unpaid'
+    updated = 0
+    missing = []
+    for booking_id in ids[:500]:
+        booking = rac_store.find_one('bookings', 'booking_id', str(booking_id))
+        if not booking:
+            missing.append(str(booking_id))
+            continue
+        rac_store.update_one('bookings', 'booking_id', booking.get('booking_id'), _payment_update(booking, status))
+        updated += 1
+    return jsonify({
+        'success': True,
+        'message': f'{updated} booking(s) marked {status}',
+        'updated': updated,
+        'missing': missing,
+        'driver_payment_status': status,
     })
 
 
@@ -866,12 +1027,7 @@ def update_booking_payment(booking_id):
         status = 'Paid' if paid in (True, 'true', '1', 1, 'Paid', 'paid', 'yes') else 'Unpaid'
     notes = (payload.get('notes') or payload.get('driver_payment_notes') or booking.get('driver_payment_notes') or '')[:500]
     amount = payload.get('amount', booking.get('amount') or '')
-    rac_store.update_one('bookings', 'booking_id', booking_id, {
-        'driver_payment_status': status,
-        'driver_paid_at': datetime.utcnow().isoformat() + 'Z' if status == 'Paid' else '',
-        'driver_payment_notes': notes,
-        'driver_paid_amount': amount,
-    })
+    rac_store.update_one('bookings', 'booking_id', booking_id, _payment_update(booking, status, notes, amount))
     return jsonify({'success': True, 'message': f'Driver payment marked {status}', 'driver_payment_status': status})
 
 
