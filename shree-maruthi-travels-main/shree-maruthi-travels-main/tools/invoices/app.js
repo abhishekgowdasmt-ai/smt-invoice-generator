@@ -373,7 +373,7 @@ function calc() {
 function headerHtml(co) {
   return `
     <div class="inv-header">
-      <img class="swoosh" src="assets/swoosh.svg" alt="">
+      <img class="swoosh" src="assets/swoosh.svg?v=2" alt="">
       <img class="inv-logo" src="assets/logo.png" alt="SMT">
       <div class="inv-brand">
         <div class="co-name"><span class="shree">SHREE</span> <span class="rest">MARUTHI TRAVELS</span></div>

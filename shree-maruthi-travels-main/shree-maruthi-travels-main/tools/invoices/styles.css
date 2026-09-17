@@ -282,6 +282,8 @@ details.card > summary::after { content: " ▾"; color: var(--blue); }
   right: 14mm;
   top: 18mm;
   font-size: 11px;
+  font-weight: 700;
+  color: #0e3d6b;
   z-index: 2;
 }
 
