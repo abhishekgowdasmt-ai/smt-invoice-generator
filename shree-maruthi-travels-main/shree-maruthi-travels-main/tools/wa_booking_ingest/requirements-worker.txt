@@ -1,0 +1,8 @@
+# Production OCR worker dependencies.
+python-dotenv
+flask
+pillow
+pytesseract
+opencv-python-headless
+gunicorn
+waitress

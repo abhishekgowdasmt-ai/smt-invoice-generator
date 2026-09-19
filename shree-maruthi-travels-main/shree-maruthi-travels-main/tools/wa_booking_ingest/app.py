@@ -2,7 +2,6 @@
 import hmac
 import json
 import threading
-import time
 import uuid
 from pathlib import Path
 
@@ -10,11 +9,11 @@ from flask import Flask, abort, jsonify, render_template, request, send_from_dir
 
 import config
 import db
-from logutil import log, redact
+from logutil import log
 from pipeline import enqueue_local_image
 from publisher import publish_bookings
+from service import start_background_loops
 from validate import validate_booking
-from worker import run_once
 from workdrive import configured as workdrive_configured
 from workdrive import status as workdrive_status
 from workdrive_sync import extract_file_id_from_webhook, reconcile
@@ -255,28 +254,6 @@ def images(filename):
     abort(404)
 
 
-def worker_loop():
-    while True:
-        try:
-            run_once()
-        except Exception as exc:
-            log.error('worker loop %s', redact(exc))
-        time.sleep(2)
-
-
-def workdrive_loop():
-    log.info('[WorkDrive] poller started interval=%ss', config.WORKDRIVE_POLL_SECONDS)
-    while True:
-        try:
-            if workdrive_configured():
-                reconcile()
-            elif config.ZOHO_WORKDRIVE_ENABLED:
-                log.info('[WorkDrive] enabled but OAuth/folder is incomplete; retrying later')
-        except Exception as exc:
-            log.error('workdrive loop %s', redact(exc))
-        time.sleep(config.WORKDRIVE_POLL_SECONDS)
-
-
 def watcher_loop():
     from session import DiagnosticStop
     from watcher import watch_forever
@@ -295,21 +272,11 @@ def watcher_loop():
 
 
 def main():
-    config.ensure_dirs()
-    db.connect().close()
-    db.recover_stale_processing(minutes=0)
-    db.set_stat('whatsapp', 'DISABLED' if not config.WHATSAPP_WATCHER_ENABLED else (db.get_stats().get('whatsapp') or 'DISCONNECTED'))
-    threading.Thread(target=worker_loop, daemon=True, name='ocr-worker').start()
-    threading.Thread(target=workdrive_loop, daemon=True, name='workdrive-poll').start()
+    start_background_loops()
     if config.WHATSAPP_WATCHER_ENABLED:
         threading.Thread(target=watcher_loop, daemon=True, name='wa-watcher').start()
         log.info('[WhatsApp] watcher enabled (deprecated)')
-    else:
-        log.info('[WhatsApp] watcher disabled. Use website upload or Zoho WorkDrive.')
     log.info('dashboard http://%s:%s', config.DASHBOARD_HOST, config.DASHBOARD_PORT)
-    log.info('[WorkDrive] poller automatic enabled=%s configured=%s folder_configured=%s tesseract=%s',
-             config.ZOHO_WORKDRIVE_ENABLED, workdrive_configured(), bool(config.ZOHO_WORKDRIVE_FOLDER_ID),
-             bool(config.TESSERACT_CMD))
     app.run(host=config.DASHBOARD_HOST, port=config.DASHBOARD_PORT, debug=False, use_reloader=False)
 
 

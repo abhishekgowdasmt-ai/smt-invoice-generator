@@ -24,8 +24,12 @@ start.bat
 
 This starts the dashboard, OCR worker, and WorkDrive poller. WhatsApp is not started.
 
-- Local dashboard: http://127.0.0.1:8787
-- RAC page: https://www.shreemaruthitravels.com/admin/dispatch/booking-ocr
+Production AIC (same container as the RAC website, Tesseract in the root Dockerfile):
+
+`start.sh` runs `python -m tools.wa_booking_ingest --http` on internal port 8787, then gunicorn on `$PORT` (8080).
+
+Local dashboard: http://127.0.0.1:8787
+RAC page: https://www.shreemaruthitravels.com/admin/dispatch/booking-ocr
 
 ## Method 1 — website upload
 
@@ -33,9 +37,9 @@ REQUIRED:
 
 - `WEBSITE_API_URL` — RAC API, usually `https://www.shreemaruthitravels.com/api/v1`
 - `WEBSITE_API_KEY` — same value as website `RAC_INGEST_KEY`
-- On the RAC server: `OCR_INGEST_URL` pointing at this ingest service
+- On the RAC website (same AIC container): `OCR_INGEST_URL=http://127.0.0.1:8787`
 
-If the RAC website and OCR service are on the same machine, `OCR_INGEST_URL=http://127.0.0.1:8787`. If they are on different machines, set ingest `DASHBOARD_HOST=0.0.0.0` and `OCR_INGEST_URL` to that host.
+The browser never calls 127.0.0.1. The RAC API proxies `/bookings/ocr-upload` to the local worker.
 
 ## Method 2 — Zoho WorkDrive
 

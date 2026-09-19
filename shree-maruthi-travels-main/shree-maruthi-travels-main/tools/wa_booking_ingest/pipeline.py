@@ -156,6 +156,8 @@ def process_ingest_record(record_id, extract_fn=None, publish_fn=None, lookup_fn
             continue
         lookup = lookup_website_booking if lookup_fn is None else lookup_fn
         remote = lookup(cleaned['booking_id']) if lookup else None
+        if remote and remote.get('error'):
+            raise RuntimeError(f"RAC lookup failed: {remote.get('error')}")
         if remote and remote.get('found'):
             remote_date = remote.get('trip_date') or ''
             if remote_date and remote_date != cleaned['trip_date']:

@@ -48,6 +48,8 @@ def _find_tesseract():
         return which
     home = Path.home()
     for candidate in (
+        Path('/usr/bin/tesseract'),
+        Path('/usr/local/bin/tesseract'),
         Path(os.environ.get('ProgramFiles') or r'C:\Program Files') / 'Tesseract-OCR' / 'tesseract.exe',
         Path(os.environ.get('ProgramFiles(x86)') or r'C:\Program Files (x86)') / 'Tesseract-OCR' / 'tesseract.exe',
         home / 'AppData' / 'Local' / 'Programs' / 'Tesseract-OCR' / 'tesseract.exe',
@@ -104,3 +106,20 @@ def ensure_dirs():
     for path in paths:
         path.mkdir(parents=True, exist_ok=True)
     return DATA_DIR
+
+
+def tesseract_binary():
+    return TESSERACT_CMD or shutil.which('tesseract') or ''
+
+
+def tesseract_version_line(binary=None):
+    import subprocess
+    cmd = binary or tesseract_binary()
+    if not cmd:
+        return ''
+    try:
+        output = subprocess.check_output([cmd, '--version'], stderr=subprocess.STDOUT, text=True, timeout=10)
+    except Exception:
+        return ''
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    return lines[0] if lines else ''

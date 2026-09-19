@@ -13,6 +13,13 @@ from workdrive import configured as workdrive_configured
 
 
 class ProductionGuardTests(unittest.TestCase):
+    def test_workdrive_poll_interval_default(self):
+        self.assertGreaterEqual(config.WORKDRIVE_POLL_SECONDS, 20)
+        self.assertIn('.jpg', config.IMAGE_EXTENSIONS)
+        self.assertIn('.jpeg', config.IMAGE_EXTENSIONS)
+        self.assertIn('.png', config.IMAGE_EXTENSIONS)
+        self.assertIn('.webp', config.IMAGE_EXTENSIONS)
+
     def test_whatsapp_disabled_by_default(self):
         self.assertFalse(config.WHATSAPP_WATCHER_ENABLED)
 

@@ -253,6 +253,63 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(status, db.STATUS_DUPLICATE_IMAGE)
         self.assertEqual(len(self.published), 1)
 
+    def test_16_sqlite_lost_rac_lookup_prevents_republish(self):
+        first = _png(self.tmp / 'restart1.png', (70, 70, 70))
+        self.run_image(first, db.SOURCE_WORKDRIVE, 'wd-restart-1', [_row('B260919-AA16')])
+        self.assertEqual(len(self.published), 1)
+        config.DB_PATH = self.tmp / 'ingest-after-rebuild.sqlite3'
+        db.connect().close()
+        again = _png(self.tmp / 'restart1-again.png', (70, 70, 70))
+        _, status, rec = self.run_image(again, db.SOURCE_WORKDRIVE, 'wd-restart-1', [_row('B260919-AA16')])
+        self.assertEqual(status, db.STATUS_DUPLICATE_BOOKING)
+        self.assertEqual(len(self.published), 1)
+        self.assertEqual(rec.get('booking_id'), 'B260919-AA16')
+
+    def test_17_lookup_error_does_not_publish(self):
+        path = _png(self.tmp / 'lookup-down.png', (80, 80, 80))
+        record_id = enqueue_local_image(
+            path, source=db.SOURCE_WEBSITE, source_file_id='up-17', source_file_name='lookup-down.png',
+        )
+        with self.assertRaisesRegex(RuntimeError, 'RAC lookup failed'):
+            process_ingest_record(
+                record_id,
+                extract_fn=self.extract([_row('B260919-AA17')]),
+                publish_fn=self.publish,
+                lookup_fn=lambda booking_id: {'found': False, 'error': 'unavailable'},
+            )
+        self.assertEqual(self.published, [])
+
+    def test_18_workdrive_reconcile_skips_non_images_and_uses_folder(self):
+        seen_folders = []
+
+        def list_fn(folder_id=None):
+            seen_folders.append(folder_id)
+            return [
+                {'id': 'wd-pdf', 'name': 'notes.pdf', 'ext': 'pdf', 'size': 100, 'version': '1'},
+                {'id': 'wd-img', 'name': 'shot.webp', 'ext': 'webp', 'size': 100, 'version': '1'},
+            ]
+
+        enqueued = []
+
+        def enqueue(file_id, info=None, force=False):
+            enqueued.append((file_id, (info or {}).get('name')))
+            return 1
+
+        old_folder = config.ZOHO_WORKDRIVE_FOLDER_ID
+        try:
+            config.ZOHO_WORKDRIVE_FOLDER_ID = 'folder-from-env'
+            result = reconcile(list_fn=list_fn, enqueue_fn=enqueue)
+        finally:
+            config.ZOHO_WORKDRIVE_FOLDER_ID = old_folder
+        self.assertEqual(seen_folders, ['folder-from-env'])
+        self.assertEqual(result['seen'], 2)
+        self.assertEqual(enqueued, [('wd-img', 'shot.webp')])
+
+    def test_19_partial_workdrive_upload_is_not_enqueued(self):
+        from workdrive_sync import WorkDriveError, _wait_until_stable
+        with self.assertRaises(WorkDriveError):
+            _wait_until_stable('wd-partial', previous={'id': 'wd-partial', 'size': 0, 'version': '1'})
+
 
 if __name__ == '__main__':
     unittest.main()
