@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 // Pages
 import Dashboard from './pages/Dashboard'
 import UploadPage from './pages/UploadPage'
+import BookingOcrPage from './pages/BookingOcrPage'
 import BookingsPage from './pages/BookingsPage'
 import BookingDetailPage from './pages/BookingDetailPage'
 import DriversPage from './pages/DriversPage'
@@ -161,6 +162,7 @@ function App() {
           <Route path="/" element={<LoginPage />} />
           <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           <Route path="/upload" element={<ProtectedRoute><UploadPage /></ProtectedRoute>} />
+          <Route path="/booking-ocr" element={<ProtectedRoute><BookingOcrPage /></ProtectedRoute>} />
           <Route path="/bookings" element={<ProtectedRoute><BookingsPage /></ProtectedRoute>} />
           <Route path="/bookings/:bookingId" element={<ProtectedRoute><BookingDetailPage /></ProtectedRoute>} />
           <Route path="/drivers" element={<ProtectedRoute><DriversPage /></ProtectedRoute>} />

@@ -2,6 +2,9 @@
 .venv/
 data/
 profile/
+profile.corrupt-*/
+wa_playwright_profile/
+wa_playwright_profile.corrupt-*/
 logs/
 __pycache__/
 *.pyc

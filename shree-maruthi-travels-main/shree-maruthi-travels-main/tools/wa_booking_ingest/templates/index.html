@@ -2,46 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>WhatsApp booking capture</title>
+  <title>RAC Booking OCR</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
   <header>
-    <h1>WhatsApp booking capture</h1>
-    <p>Local only. Reads one WhatsApp group. Does not send messages.</p>
+    <h1>RAC Booking OCR</h1>
+    <p>Upload booking images or drop them into Zoho WorkDrive folder RAC_Bookings_OCR. WhatsApp capture is disabled.</p>
   </header>
   <section class="status" id="status"></section>
   <nav class="tabs">
-    <button data-tab="bookings" class="is-on">New bookings</button>
-    <button data-tab="review">Review queue</button>
+    <button data-tab="upload" class="is-on">Upload</button>
+    <button data-tab="recent">Recent</button>
+    <button data-tab="review">Review</button>
   </nav>
-  <section id="bookings" class="panel"></section>
+  <section id="upload" class="panel">
+    <div id="drop" class="dropzone">
+      <strong>DROP BOOKING IMAGES HERE</strong>
+      <p>or</p>
+      <label class="select-btn">SELECT IMAGES
+        <input id="file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple hidden>
+      </label>
+      <p class="hint">JPG, JPEG, PNG, WebP. Multiple files allowed. Booking details are read automatically.</p>
+    </div>
+    <ul id="uploads" class="file-list"></ul>
+  </section>
+  <section id="recent" class="panel hidden"></section>
   <section id="review" class="panel hidden"></section>
   <script>
     const $ = (id) => document.getElementById(id)
+    const filesState = {}
     async function loadStatus() {
       const s = await fetch('/api/status').then((r) => r.json())
       $('status').innerHTML = `
-        <div><b>WhatsApp</b><span class="${s.whatsapp}">${s.whatsapp}</span></div>
-        <div><b>Target group</b><span>${s.target_group} · ${s.group_name || 'not set'}</span></div>
-        <div><b>Last image</b><span>${s.last_image || '—'}</span></div>
-        <div><b>Images processed</b><span>${s.images_processed}</span></div>
-        <div><b>Bookings created</b><span>${s.bookings_created}</span></div>
-        <div><b>Bookings updated</b><span>${s.bookings_updated}</span></div>
-        <div><b>Duplicates</b><span>${s.duplicates}</span></div>
-        <div><b>Review required</b><span>${s.review_required}</span></div>
+        <div><b>Images received</b><span>${s.received || s.uploaded || 0}</span></div>
+        <div><b>Published</b><span>${s.published || 0}</span></div>
+        <div><b>Duplicate images</b><span>${s.duplicate_image || 0}</span></div>
+        <div><b>Duplicate bookings</b><span>${s.duplicate_booking || 0}</span></div>
+        <div><b>Review required</b><span>${s.needs_review || 0}</span></div>
+        <div><b>Failed</b><span>${s.failed || 0}</span></div>
+        <div><b>Website Upload</b><span>${s.source_website_upload}</span></div>
+        <div><b>Zoho WorkDrive</b><span>${s.source_zoho_workdrive}</span></div>
+        <div><b>WorkDrive folder</b><span>${(s.workdrive && s.workdrive.has_folder_id) ? 'configured' : 'set ZOHO_WORKDRIVE_FOLDER_ID'}</span></div>
         <div><b>Last error</b><span>${s.last_error || '—'}</span></div>`
     }
-    async function loadBookings() {
-      const data = await fetch('/api/bookings').then((r) => r.json())
+    function labelStatus(status) {
+      if (status === 'PUBLISHED') return 'OCR → Published'
+      if (status === 'DUPLICATE_IMAGE' || status === 'DUPLICATE_BOOKING') return 'OCR → Duplicate'
+      if (status === 'REVIEW_REQUIRED') return 'OCR → Review Required'
+      if (status === 'FAILED') return 'OCR → Failed'
+      if (status === 'PROCESSING') return 'OCR → Processing'
+      if (status === 'RECEIVED') return 'Uploaded → queued'
+      return status || 'queued'
+    }
+    async function loadRecent() {
+      const data = await fetch('/api/ingest').then((r) => r.json())
       const rows = data.data || []
-      $('bookings').innerHTML = rows.length ? `<table>
-        <tr><th>Booking ID</th><th>Type</th><th>Cab</th><th>Date</th><th>Time</th><th>Address</th><th>Confidence</th><th>Status</th></tr>
+      $('recent').innerHTML = rows.length ? `<table>
+        <tr><th>Filename</th><th>Source</th><th>Booking ID</th><th>Date</th><th>Status</th><th>Reason</th><th>Timestamp</th></tr>
         ${rows.map((r) => `<tr>
-          <td>${r.booking_id || ''}</td><td>${r.booking_type || ''}</td><td>${r.cab_type || ''}</td>
-          <td>${r.trip_date || ''}</td><td>${r.trip_time || ''}</td><td>${r.planned_start_address || ''}</td>
-          <td>${r.confidence || ''}</td><td>${r.status || ''}</td>
-        </tr>`).join('')}</table>` : '<p>No captured bookings yet.</p>'
+          <td>${r.source_file_name || ''}</td>
+          <td>${r.source || ''}</td>
+          <td>${r.booking_id || ''}</td>
+          <td>${r.booking_date || ''}</td>
+          <td>${r.status || ''}</td>
+          <td>${r.error || ''}</td>
+          <td>${r.processed_at || r.created_at || ''}</td>
+        </tr>`).join('')}</table>` : '<p>No images processed yet.</p>'
+      Object.values(filesState).forEach((item) => {
+        const match = rows.find((r) => String(r.id) === String(item.id))
+        if (match) item.status = match.status
+      })
+      renderUploads()
     }
     async function loadReview() {
       const data = await fetch('/api/review').then((r) => r.json())
@@ -50,7 +82,7 @@
         const p = r.payload || {}
         const img = (r.image_path || '').split(/[/\\\\]/).pop()
         return `<article class="review-card">
-          ${img ? `<img src="/images/${img}" alt="source">` : ''}
+          ${img ? `<img src="/images/${encodeURIComponent(img)}" alt="source">` : ''}
           <div>
             <p class="reason">${r.reason || ''}</p>
             <label>Booking ID <input data-id="${r.id}" name="booking_id" value="${p.booking_id || ''}"></label>
@@ -59,11 +91,17 @@
             <label>Date <input data-id="${r.id}" name="trip_date" value="${p.trip_date || ''}"></label>
             <label>Time <input data-id="${r.id}" name="trip_time" value="${p.trip_time || ''}"></label>
             <label>Address <input data-id="${r.id}" name="planned_start_address" value="${p.planned_start_address || ''}"></label>
-            <button onclick="approve(${r.id})">Approve</button>
+            <input type="hidden" data-id="${r.id}" name="ingest_record_id" value="${p.ingest_record_id || ''}">
+            <button onclick="approve(${r.id})">Approve &amp; Publish</button>
+            <button class="ghost" onclick="editReview(${r.id})">Edit</button>
             <button class="ghost" onclick="reject(${r.id})">Reject</button>
           </div>
         </article>`
       }).join('') : '<p>Review queue is empty.</p>'
+    }
+    function renderUploads() {
+      const items = Object.values(filesState)
+      $('uploads').innerHTML = items.map((item) => `<li><b>${item.name}</b><span>${labelStatus(item.status)}</span></li>`).join('')
     }
     function fields(id) {
       const out = {}
@@ -76,25 +114,46 @@
       if (!data.success) { alert(data.message); return }
       loadAll()
     }
-    async function reject(id) {
-      await fetch(`/api/review/${id}/reject`, { method: 'POST' })
+    async function editReview(id) {
+      const res = await fetch(`/api/review/${id}/edit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields(id)) })
+      const data = await res.json()
+      if (!data.success) { alert(data.message); return }
       loadAll()
     }
+    async function reject(id) {
+      await fetch(`/api/review/${id}/reject`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields(id)) })
+      loadAll()
+    }
+    async function sendFiles(list) {
+      const body = new FormData()
+      Array.from(list).forEach((file) => body.append('images', file))
+      const res = await fetch('/api/upload', { method: 'POST', body })
+      const data = await res.json()
+      ;(data.data || []).forEach((row) => {
+        filesState[row.id || row.filename] = { id: row.id, name: row.filename, status: row.status }
+      })
+      renderUploads()
+      loadAll()
+    }
+    const drop = $('drop')
+    drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('is-over') })
+    drop.addEventListener('dragleave', () => drop.classList.remove('is-over'))
+    drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('is-over'); sendFiles(e.dataTransfer.files) })
+    $('file').addEventListener('change', (e) => sendFiles(e.target.files))
     document.querySelectorAll('.tabs button').forEach((btn) => {
       btn.onclick = () => {
         document.querySelectorAll('.tabs button').forEach((b) => b.classList.remove('is-on'))
         btn.classList.add('is-on')
-        $('bookings').classList.toggle('hidden', btn.dataset.tab !== 'bookings')
-        $('review').classList.toggle('hidden', btn.dataset.tab !== 'review')
+        ;['upload','recent','review'].forEach((id) => $(id).classList.toggle('hidden', btn.dataset.tab !== id))
       }
     })
     async function loadAll() {
       await loadStatus()
-      await loadBookings()
+      await loadRecent()
       await loadReview()
     }
     loadAll()
-    setInterval(loadAll, 8000)
+    setInterval(loadAll, 4000)
   </script>
 </body>
 </html>

@@ -44,7 +44,6 @@ export const API = {
   updateBookingPayment: (id, data) => apiCall(`/bookings/${id}/payment`, { method: 'PATCH', body: JSON.stringify(data) }),
   updateBookingsPaymentBulk: (data) => apiCall('/bookings/payments/bulk', { method: 'PATCH', body: JSON.stringify(data) }),
 
-  // Upload
   uploadExcel: (file) => {
     const formData = new FormData()
     formData.append('file', file)
@@ -83,6 +82,26 @@ export const API = {
       return res.json()
     })
   },
+  uploadOcrImages: (files) => {
+    const formData = new FormData()
+    Array.from(files || []).forEach((file) => formData.append('images', file))
+    const token = localStorage.getItem('token')
+    return fetch(`${API_URL}/bookings/ocr-upload`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: formData,
+    }).then(async (res) => {
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.message || 'OCR upload failed')
+      return data
+    })
+  },
+  getOcrStatus: () => apiCall('/bookings/ocr-status'),
+  ocrReviewAction: (reviewId, action, data) => apiCall(`/bookings/ocr-review/${reviewId}/${action}`, {
+    method: 'POST',
+    body: JSON.stringify(data || {}),
+  }),
   getUploadStatus: (batchId) => apiCall(`/uploads/${batchId}/status`),
   getUploadHistory: (params) => apiCall(`/uploads/history?${new URLSearchParams(params)}`),
 

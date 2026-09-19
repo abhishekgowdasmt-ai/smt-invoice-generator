@@ -14,6 +14,7 @@ const links = [
   { to: '/drivers', label: 'Drivers', icon: <><circle cx="12" cy="8" r="3"/><path d="M5 19a7 7 0 0 1 14 0"/></> },
   { to: '/assignment', label: 'Assign', icon: <><circle cx="8" cy="8" r="3"/><path d="M2.5 19a6 6 0 0 1 11 0M16 11l2 2 4-4"/></> },
   { to: '/upload', label: 'Upload', icon: <><path d="M12 16V5M8 9l4-4 4 4"/><path d="M5 19h14"/></> },
+  { to: '/booking-ocr', label: 'Booking OCR', icon: <><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 8h8M8 12h5"/></> },
   { to: '/messages', label: 'Messages', icon: <><path d="M5 5h14v10H8l-3 4z"/></> },
   { to: '/whatsapp-qr', label: 'WhatsApp', icon: <><path d="M7 17l-2 4 4-2"/><path d="M12 19a7 7 0 1 0-6.3-4"/></> },
 ]

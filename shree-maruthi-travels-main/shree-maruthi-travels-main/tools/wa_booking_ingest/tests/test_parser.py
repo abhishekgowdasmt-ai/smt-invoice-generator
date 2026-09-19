@@ -7,6 +7,21 @@ sys.path.insert(0, str(ROOT))
 
 from parser import parse_date, parse_table_text, parse_time
 from validate import validate_booking
+from watcher import _header_is_target, _names_match
+
+
+class NameMatchTests(unittest.TestCase):
+    def test_group_name(self):
+        self.assertTrue(_names_match('SMT On-call Support-Rac', 'SMT On-call Support-Rac'))
+        self.assertTrue(_names_match('SMT On-call Support-Rac', 'smt on-call support-rac'))
+        self.assertTrue(_names_match('SMT On call Support Rac', 'SMT On-call Support-Rac'))
+        self.assertFalse(_names_match('Some other group', 'SMT On-call Support-Rac'))
+        self.assertFalse(_names_match('SMT', 'SMT On-call Support-Rac'))
+        self.assertFalse(_names_match('Rac', 'SMT On-call Support-Rac'))
+        self.assertTrue(_header_is_target('SMT On-call Support-Rac', 'SMT On-call Support-Rac'))
+        self.assertTrue(_header_is_target('smt on-call support-rac', 'SMT On-call Support-Rac'))
+        self.assertFalse(_header_is_target('SMT On-call Support', 'SMT On-call Support-Rac'))
+        self.assertFalse(_header_is_target('', 'SMT On-call Support-Rac'))
 
 
 class ParserTests(unittest.TestCase):

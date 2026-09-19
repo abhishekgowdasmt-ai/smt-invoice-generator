@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from urllib.parse import quote
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, Response, jsonify, request, send_file
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 import requests
 
@@ -895,6 +895,8 @@ def ingest_bookings():
         return jsonify({'success': False, 'message': 'No bookings provided'}), 400
     created = []
     updated = []
+    duplicates = []
+    conflicts = []
     errors = []
     for raw in rows[:200]:
         if not isinstance(raw, dict):
@@ -912,18 +914,19 @@ def ingest_bookings():
         duty = str(raw.get('booking_type') or raw.get('duty_type') or '').strip()
         cab = str(raw.get('cab_type') or '').strip()
         start = str(raw.get('planned_start_address') or raw.get('planned_start') or '').strip()
+        ingest_source = str(payload.get('source') or raw.get('ingest_source') or 'ocr').strip() or 'ocr'
         existing = rac_store.find_one('bookings', 'source_booking_id', source_id)
         if existing:
-            changes = {
-                'trip_date': trip_date or existing.get('trip_date'),
-                'pickup_time': pickup or existing.get('pickup_time'),
-                'duty_type': duty or existing.get('duty_type'),
-                'cab_type': cab or existing.get('cab_type'),
-                'planned_start': start or existing.get('planned_start'),
-                'ingest_source': 'whatsapp-group',
-                'ingest_message_id': str(raw.get('source_message_id') or '')[:120],
-            }
-            rac_store.update_one('bookings', 'booking_id', existing.get('booking_id'), changes)
+            existing_date = str(existing.get('trip_date') or '').strip()
+            if existing_date and trip_date and existing_date != trip_date:
+                conflicts.append({
+                    'booking_id': source_id,
+                    'existing_date': existing_date,
+                    'new_date': trip_date,
+                    'reason': 'Same BOOKING_ID already exists with a different date.',
+                })
+                continue
+            duplicates.append(source_id)
             updated.append(source_id)
             continue
         rac_store.insert('bookings', {
@@ -934,8 +937,8 @@ def ingest_bookings():
             'duty_type': duty,
             'cab_type': cab,
             'planned_start': start,
-            'employee_name': str(raw.get('employee_name') or 'WhatsApp booking').strip(),
-            'source_name': 'WhatsApp group',
+            'employee_name': str(raw.get('employee_name') or 'OCR booking').strip(),
+            'source_name': ingest_source,
             'status': 'Unassigned',
             'upload_batch_id': '',
             'assigned_driver_id': '',
@@ -945,7 +948,7 @@ def ingest_bookings():
             'driver_payment_notes': '',
             'driver_paid_amount': '',
             'amount': _parse_number(raw.get('amount'), 0),
-            'ingest_source': 'whatsapp-group',
+            'ingest_source': ingest_source,
             'ingest_message_id': str(raw.get('source_message_id') or '')[:120],
             'ingest_confidence': raw.get('confidence') or '',
         })
@@ -954,10 +957,151 @@ def ingest_bookings():
         'success': True,
         'created': created,
         'updated': updated,
+        'duplicates': duplicates,
+        'conflicts': conflicts,
         'errors': errors,
         'created_count': len(created),
         'updated_count': len(updated),
+        'duplicate_count': len(duplicates),
+        'conflict_count': len(conflicts),
     }), 201 if created else 200
+
+
+@rac_bp.route('/bookings/ingest/lookup', methods=['GET'])
+@require_rac_or_ingest
+def ingest_lookup():
+    source_id = str(request.args.get('source_booking_id') or request.args.get('booking_id') or '').strip()
+    if not source_id:
+        return jsonify({'success': False, 'message': 'source_booking_id is required'}), 400
+    existing = rac_store.find_one('bookings', 'source_booking_id', source_id)
+    if not existing:
+        return jsonify({'success': True, 'found': False})
+    return jsonify({
+        'success': True,
+        'found': True,
+        'booking_id': existing.get('booking_id'),
+        'source_booking_id': existing.get('source_booking_id'),
+        'trip_date': existing.get('trip_date') or '',
+        'status': existing.get('status') or '',
+    })
+
+
+def _ocr_ingest_url():
+    return (os.environ.get('OCR_INGEST_URL') or 'http://127.0.0.1:8787').rstrip('/')
+
+
+def _ocr_ingest_headers():
+    key = (os.environ.get('OCR_INGEST_KEY') or os.environ.get('RAC_INGEST_KEY') or '').strip()
+    return {'X-Ingest-Key': key} if key else {}
+
+
+@rac_bp.route('/bookings/ocr-upload', methods=['POST'])
+@require_rac
+def ocr_upload():
+    import requests
+    files = request.files.getlist('images') or request.files.getlist('files')
+    if not files:
+        uploaded = request.files.get('image') or request.files.get('file')
+        files = [uploaded] if uploaded else []
+    if not files:
+        return jsonify({'success': False, 'message': 'No images uploaded'}), 400
+    outgoing = []
+    for handle in files:
+        raw = handle.read()
+        handle.stream.seek(0)
+        outgoing.append(('images', (handle.filename, raw, handle.mimetype or 'application/octet-stream')))
+    try:
+        resp = requests.post(
+            f'{_ocr_ingest_url()}/api/upload',
+            files=outgoing,
+            headers=_ocr_ingest_headers(),
+            timeout=60,
+        )
+        payload = resp.json()
+    except Exception:
+        return jsonify({
+            'success': False,
+            'message': 'Booking OCR service is not reachable. Set OCR_INGEST_URL and start the ingest service.',
+        }), 503
+    return jsonify(payload), resp.status_code
+
+
+@rac_bp.route('/bookings/ocr-status', methods=['GET'])
+@require_rac
+def ocr_status():
+    import requests
+    headers = _ocr_ingest_headers()
+    try:
+        resp = requests.get(f'{_ocr_ingest_url()}/api/status', headers=headers, timeout=10)
+        ingest = requests.get(f'{_ocr_ingest_url()}/api/ingest', headers=headers, timeout=10)
+        review = requests.get(f'{_ocr_ingest_url()}/api/review', headers=headers, timeout=10)
+        payload = resp.json()
+        payload['records'] = (ingest.json() or {}).get('data') or []
+        payload['reviews'] = (review.json() or {}).get('data') or []
+        payload['success'] = True
+        return jsonify(payload)
+    except Exception:
+        return jsonify({
+            'success': False,
+            'message': 'Booking OCR service is not reachable. Set OCR_INGEST_URL and start the ingest service.',
+        }), 503
+
+
+@rac_bp.route('/bookings/ocr-review/<int:review_id>/<action>', methods=['POST'])
+@require_rac
+def ocr_review_action(review_id, action):
+    import requests
+    if action not in ('approve', 'edit', 'reject'):
+        return jsonify({'success': False, 'message': 'Unknown review action'}), 400
+    try:
+        resp = requests.post(
+            f'{_ocr_ingest_url()}/api/review/{review_id}/{action}',
+            json=request.get_json(silent=True) or {},
+            headers={**_ocr_ingest_headers(), 'Content-Type': 'application/json'},
+            timeout=30,
+        )
+        return jsonify(resp.json()), resp.status_code
+    except Exception:
+        return jsonify({
+            'success': False,
+            'message': 'Booking OCR service is not reachable.',
+        }), 503
+
+
+@rac_bp.route('/bookings/ocr-image/<path:filename>', methods=['GET'])
+@require_rac
+def ocr_image(filename):
+    import requests
+    try:
+        resp = requests.get(
+            f'{_ocr_ingest_url()}/images/{filename}',
+            headers=_ocr_ingest_headers(),
+            timeout=20,
+        )
+    except Exception:
+        return jsonify({'success': False, 'message': 'Booking OCR image is not reachable.'}), 503
+    return Response(resp.content, status=resp.status_code, content_type=resp.headers.get('Content-Type', 'image/jpeg'))
+
+
+@rac_bp.route('/integrations/zoho/workdrive/webhook', methods=['POST'])
+def workdrive_ocr_webhook():
+    """Optional Zoho WorkDrive callback. Polling still runs on the ingest service."""
+    import requests
+    payload = request.get_json(silent=True) or {}
+    try:
+        resp = requests.post(
+            f'{_ocr_ingest_url()}/api/v1/integrations/zoho/workdrive/webhook',
+            json=payload,
+            timeout=10,
+        )
+        data = resp.json()
+    except Exception:
+        return jsonify({
+            'success': True,
+            'enqueued': False,
+            'message': 'Webhook optional; WorkDrive polling on the ingest service will pick this file up.',
+        }), 202
+    return jsonify(data), resp.status_code
 
 
 @rac_bp.route('/bookings/payments/bulk', methods=['PATCH'])

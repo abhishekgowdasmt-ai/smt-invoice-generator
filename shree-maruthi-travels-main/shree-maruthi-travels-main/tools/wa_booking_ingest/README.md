@@ -1,53 +1,66 @@
-# WhatsApp group → RAC bookings (local Windows)
+# Booking OCR ingest (website upload + Zoho WorkDrive)
 
-Someone posts a booking-table screenshot in your existing WhatsApp group. This PC captures it, reads the table, and upserts rows into the SMT RAC website. It never sends WhatsApp messages.
+WhatsApp Web/Playwright capture is **deprecated** and off by default. Booking images enter one shared pipeline from:
 
-## How it fits the website
+1. Website / dashboard upload
+2. Zoho WorkDrive folder `RAC_Bookings_OCR`
 
-The live site already stores RAC bookings (Zoho / Flask `/api/v1`). This tool does **not** create a second booking database for the website.
+```
+Website upload ──┐
+                 ├──► SQLite queue ► OCR ► parser ► validate ► dedupe ► RAC /bookings/ingest
+WorkDrive ───────┘
+   poll (webhook optional)
+```
 
-- Website ingest: `POST /api/v1/bookings/ingest` (header `X-Ingest-Key`)
-- Same `source_booking_id` updates the existing row instead of duplicating
-- RAC → Bookings has two tabs: **Last 3 days** (paid/unpaid) and **All history**
+OCR, parser, validation, and publisher are the existing modules. This tool does not create a second website booking database.
 
-The existing RAC WhatsApp linker is only for assignment messages. This watcher is a separate read-only Playwright session.
+## Start
 
-## One-time setup
+On the OCR machine:
 
-1. Run `install.bat`
-2. Install Tesseract OCR if prompted (`winget install --id UB-Mannheim.TesseractOCR`)
-3. Copy `.env.example` to `.env` (install.bat does this)
-4. Set:
-   - `TARGET_WHATSAPP_GROUP` — exact group name
-   - `WEBSITE_API_URL` — `https://www.shreemaruthitravels.com/api/v1`
-   - `WEBSITE_API_KEY` — same value as `RAC_INGEST_KEY` on the server
-5. On the website host, set `RAC_INGEST_KEY` to that same secret
-6. Run `start.bat`
-7. First launch: Chromium opens WhatsApp Web. Scan the QR once. The session is saved in `profile/`
-8. Open http://127.0.0.1:8787 for status, captured bookings, and the review queue
-9. Optional auto-start after login: right-click `install-startup.ps1` → Run with PowerShell
+```
+start.bat
+```
 
-Leave the PC on. Do not close the Chromium window that shows WhatsApp Web.
+This starts the dashboard, OCR worker, and WorkDrive poller. WhatsApp is not started.
 
-## What happens on a new image
+- Local dashboard: http://127.0.0.1:8787
+- RAC page: https://www.shreemaruthitravels.com/admin/dispatch/booking-ocr
 
-1. Watcher sees a new image in that group only
-2. Image is saved under `data/incoming/`
-3. OCR worker extracts table rows
-4. Valid rows are posted to the website
-5. Same booking ID updates the existing booking
-6. Weak/broken rows go to the local review queue (fix → Approve / Reject)
-7. Images already on screen when the app starts are skipped, so history is not re-imported
+## Method 1 — website upload
+
+REQUIRED:
+
+- `WEBSITE_API_URL` — RAC API, usually `https://www.shreemaruthitravels.com/api/v1`
+- `WEBSITE_API_KEY` — same value as website `RAC_INGEST_KEY`
+- On the RAC server: `OCR_INGEST_URL` pointing at this ingest service
+
+If the RAC website and OCR service are on the same machine, `OCR_INGEST_URL=http://127.0.0.1:8787`. If they are on different machines, set ingest `DASHBOARD_HOST=0.0.0.0` and `OCR_INGEST_URL` to that host.
+
+## Method 2 — Zoho WorkDrive
+
+Polling is the baseline. The poller starts automatically with `start.bat` when WorkDrive is configured. A webhook is optional and not required.
+
+REQUIRED:
+
+- `ZOHO_WORKDRIVE_ENABLED=1`
+- `ZOHO_WORKDRIVE_FOLDER_ID` — folder id of `RAC_Bookings_OCR` from the WorkDrive URL
+- `ZOHO_WORKDRIVE_CLIENT_ID`
+- `ZOHO_WORKDRIVE_CLIENT_SECRET`
+- `ZOHO_WORKDRIVE_REFRESH_TOKEN`
+
+Do **not** reuse `ZOHO_REFRESH_TOKEN` (Zoho Sheet). Required OAuth scope: `WorkDrive.files.READ`. Original WorkDrive files are never deleted.
+
+## Duplicate protection
+
+1. SHA-256 of the image bytes
+2. `booking_id + trip_date`
+3. RAC website lookup/ingest before insert
+
+Same booking ID with a **different** date goes to Review (`Same BOOKING_ID already exists with a different date.`).
 
 ## Tests
 
 ```
-.venv\Scripts\python.exe -m unittest discover -s tests -v
+.venv\Scripts\python.exe -m unittest discover -s tests -p "test_*.py"
 ```
-
-## Notes
-
-- Dashboard binds to `127.0.0.1` only
-- `profile/` and `data/` stay off git
-- OCR uses Tesseract locally. Set `OCR_PROVIDER=ai` later if you add a key; the rest of the app stays the same
-- WhatsApp Web CSS can change. If the group is not found, keep the chat open and restart `start.bat`
