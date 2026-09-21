@@ -88,6 +88,8 @@ def parse_time(value):
     text = str(value or '').strip().upper()
     if not text:
         return None
+    if parse_date(text) and not re.search(r'\d{1,2}[:.]\d{2}', text):
+        return None
     match = re.search(r'(\d{1,2})[:.](\d{2})(?::\d{2})?\s*(AM|PM)?', text)
     if not match:
         match = re.search(r'^(\d{3,4})$', re.sub(r'\D', '', text))
@@ -139,6 +141,35 @@ def _empty_item(source_message_id='', source_image='', raw_line=''):
     }
 
 
+DUTY_BLOB_RE = re.compile(
+    r'((?:disposal|drop|pick\s*up|pickup|outstation|local)'
+    r'(?:\s*[-–]\s*\d+\s*hrs?\s*/\s*\d+\s*kms?)?)'
+    r'|\d+\s*hrs?\s*/\s*\d+\s*kms?',
+    re.I,
+)
+
+
+def extract_duty(value):
+    match = DUTY_BLOB_RE.search(str(value or ''))
+    if not match:
+        return ''
+    return re.sub(r'\s+', ' ', match.group(0)).strip()
+
+
+def date_from_booking_id(booking_id):
+    match = re.match(r'^B(\d{2})(\d{2})(\d{2})-', str(booking_id or ''), re.I)
+    if not match:
+        return None
+    year, month, day = (int(match.group(1)) + 2000, int(match.group(2)), int(match.group(3)))
+    if 1 <= month <= 12 and 1 <= day <= 31:
+        return f'{year:04d}-{month:02d}-{day:02d}'
+    return None
+
+
+def _looks_booking_id(value):
+    return bool(extract_booking_id(value)) and len(str(value or '').strip()) <= 24
+
+
 def map_cells_by_content(cells, item=None):
     """Pull ID/date/time/duty/address out of jammed OCR cells. Does not invent cab type."""
     item = item or _empty_item()
@@ -147,23 +178,21 @@ def map_cells_by_content(cells, item=None):
         cell = re.sub(r'\s+', ' ', str(raw_cell or '').strip())
         if not cell:
             continue
-        if not item['trip_date']:
-            dated = parse_date(cell)
-            if dated and len(cell) <= 24 and not extract_booking_id(cell):
-                item['trip_date'] = dated
-                continue
+        dated = parse_date(cell)
+        if dated and len(cell) <= 24 and not extract_booking_id(cell) and ':' not in cell:
+            item['trip_date'] = item['trip_date'] or dated
+            continue
         bid = extract_booking_id(cell)
         time_val = parse_time(cell)
-        if bid and (not extract_booking_id(item.get('booking_id'))):
+        if time_val and not item['trip_time']:
+            item['trip_time'] = time_val
+        if bid and not extract_booking_id(item.get('booking_id')):
             item['booking_id'] = bid
             remainder = re.sub(re.escape(bid), ' ', cell, count=1, flags=re.I)
             remainder = re.sub(r'\b\d{1,2}[:.]\d{2}(?::\d{2})?\b', ' ', remainder)
-            if time_val and not item['trip_time']:
-                item['trip_time'] = time_val
             leftovers.append(remainder)
             continue
         if time_val and re.match(r'^\d{1,2}[:.]\d{2}', cell) and len(cell) <= 14:
-            item['trip_time'] = item['trip_time'] or time_val
             continue
         leftovers.append(cell)
 
@@ -179,21 +208,30 @@ def map_cells_by_content(cells, item=None):
                 text = re.sub(rf'\b{re.escape(cab)}\b', ' ', text, flags=re.I)
                 text = re.sub(r'\s+', ' ', text).strip(' -|/,')
                 break
-        if text:
+        duty = extract_duty(text)
+        if duty:
+            if not item['booking_type'] or _looks_booking_id(item.get('booking_type')):
+                item['booking_type'] = duty
+            text = re.sub(re.escape(duty), ' ', text, flags=re.I)
+            text = re.sub(r'\b\d{1,2}[:.]\d{2}(?::\d{2})?\b', ' ', text)
+            text = re.sub(r'\s+', ' ', text).strip(' -|/,')
+        if text and not _looks_booking_id(text) and not parse_date(text):
             cleaned_parts.append(text)
 
-    if len(cleaned_parts) >= 2:
-        if not item['booking_type']:
-            item['booking_type'] = cleaned_parts[0]
-        if not item['planned_start_address']:
+    if not item['booking_type']:
+        for part in cleaned_parts:
+            duty = extract_duty(part)
+            if duty:
+                item['booking_type'] = duty
+                break
+    if not item['planned_start_address']:
+        places = [part for part in cleaned_parts if not extract_duty(part)]
+        if places:
+            item['planned_start_address'] = places[-1]
+        elif cleaned_parts and cleaned_parts[-1] != item.get('booking_type'):
             item['planned_start_address'] = cleaned_parts[-1]
-    elif len(cleaned_parts) == 1:
-        blob = cleaned_parts[0]
-        upper = blob.upper()
-        if any(word in upper for word in DUTY_WORDS) and not item['booking_type']:
-            item['booking_type'] = blob
-        elif not item['planned_start_address']:
-            item['planned_start_address'] = blob
+    if not item['trip_date']:
+        item['trip_date'] = date_from_booking_id(item.get('booking_id')) or ''
     return item
 
 
@@ -202,7 +240,10 @@ def salvage_payload(payload):
     payload = dict(payload or {})
     blob = ' | '.join(
         str(payload.get(key) or '')
-        for key in ('booking_id', 'raw_line', 'text', 'booking_type', 'planned_start_address')
+        for key in (
+            'booking_id', 'raw_line', 'text', 'booking_type', 'cab_type',
+            'trip_date', 'trip_time', 'planned_start_address',
+        )
         if payload.get(key)
     )
     extracted = map_cells_by_content(split_row(blob) or [blob], _empty_item(raw_line=blob))
@@ -210,19 +251,45 @@ def salvage_payload(payload):
         extracted = map_cells_by_content([blob], extracted)
     for key in ('booking_id', 'booking_type', 'cab_type', 'trip_date', 'trip_time', 'planned_start_address'):
         current = str(payload.get(key) or '').strip()
-        if key == 'booking_id' and current and not extract_booking_id(current) and extracted.get('booking_id'):
-            payload[key] = extracted['booking_id']
+        extracted_val = str(extracted.get(key) or '').strip()
+        if key == 'booking_id' and current and not extract_booking_id(current) and extracted_val:
+            payload[key] = extracted_val
             continue
-        if not current and extracted.get(key):
-            payload[key] = extracted[key]
+        if key == 'booking_type' and current and (
+            _looks_booking_id(current)
+            or (extract_duty(extracted_val) and not extract_duty(current))
+            or (
+                current == str(payload.get('planned_start_address') or '').strip()
+                and not extract_duty(current)
+            )
+        ):
+            payload[key] = extracted_val
+            continue
+        if key == 'cab_type' and current and (extract_duty(current) or _looks_booking_id(current)):
+            payload[key] = extracted_val
+            continue
+        if not current and extracted_val:
+            payload[key] = extracted_val
     if payload.get('trip_date'):
         payload['trip_date'] = parse_date(payload['trip_date']) or payload['trip_date']
+    elif extracted.get('trip_date'):
+        payload['trip_date'] = extracted['trip_date']
     if payload.get('trip_time'):
         payload['trip_time'] = parse_time(payload['trip_time']) or payload['trip_time']
     extracted_id = extract_booking_id(payload.get('booking_id'))
     if extracted_id:
         payload['booking_id'] = extracted_id
     return payload
+
+
+def _coalesce_ocr_lines(lines):
+    merged = []
+    for line in lines:
+        if extract_booking_id(line) or not merged:
+            merged.append(line)
+        else:
+            merged[-1] = f'{merged[-1]} | {line}'
+    return merged
 
 
 def parse_table_text(text, source_message_id='', source_image=''):
@@ -238,12 +305,13 @@ def parse_table_text(text, source_message_id='', source_image=''):
     else:
         headers = ['booking_id', 'booking_type', 'cab_type', 'trip_date', 'trip_time', 'planned_start_address']
     rows = []
-    for line in lines[start:]:
+    for line in _coalesce_ocr_lines(lines[start:]):
         cells = split_row(line)
         if not cells or _looks_header(cells):
             continue
         item = _empty_item(source_message_id, source_image, line)
-        if headers and len(headers) >= 3:
+        use_headers = headers and len(headers) >= 3 and len(cells) >= 5
+        if use_headers:
             for index, cell in enumerate(cells):
                 field = headers[index] if index < len(headers) else None
                 if field:
@@ -251,12 +319,15 @@ def parse_table_text(text, source_message_id='', source_image=''):
             if not item['planned_start_address'] and len(cells) > len([h for h in headers if h]):
                 item['planned_start_address'] = ' '.join(cells[len(headers):]).strip()
         positional_id = extract_booking_id(item.get('booking_id'))
-        if not positional_id or not parse_date(item.get('trip_date') or ''):
-            item = map_cells_by_content(cells, item)
+        if not use_headers or not positional_id or not parse_date(item.get('trip_date') or ''):
+            seed = item if use_headers else _empty_item(source_message_id, source_image, line)
+            item = map_cells_by_content(cells, seed)
             if not item.get('booking_id'):
                 item = map_cells_by_content([line], item)
+            item = salvage_payload(item)
         else:
             item['booking_id'] = positional_id
+            item = salvage_payload(item)
         item['trip_date'] = parse_date(item.get('trip_date')) or ''
         item['trip_time'] = parse_time(item.get('trip_time')) or ''
         item['booking_id'] = extract_booking_id(item.get('booking_id')) or (

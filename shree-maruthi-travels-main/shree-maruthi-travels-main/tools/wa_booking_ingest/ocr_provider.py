@@ -1,6 +1,7 @@
 """Replaceable OCR providers. External APIs run server-side only; Tesseract is fallback."""
 import base64
 import json
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -104,6 +105,44 @@ class OCRSpaceProvider(OCRProvider):
         return '\n'.join(parts)
 
 
+def _gemini_models():
+    import config
+    names = []
+    for name in (
+        config.GEMINI_MODEL,
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-001',
+        'gemini-1.5-flash',
+    ):
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def normalize_model_text(text):
+    cleaned = str(text or '').strip()
+    if cleaned.startswith('```'):
+        cleaned = re.sub(r'^```(?:tsv|csv|json|text)?\s*', '', cleaned, flags=re.I)
+        cleaned = re.sub(r'\s*```$', '', cleaned)
+    stripped = cleaned.strip()
+    if stripped.startswith('[') or stripped.startswith('{'):
+        try:
+            data = json.loads(stripped)
+        except Exception:
+            return cleaned
+        rows = data if isinstance(data, list) else data.get('bookings') or data.get('rows') or [data]
+        lines = ['BOOKING_ID\tBOOKING_TYPE\tCAB_TYPE\tTRIP_DATE\tTRIP_TIME\tPLANNED_START_ADDRESS']
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            lines.append('\t'.join(str(row.get(key) or '') for key in (
+                'booking_id', 'booking_type', 'cab_type', 'trip_date', 'trip_time', 'planned_start_address',
+            )))
+        return '\n'.join(lines)
+    return cleaned
+
+
 class GeminiProvider(OCRProvider):
     name = 'gemini'
 
@@ -112,15 +151,13 @@ class GeminiProvider(OCRProvider):
         from logutil import log, redact
         if not config.GEMINI_API_KEY:
             raise RuntimeError('GEMINI_API_KEY is not set')
-        encoded = base64.b64encode(_jpeg_bytes(image_path, max_side=1800, max_bytes=3_500_000)).decode('ascii')
+        encoded = base64.b64encode(_jpeg_bytes(image_path, max_side=2000, max_bytes=3_500_000)).decode('ascii')
         prompt = (
-            'Extract every booking table row from this screenshot. '
+            'This is an SMT cab booking table screenshot. '
+            'Each booking may be one row like: date | BOOKING_ID duty 12hrs/120kms HH:MM | location. '
             'Return TSV only with headers BOOKING_ID, BOOKING_TYPE, CAB_TYPE, TRIP_DATE, TRIP_TIME, PLANNED_START_ADDRESS. '
-            'Do not invent values. If a cell is unreadable, leave it empty.'
-        )
-        url = (
-            f'https://generativelanguage.googleapis.com/v1beta/models/'
-            f'{urllib.parse.quote(config.GEMINI_MODEL)}:generateContent'
+            'BOOKING_TYPE is Disposal/Drop/Pickup/12hrs. TRIP_DATE as YYYY-MM-DD. TRIP_TIME as HH:MM. '
+            'Leave CAB_TYPE empty unless SEDAN/SUV/CRYSTA/etc is visible. Do not invent values.'
         )
         body = json.dumps({
             'contents': [{
@@ -130,27 +167,38 @@ class GeminiProvider(OCRProvider):
                 ]
             }]
         }).encode('utf-8')
-        req = urllib.request.Request(
-            url,
-            data=body,
-            headers={
-                'Content-Type': 'application/json',
-                'x-goog-api-key': config.GEMINI_API_KEY,
-            },
-            method='POST',
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
-                data = json.loads(resp.read().decode('utf-8'))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode('utf-8', errors='replace')[:200]
-            raise RuntimeError(redact(f'Gemini HTTP {exc.code} {detail}')) from exc
-        parts = (((data.get('candidates') or [{}])[0].get('content') or {}).get('parts') or [])
-        text = '\n'.join(str(part.get('text') or '') for part in parts).strip()
-        if not text:
-            raise RuntimeError('Gemini returned no text')
-        log.info('[OCR] gemini chars=%s', len(text))
-        return text
+        last_error = None
+        for model in _gemini_models():
+            url = (
+                f'https://generativelanguage.googleapis.com/v1beta/models/'
+                f'{urllib.parse.quote(model)}:generateContent'
+            )
+            req = urllib.request.Request(
+                url,
+                data=body,
+                headers={
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': config.GEMINI_API_KEY,
+                },
+                method='POST',
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    data = json.loads(resp.read().decode('utf-8'))
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode('utf-8', errors='replace')[:200]
+                last_error = RuntimeError(redact(f'Gemini {model} HTTP {exc.code} {detail}'))
+                log.warning('[OCR] %s', last_error)
+                continue
+            parts = (((data.get('candidates') or [{}])[0].get('content') or {}).get('parts') or [])
+            text = normalize_model_text('\n'.join(str(part.get('text') or '') for part in parts))
+            if text.strip():
+                log.info('[OCR] gemini model=%s chars=%s', model, len(text))
+                return text
+            last_error = RuntimeError(f'Gemini {model} returned no text')
+        if last_error:
+            raise last_error
+        raise RuntimeError('Gemini returned no text')
 
 
 class OptionalAIProvider(OCRProvider):

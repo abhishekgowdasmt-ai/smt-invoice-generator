@@ -1,7 +1,9 @@
+import io
 import json
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -38,6 +40,7 @@ class OCRProviderTests(unittest.TestCase):
             config.OCR_PROVIDER,
             config.OCR_SPACE_API_KEY,
             config.GEMINI_API_KEY,
+            config.GEMINI_MODEL,
             config.AI_API_KEY,
             config.AI_API_URL,
         )
@@ -47,6 +50,7 @@ class OCRProviderTests(unittest.TestCase):
             config.OCR_PROVIDER,
             config.OCR_SPACE_API_KEY,
             config.GEMINI_API_KEY,
+            config.GEMINI_MODEL,
             config.AI_API_KEY,
             config.AI_API_URL,
         ) = self.old
@@ -93,6 +97,21 @@ class OCRProviderTests(unittest.TestCase):
         with mock.patch('urllib.request.urlopen', return_value=fake):
             text = ocr_provider.GeminiProvider().extract_text(self.image)
         self.assertIn('B260921-GEMX', text)
+
+    def test_gemini_strips_markdown_and_retries_model(self):
+        from ocr_provider import normalize_model_text
+        text = normalize_model_text('```tsv\nBOOKING_ID\tCAB_TYPE\nB260921-GEMX\tSEDAN\n```')
+        self.assertIn('B260921-GEMX', text)
+        self.assertNotIn('```', text)
+        config.GEMINI_API_KEY = 'gemini-test-key-12345'
+        config.GEMINI_MODEL = 'missing-model'
+        error = urllib.error.HTTPError('https://example', 404, 'nf', {}, io.BytesIO(b'{"error":"not found"}'))
+        ok = FakeResponse({
+            'candidates': [{'content': {'parts': [{'text': 'B260921-OKAY\tDROP'}]}}],
+        })
+        with mock.patch('urllib.request.urlopen', side_effect=[error, ok]):
+            text = ocr_provider.GeminiProvider().extract_text(self.image)
+        self.assertIn('B260921-OKAY', text)
 
     def test_redact_hides_ocr_keys(self):
         config.OCR_SPACE_API_KEY = 'ocrspace-secret-key-99999'

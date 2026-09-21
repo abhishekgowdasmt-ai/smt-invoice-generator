@@ -115,6 +115,50 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(cleaned['trip_date'], '2026-09-21')
         self.assertEqual(cleaned['trip_time'], '07:45')
 
+    def test_shifted_columns_pull_duty_and_time_from_cab(self):
+        from parser import salvage_payload
+        cleaned = salvage_payload({
+            'booking_id': 'B260820-4B34',
+            'booking_type': 'B260820-4B34',
+            'cab_type': 'Disposal - 12hrs/ 120kms 07:30:00',
+            'trip_date': '',
+            'trip_time': '',
+            'planned_start_address': '',
+        })
+        self.assertEqual(cleaned['booking_id'], 'B260820-4B34')
+        self.assertIn('Disposal', cleaned['booking_type'])
+        self.assertEqual(cleaned['trip_time'], '07:30')
+        self.assertFalse(cleaned.get('cab_type'))
+
+    def test_city_is_not_kept_as_booking_type(self):
+        from parser import salvage_payload
+        cleaned = salvage_payload({
+            'booking_id': 'B260920-FHMH',
+            'booking_type': 'Ramanagara',
+            'cab_type': '',
+            'trip_date': '2026-09-21',
+            'trip_time': '',
+            'planned_start_address': 'Ramanagara',
+            'raw_line': '21-Sep-26| B260920-FHMH Disposal - 12hrs/120kms 07:45:00|Ramanagara',
+        })
+        self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
+        self.assertIn('Disposal', cleaned['booking_type'])
+        self.assertEqual(cleaned['trip_time'], '07:45')
+        self.assertEqual(cleaned['planned_start_address'], 'Ramanagara')
+
+    def test_split_ocr_lines_merge_duty_into_booking(self):
+        rows = parse_table_text(
+            '21-Sep-26| B260920-FHMH|Ramanagara\n'
+            'Disposal - 12hrs/120kms 07:45:00'
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['booking_id'], 'B260920-FHMH')
+        self.assertEqual(rows[0]['trip_time'], '07:45')
+        self.assertIn('Disposal', rows[0]['booking_type'])
+
+    def test_date_is_not_parsed_as_time(self):
+        self.assertIsNone(parse_time('21-Sep-26'))
+
 
 if __name__ == '__main__':
     unittest.main()
