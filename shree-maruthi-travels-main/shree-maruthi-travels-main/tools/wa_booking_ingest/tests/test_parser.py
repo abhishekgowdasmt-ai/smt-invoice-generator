@@ -84,6 +84,37 @@ class ValidateTests(unittest.TestCase):
         self.assertFalse(ok)
         self.assertTrue(any('booking_id' in item for item in reasons))
 
+    def test_sep_dash_date_and_jumbled_pipe_row(self):
+        self.assertEqual(parse_date('21-Sep-26'), '2026-09-21')
+        self.assertEqual(parse_time('07:45:00'), '07:45')
+        rows = parse_table_text(
+            '21-Sep-26| B260920-FHMH Disposal - 12hrs/120kms 07:45:00|Ramanagara'
+        )
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['booking_id'], 'B260920-FHMH')
+        self.assertEqual(rows[0]['trip_date'], '2026-09-21')
+        self.assertEqual(rows[0]['trip_time'], '07:45')
+        self.assertIn('Disposal', rows[0]['booking_type'])
+        self.assertEqual(rows[0]['planned_start_address'], 'Ramanagara')
+        ok, reasons, cleaned = validate_booking({**rows[0], 'cab_type': 'SEDAN'}, staff_override=True)
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
+
+    def test_approve_salvages_dumped_booking_id(self):
+        ok, reasons, cleaned = validate_booking({
+            'booking_id': '21-Sep-26| B260920-FHMH Disposal - 12hrs/120kms 07:45:00|Ramanagara',
+            'booking_type': '',
+            'cab_type': 'SEDAN',
+            'trip_date': '',
+            'trip_time': '',
+            'planned_start_address': '',
+            'confidence': 0.17,
+        }, staff_override=True)
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
+        self.assertEqual(cleaned['trip_date'], '2026-09-21')
+        self.assertEqual(cleaned['trip_time'], '07:45')
+
 
 if __name__ == '__main__':
     unittest.main()

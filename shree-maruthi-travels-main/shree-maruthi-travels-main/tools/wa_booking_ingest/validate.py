@@ -1,7 +1,7 @@
 """Validate extracted booking rows. Never invent missing values."""
 import re
 
-from parser import ID_RE, parse_date, parse_time
+from parser import ID_RE, extract_booking_id, parse_date, parse_time, salvage_payload
 
 GARBAGE = re.compile(r'^[^A-Za-z0-9]+$')
 
@@ -10,9 +10,10 @@ def _clean(value):
     return re.sub(r'\s+', ' ', str(value or '').strip())
 
 
-def validate_booking(row):
+def validate_booking(row, staff_override=False):
+    row = salvage_payload(row)
     reasons = []
-    booking_id = _clean(row.get('booking_id'))
+    booking_id = extract_booking_id(row.get('booking_id')) or _clean(row.get('booking_id'))
     if not booking_id:
         reasons.append('booking_id is missing')
     elif not ID_RE.match(booking_id):
@@ -41,7 +42,11 @@ def validate_booking(row):
     if not address:
         reasons.append('planned_start_address is missing')
     confidence = float(row.get('confidence') or 0)
-    if confidence and confidence < 0.5:
+    required_missing = any(
+        'missing' in item or 'not a valid' in item or 'does not look' in item or 'corrupted' in item
+        for item in reasons
+    )
+    if confidence and confidence < 0.5 and not staff_override and required_missing:
         reasons.append('extraction confidence is too low')
     ok = not reasons
     cleaned = dict(row)
@@ -51,4 +56,6 @@ def validate_booking(row):
     cleaned['cab_type'] = cab
     cleaned['booking_type'] = booking_type
     cleaned['planned_start_address'] = address
+    if staff_override:
+        cleaned['confidence'] = 1
     return ok, reasons, cleaned

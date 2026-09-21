@@ -128,6 +128,10 @@ const BookingOcrPage = () => {
           })}
         </ul>
         <h2 style={{ marginTop: '24px' }}>Review required</h2>
+        <p className="text-muted" style={{ marginBottom: '8px' }}>
+          If a field is empty, type it from the screenshot. Cab is required. Then Approve &amp; Publish.
+        </p>
+        {error && <div className="alert alert-error" style={{ marginTop: '12px' }}>{error}</div>}
         {(reviews || []).length === 0 && <p className="text-muted">No conflicts waiting for review.</p>}
         {(reviews || []).map((review) => {
           const payload = review.payload || {}

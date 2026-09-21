@@ -11,6 +11,7 @@ import config
 import db
 from logutil import log
 from pipeline import enqueue_local_image
+from parser import salvage_payload
 from publisher import publish_bookings
 from service import start_background_loops
 from validate import validate_booking
@@ -103,17 +104,21 @@ def api_review():
     rows = db.list_review(True)
     for row in rows:
         try:
-            row['payload'] = json.loads(row.get('payload') or '{}')
+            payload = json.loads(row.get('payload') or '{}')
         except json.JSONDecodeError:
-            row['payload'] = {'raw': row.get('payload')}
+            payload = {'raw': row.get('payload')}
+        if isinstance(payload, dict):
+            payload = salvage_payload(payload)
+        row['payload'] = payload
     return jsonify({'success': True, 'data': rows})
 
 
 @app.post('/api/review/<int:review_id>/approve')
 @require_ingest_or_local
 def api_approve(review_id):
-    payload = request.get_json(silent=True) or {}
-    ok, reasons, cleaned = validate_booking(payload)
+    payload = salvage_payload(request.get_json(silent=True) or {})
+    payload['confidence'] = 1
+    ok, reasons, cleaned = validate_booking(payload, staff_override=True)
     if not ok:
         return jsonify({'success': False, 'message': '; '.join(reasons)}), 400
     publish_bookings([cleaned], source=payload.get('source') or db.SOURCE_WEBSITE)
