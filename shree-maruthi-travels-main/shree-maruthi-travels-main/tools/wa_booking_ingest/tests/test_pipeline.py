@@ -143,14 +143,15 @@ class PipelineTests(unittest.TestCase):
         self.assertIn('booking ID', rec.get('error') or '')
         self.assertEqual(self.published, [])
 
-    def test_06_ocr_missing_date(self):
+    def test_06_ocr_missing_date_uses_upload_date(self):
         path = _png(self.tmp / 'f.png', (21, 21, 21))
         row = _row('B260919-AA06')
         row['trip_date'] = ''
         _, status, rec = self.run_image(path, db.SOURCE_WEBSITE, 'up-10', [row])
-        self.assertEqual(status, db.STATUS_REVIEW_REQUIRED)
-        self.assertIn('date', rec.get('error') or '')
-        self.assertEqual(self.published, [])
+        self.assertEqual(status, db.STATUS_PUBLISHED)
+        self.assertEqual(len(self.published), 1)
+        self.assertRegex(self.published[0]['trip_date'], r'^\d{4}-\d{2}-\d{2}$')
+        self.assertEqual(rec.get('booking_date'), self.published[0]['trip_date'])
 
     def test_07_invalid_date(self):
         path = _png(self.tmp / 'g.png', (22, 22, 22))

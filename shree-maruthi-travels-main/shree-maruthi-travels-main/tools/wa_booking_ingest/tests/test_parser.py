@@ -115,6 +115,25 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
         self.assertFalse(cleaned.get('cab_type'))
 
+    def test_missing_date_uses_upload_date(self):
+        ok, reasons, cleaned = validate_booking({
+            'booking_id': 'B260920-FHMH',
+            'booking_type': 'Disposal',
+            'cab_type': '',
+            'trip_date': '',
+            'trip_time': '07:45',
+            'planned_start_address': 'Ramanagara',
+            'upload_date': '2026-09-21T06:11:00Z',
+            'confidence': 0.83,
+        })
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['trip_date'], '2026-09-21')
+
+    def test_normalize_cab_dropdown_values(self):
+        from validate import normalize_cab
+        self.assertEqual(normalize_cab('SEDAN'), 'Sedan')
+        self.assertEqual(normalize_cab('suv'), 'SUV')
+
     def test_approve_salvages_dumped_booking_id(self):
         ok, reasons, cleaned = validate_booking({
             'booking_id': '21-Sep-26| B260920-FHMH Disposal - 12hrs/120kms 07:45:00|Ramanagara',

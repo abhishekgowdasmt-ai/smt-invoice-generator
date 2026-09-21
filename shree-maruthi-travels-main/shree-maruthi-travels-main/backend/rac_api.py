@@ -91,6 +91,8 @@ def _cab_group(value):
         return 'Unknown'
     if 'sedan' in key:
         return 'Sedan'
+    if key in ('suv', 'muv'):
+        return 'SUV'
     if 'ertiga' in key or key in ('ertga', 'ertig'):
         return 'Ertiga'
     if 'cryst' in key or 'creyst' in key or 'innova' in key:

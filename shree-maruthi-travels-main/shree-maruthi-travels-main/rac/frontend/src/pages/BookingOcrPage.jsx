@@ -2,6 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import Navigation from '../components/Navigation'
 import { API } from '../services/api'
 
+const cabChoice = (value) => {
+  const key = String(value || '').replace(/[^a-z0-9]/gi, '').toLowerCase()
+  if (!key) return ''
+  if (key === 'suv' || key === 'muv' || key.includes('cryst') || key.includes('innova')) return 'SUV'
+  if (key.includes('sedan') || ['dzire', 'swift', 'etios', 'ciaz', 'tiago'].includes(key)) return 'Sedan'
+  return ''
+}
+
 const statusLabel = (status) => {
   if (status === 'PUBLISHED') return 'OCR → Published'
   if (status === 'DUPLICATE_IMAGE') return 'OCR → Duplicate image'
@@ -68,7 +76,7 @@ const BookingOcrPage = () => {
     const form = document.getElementById(`review-${review.id}`)
     const data = { ...payload, ingest_record_id: payload.ingest_record_id || '' }
     if (form) {
-      form.querySelectorAll('input[name]').forEach((el) => {
+      form.querySelectorAll('input[name], select[name]').forEach((el) => {
         data[el.name] = el.value
       })
     }
@@ -130,7 +138,7 @@ const BookingOcrPage = () => {
         </ul>
         <h2 style={{ marginTop: '24px' }}>Review required</h2>
         <p className="text-muted" style={{ marginBottom: '8px' }}>
-          If a field is empty, type it from the screenshot, then Approve &amp; Publish. Cab can stay blank.
+          If a field is empty, type it from the screenshot, then Approve &amp; Publish. Pick Sedan or SUV for cab.
         </p>
         {error && <div className="alert alert-error" style={{ marginTop: '12px' }}>{error}</div>}
         {(reviews || []).length === 0 && <p className="text-muted">No conflicts waiting for review.</p>}
@@ -144,7 +152,13 @@ const BookingOcrPage = () => {
                 <p className="reason">{review.reason || ''}</p>
                 <label>Booking ID <input name="booking_id" defaultValue={payload.booking_id || ''} /></label>
                 <label>Type <input name="booking_type" defaultValue={payload.booking_type || ''} /></label>
-                <label>Cab <input name="cab_type" defaultValue={payload.cab_type || ''} /></label>
+                <label>Cab
+                  <select name="cab_type" defaultValue={cabChoice(payload.cab_type)}>
+                    <option value="">Select cab</option>
+                    <option value="Sedan">Sedan</option>
+                    <option value="SUV">SUV</option>
+                  </select>
+                </label>
                 <label>Date <input name="trip_date" defaultValue={payload.trip_date || ''} /></label>
                 <label>Time <input name="trip_time" defaultValue={payload.trip_time || ''} /></label>
                 <label>Address <input name="planned_start_address" defaultValue={payload.planned_start_address || ''} /></label>

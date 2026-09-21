@@ -87,7 +87,11 @@
             <p class="reason">${r.reason || ''}</p>
             <label>Booking ID <input data-id="${r.id}" name="booking_id" value="${p.booking_id || ''}"></label>
             <label>Type <input data-id="${r.id}" name="booking_type" value="${p.booking_type || ''}"></label>
-            <label>Cab <input data-id="${r.id}" name="cab_type" value="${p.cab_type || ''}"></label>
+            <label>Cab <select data-id="${r.id}" name="cab_type">
+              <option value="">Select cab</option>
+              <option value="Sedan" ${String(p.cab_type||'').toLowerCase().includes('sedan') ? 'selected' : ''}>Sedan</option>
+              <option value="SUV" ${/suv|muv|cryst|innova/i.test(String(p.cab_type||'')) ? 'selected' : ''}>SUV</option>
+            </select></label>
             <label>Date <input data-id="${r.id}" name="trip_date" value="${p.trip_date || ''}"></label>
             <label>Time <input data-id="${r.id}" name="trip_time" value="${p.trip_time || ''}"></label>
             <label>Address <input data-id="${r.id}" name="planned_start_address" value="${p.planned_start_address || ''}"></label>
@@ -105,7 +109,7 @@
     }
     function fields(id) {
       const out = {}
-      document.querySelectorAll(`input[data-id="${id}"]`).forEach((el) => { out[el.name] = el.value })
+      document.querySelectorAll(`input[data-id="${id}"], select[data-id="${id}"]`).forEach((el) => { out[el.name] = el.value })
       return out
     }
     async function approve(id) {

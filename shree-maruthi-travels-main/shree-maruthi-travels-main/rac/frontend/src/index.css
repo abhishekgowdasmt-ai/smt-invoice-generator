@@ -1784,7 +1784,8 @@ body:has(.rac-sidebar) .container {
 }
 .ocr-review-card img { width: 100%; border-radius: 8px; }
 .ocr-review-card label { display: block; font-size: 12px; margin: 6px 0; }
-.ocr-review-card input { width: 100%; padding: 6px 8px; }
+.ocr-review-card input,
+.ocr-review-card select { width: 100%; padding: 6px 8px; }
 .ocr-review-card button { margin-right: 8px; margin-top: 8px; padding: 7px 12px; background: #15803d; color: #fff; border: 0; border-radius: 8px; cursor: pointer; }
 .ocr-review-card button.ghost { background: #94a3b8; }
 .ocr-review-card .reason { font-weight: 700; margin-bottom: 8px; }

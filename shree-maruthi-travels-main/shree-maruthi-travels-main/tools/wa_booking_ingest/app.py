@@ -14,7 +14,7 @@ from pipeline import enqueue_local_image
 from parser import salvage_payload
 from publisher import publish_bookings
 from service import start_background_loops
-from validate import validate_booking
+from validate import upload_booking_date, validate_booking
 from workdrive import configured as workdrive_configured
 from workdrive import status as workdrive_status
 from workdrive_sync import extract_file_id_from_webhook, reconcile
@@ -119,6 +119,12 @@ def api_review():
             payload = {'raw': row.get('payload')}
         if isinstance(payload, dict):
             payload = salvage_payload(payload)
+            if not payload.get('trip_date'):
+                payload['trip_date'] = upload_booking_date({
+                    'created_at': row.get('created_at'),
+                    'upload_date': payload.get('upload_date'),
+                })
+            payload['cab_type'] = payload.get('cab_type') or ''
         row['payload'] = payload
     return jsonify({'success': True, 'data': rows})
 

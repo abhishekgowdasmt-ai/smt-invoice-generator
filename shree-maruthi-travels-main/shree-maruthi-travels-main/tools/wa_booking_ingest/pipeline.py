@@ -120,6 +120,8 @@ def process_ingest_record(record_id, extract_fn=None, publish_fn=None, lookup_fn
         )
     ready = []
     for row in rows:
+        row = dict(row)
+        row['upload_date'] = str(record.get('created_at') or '')
         ok, reasons, cleaned = validate_booking(row)
         cleaned['source_image'] = str(image_path)
         cleaned['source_message_id'] = f'ingest:{record_id}:{record.get("source")}'
