@@ -99,7 +99,8 @@ const BookingOcrPage = () => {
             <div className="stat"><span className="label">Duplicate images</span><span className="value">{status.duplicate_image ?? 0}</span></div>
             <div className="stat"><span className="label">Duplicate bookings</span><span className="value">{status.duplicate_booking ?? 0}</span></div>
             <div className="stat"><span className="label">Review required</span><span className="value">{status.needs_review ?? 0}</span></div>
-            <div className="stat error"><span className="label">Failed</span><span className="value">{status.failed ?? 0}</span></div>
+            <div className="stat"><span className="label">Failed</span><span className="value">{status.failed ?? 0}</span></div>
+            <div className="stat"><span className="label">OCR engine</span><span className="value">{status.gemini_configured ? (status.ocr_engine || 'gemini') : 'Tesseract only'}</span></div>
           </div>
         )}
         <div className="upload-box" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
@@ -129,7 +130,7 @@ const BookingOcrPage = () => {
         </ul>
         <h2 style={{ marginTop: '24px' }}>Review required</h2>
         <p className="text-muted" style={{ marginBottom: '8px' }}>
-          If a field is empty, type it from the screenshot. Cab is required. Then Approve &amp; Publish.
+          If a field is empty, type it from the screenshot, then Approve &amp; Publish. Cab can stay blank.
         </p>
         {error && <div className="alert alert-error" style={{ marginTop: '12px' }}>{error}</div>}
         {(reviews || []).length === 0 && <p className="text-muted">No conflicts waiting for review.</p>}

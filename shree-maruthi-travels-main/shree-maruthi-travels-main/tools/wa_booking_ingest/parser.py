@@ -230,8 +230,6 @@ def map_cells_by_content(cells, item=None):
             item['planned_start_address'] = places[-1]
         elif cleaned_parts and cleaned_parts[-1] != item.get('booking_type'):
             item['planned_start_address'] = cleaned_parts[-1]
-    if not item['trip_date']:
-        item['trip_date'] = date_from_booking_id(item.get('booking_id')) or ''
     return item
 
 

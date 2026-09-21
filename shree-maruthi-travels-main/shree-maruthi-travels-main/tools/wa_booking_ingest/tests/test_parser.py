@@ -96,9 +96,24 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(rows[0]['trip_time'], '07:45')
         self.assertIn('Disposal', rows[0]['booking_type'])
         self.assertEqual(rows[0]['planned_start_address'], 'Ramanagara')
-        ok, reasons, cleaned = validate_booking({**rows[0], 'cab_type': 'SEDAN'}, staff_override=True)
+        ok, reasons, cleaned = validate_booking(rows[0])
         self.assertTrue(ok, reasons)
         self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
+        self.assertEqual(cleaned['trip_time'], '07:45')
+
+    def test_cab_not_required_when_other_fields_exist(self):
+        ok, reasons, cleaned = validate_booking({
+            'booking_id': 'B260920-FHMH',
+            'booking_type': 'Disposal - 12hrs/120kms',
+            'cab_type': '',
+            'trip_date': '2026-09-21',
+            'trip_time': '07:45',
+            'planned_start_address': 'Ramanagara',
+            'confidence': 0.83,
+        })
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
+        self.assertFalse(cleaned.get('cab_type'))
 
     def test_approve_salvages_dumped_booking_id(self):
         ok, reasons, cleaned = validate_booking({

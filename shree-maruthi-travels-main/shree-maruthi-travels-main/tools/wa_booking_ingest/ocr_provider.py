@@ -2,6 +2,7 @@
 import base64
 import json
 import re
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -49,18 +50,16 @@ class LocalOCRProvider(OCRProvider):
             raise RuntimeError('pytesseract and Pillow are required for local OCR') from exc
         if config.TESSERACT_CMD:
             pytesseract.pytesseract.tesseract_cmd = config.TESSERACT_CMD
-        image = Image.open(image_path)
-        gray = ImageOps.grayscale(image)
-        sharp = gray.filter(ImageFilter.SHARPEN)
-        try:
-            import cv2
-            import numpy as np
-            arr = np.array(sharp)
-            arr = cv2.threshold(arr, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-            sharp = Image.fromarray(arr)
-        except Exception:
-            pass
-        return pytesseract.image_to_string(sharp, config='--psm 6')
+        image = Image.open(image_path).convert('RGB')
+        width, height = image.size
+        if max(width, height) < 1400:
+            scale = 1400.0 / max(width, height, 1)
+            image = image.resize((max(1, int(width * scale)), max(1, int(height * scale))))
+        gray = ImageOps.grayscale(image).filter(ImageFilter.SHARPEN)
+        texts = []
+        for cfg in ('--psm 6', '--psm 4'):
+            texts.append(pytesseract.image_to_string(gray, config=cfg) or '')
+        return max(texts, key=lambda item: len(str(item).strip()))
 
 
 class OCRSpaceProvider(OCRProvider):
@@ -88,7 +87,7 @@ class OCRSpaceProvider(OCRProvider):
             method='POST',
         )
         try:
-            with urllib.request.urlopen(req, timeout=60) as resp:
+            with _urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
         except urllib.error.HTTPError as exc:
             raise RuntimeError(redact(f'OCR.space HTTP {exc.code}')) from exc
@@ -112,12 +111,16 @@ def _gemini_models():
         config.GEMINI_MODEL,
         'gemini-2.5-flash',
         'gemini-2.0-flash',
-        'gemini-2.0-flash-001',
-        'gemini-1.5-flash',
+        'gemini-flash-latest',
     ):
         if name and name not in names:
             names.append(name)
     return names
+
+
+def _urlopen(req, timeout=25):
+    context = ssl.create_default_context()
+    return urllib.request.urlopen(req, timeout=timeout, context=context)
 
 
 def normalize_model_text(text):
@@ -172,22 +175,26 @@ class GeminiProvider(OCRProvider):
             url = (
                 f'https://generativelanguage.googleapis.com/v1beta/models/'
                 f'{urllib.parse.quote(model)}:generateContent'
+                f'?key={urllib.parse.quote(config.GEMINI_API_KEY)}'
             )
             req = urllib.request.Request(
                 url,
                 data=body,
-                headers={
-                    'Content-Type': 'application/json',
-                    'x-goog-api-key': config.GEMINI_API_KEY,
-                },
+                headers={'Content-Type': 'application/json'},
                 method='POST',
             )
             try:
-                with urllib.request.urlopen(req, timeout=60) as resp:
+                with _urlopen(req, timeout=25) as resp:
                     data = json.loads(resp.read().decode('utf-8'))
             except urllib.error.HTTPError as exc:
-                detail = exc.read().decode('utf-8', errors='replace')[:200]
+                detail = exc.read().decode('utf-8', errors='replace')[:240]
                 last_error = RuntimeError(redact(f'Gemini {model} HTTP {exc.code} {detail}'))
+                log.warning('[OCR] %s', last_error)
+                if exc.code in (401, 403):
+                    break
+                continue
+            except Exception as exc:
+                last_error = RuntimeError(redact(f'Gemini {model} {exc}'))
                 log.warning('[OCR] %s', last_error)
                 continue
             parts = (((data.get('candidates') or [{}])[0].get('content') or {}).get('parts') or [])
@@ -233,15 +240,20 @@ class FallbackProvider(OCRProvider):
     def extract_text(self, image_path):
         from logutil import log, redact
         last_error = None
+        errors = []
         for provider in self.providers:
             try:
                 text = provider.extract_text(image_path)
                 if str(text or '').strip():
                     return text
                 last_error = RuntimeError(f'{provider.name} returned empty text')
+                errors.append(str(last_error))
             except Exception as exc:
                 last_error = exc
+                errors.append(f'{provider.name}: {redact(exc)}')
                 log.warning('[OCR] %s failed: %s', provider.name, redact(exc))
+        if errors:
+            raise RuntimeError(' | '.join(errors))
         if last_error:
             raise last_error
         raise RuntimeError('No OCR provider is configured')

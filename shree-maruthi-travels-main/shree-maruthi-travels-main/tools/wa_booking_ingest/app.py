@@ -53,6 +53,14 @@ def home():
     return render_template('index.html')
 
 
+def _ocr_engine_name():
+    try:
+        from ocr_provider import get_provider
+        return get_provider().name
+    except Exception:
+        return 'unknown'
+
+
 def _counts():
     stats = db.get_stats()
     return {
@@ -77,6 +85,8 @@ def _counts():
         'today_review': int(stats.get('today_REVIEW_REQUIRED') or 0),
         'today_failed': int(stats.get('today_FAILED') or 0),
         'workdrive': workdrive_status(),
+        'ocr_engine': _ocr_engine_name(),
+        'gemini_configured': bool(config.GEMINI_API_KEY),
     }
 
 

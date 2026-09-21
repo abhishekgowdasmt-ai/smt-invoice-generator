@@ -29,9 +29,7 @@ def validate_booking(row, staff_override=False):
     if not trip_time:
         reasons.append('trip_time is missing')
     cab = _clean(row.get('cab_type'))
-    if not cab:
-        reasons.append('cab_type is missing')
-    elif GARBAGE.match(cab) or len(cab) < 2:
+    if cab and (GARBAGE.match(cab) or len(cab) < 2):
         reasons.append('cab_type looks corrupted')
     booking_type = _clean(row.get('booking_type'))
     if not booking_type:
