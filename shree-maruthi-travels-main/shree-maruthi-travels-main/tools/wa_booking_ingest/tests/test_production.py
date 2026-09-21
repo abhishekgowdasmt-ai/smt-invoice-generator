@@ -63,19 +63,30 @@ class ProductionGuardTests(unittest.TestCase):
         old_refresh = config.ZOHO_WORKDRIVE_REFRESH_TOKEN
         old_secret = config.ZOHO_WORKDRIVE_CLIENT_SECRET
         old_key = config.WEBSITE_API_KEY
+        old_ocr = config.OCR_SPACE_API_KEY
+        old_gemini = config.GEMINI_API_KEY
         try:
             config.ZOHO_WORKDRIVE_REFRESH_TOKEN = 'refresh-token-value-12345'
             config.ZOHO_WORKDRIVE_CLIENT_SECRET = 'client-secret-value-12345'
             config.WEBSITE_API_KEY = 'rac-ingest-key-12345'
-            message = redact('token=refresh-token-value-12345 secret=client-secret-value-12345 key=rac-ingest-key-12345')
+            config.OCR_SPACE_API_KEY = 'ocrspace-key-value-12345'
+            config.GEMINI_API_KEY = 'gemini-key-value-12345'
+            message = redact(
+                'token=refresh-token-value-12345 secret=client-secret-value-12345 '
+                'key=rac-ingest-key-12345 ocr=ocrspace-key-value-12345 gem=gemini-key-value-12345'
+            )
             self.assertNotIn('refresh-token-value-12345', message)
             self.assertNotIn('client-secret-value-12345', message)
             self.assertNotIn('rac-ingest-key-12345', message)
+            self.assertNotIn('ocrspace-key-value-12345', message)
+            self.assertNotIn('gemini-key-value-12345', message)
             self.assertIn('[redacted]', message)
         finally:
             config.ZOHO_WORKDRIVE_REFRESH_TOKEN = old_refresh
             config.ZOHO_WORKDRIVE_CLIENT_SECRET = old_secret
             config.WEBSITE_API_KEY = old_key
+            config.OCR_SPACE_API_KEY = old_ocr
+            config.GEMINI_API_KEY = old_gemini
 
     def test_start_bat_does_not_launch_whatsapp(self):
         text = (ROOT / 'start.bat').read_text(encoding='utf-8').lower()

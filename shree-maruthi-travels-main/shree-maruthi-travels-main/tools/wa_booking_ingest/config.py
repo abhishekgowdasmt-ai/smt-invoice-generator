@@ -28,7 +28,11 @@ if str(DB_PATH).startswith('sqlite:///'):
 TARGET_WHATSAPP_GROUP = (os.environ.get('TARGET_WHATSAPP_GROUP') or '').strip().strip('"').strip("'")
 WEBSITE_API_URL = (os.environ.get('WEBSITE_API_URL') or 'https://www.shreemaruthitravels.com/api/v1').rstrip('/')
 WEBSITE_API_KEY = os.environ.get('WEBSITE_API_KEY') or os.environ.get('RAC_INGEST_KEY') or ''
-OCR_PROVIDER = (os.environ.get('OCR_PROVIDER') or 'local').strip().lower()
+OCR_PROVIDER = (os.environ.get('OCR_PROVIDER') or 'auto').strip().lower()
+OCR_SPACE_API_KEY = (os.environ.get('OCR_SPACE_API_KEY') or '').strip()
+OCR_SPACE_URL = (os.environ.get('OCR_SPACE_URL') or 'https://api.ocr.space/parse/image').strip()
+GEMINI_API_KEY = (os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_AI_API_KEY') or '').strip()
+GEMINI_MODEL = (os.environ.get('GEMINI_MODEL') or 'gemini-2.5-flash').strip()
 LOG_LEVEL = os.environ.get('LOG_LEVEL') or 'INFO'
 HEADLESS = str(os.environ.get('WHATSAPP_HEADLESS') or '0').strip() in ('1', 'true', 'yes')
 POLL_SECONDS = max(8, int(os.environ.get('POLL_SECONDS') or 12))

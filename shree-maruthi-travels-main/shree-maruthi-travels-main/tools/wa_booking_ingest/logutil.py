@@ -22,6 +22,8 @@ def redact(text):
         config.ZOHO_WORKDRIVE_REFRESH_TOKEN,
         config.ZOHO_WORKDRIVE_CLIENT_ID,
         config.AI_API_KEY,
+        config.OCR_SPACE_API_KEY,
+        config.GEMINI_API_KEY,
     ]
     for secret in secrets:
         if secret and len(str(secret)) >= 8:

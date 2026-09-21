@@ -77,6 +77,7 @@ class WorkerStartupTests(unittest.TestCase):
             output = buffer.getvalue()
             self.assertIn('OCR worker started', output)
             self.assertIn('Tesseract detected: tesseract 5.3.0', output)
+            self.assertIn('OCR provider:', output)
             self.assertIn('Poll interval:', output)
             self.assertNotIn('super-secret-refresh-token-xyz', output)
             self.assertNotIn('super-secret-client-xyz', output)

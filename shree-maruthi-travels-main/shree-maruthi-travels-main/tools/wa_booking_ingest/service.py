@@ -41,6 +41,10 @@ def require_tesseract():
 def log_startup_health(binary, version):
     log.info('OCR worker started')
     log.info('Tesseract detected: %s', version)
+    from ocr_provider import get_provider
+    log.info('OCR provider: %s', get_provider().name)
+    log.info('OCR.space configured: %s', bool(config.OCR_SPACE_API_KEY))
+    log.info('Gemini OCR configured: %s', bool(config.GEMINI_API_KEY))
     if config.ZOHO_WORKDRIVE_ENABLED:
         log.info('WorkDrive polling enabled')
     else:
