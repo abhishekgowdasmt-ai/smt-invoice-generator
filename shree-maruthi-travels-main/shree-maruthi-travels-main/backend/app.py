@@ -133,9 +133,15 @@ def protect_rac_api():
         return jsonify({'success': True})
     if request.path.startswith('/api/v1/bookings/ingest'):
         import hmac
-        expected = (os.environ.get('RAC_INGEST_KEY') or '').strip()
         provided = (request.headers.get('X-Ingest-Key') or '').strip()
-        if expected and provided and hmac.compare_digest(expected, provided):
+        secrets = []
+        for name in ('RAC_INGEST_KEY', 'WEBSITE_API_KEY', 'OCR_INGEST_KEY'):
+            value = (os.environ.get(name) or '').strip()
+            if value and value not in secrets:
+                secrets.append(value)
+        if provided and any(hmac.compare_digest(expected, provided) for expected in secrets):
+            return None
+        if _is_loopback():
             return None
     if not is_staff_request():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401

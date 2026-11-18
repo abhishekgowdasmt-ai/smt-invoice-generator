@@ -31,6 +31,8 @@ def lookup_website_booking(booking_id):
         if exc.code == 404:
             return {'found': False}
         log.error('API lookup failure %s', exc.code)
+        if exc.code == 401:
+            return {'found': False, 'error': 'website rejected the ingest key'}
         return {'found': False, 'error': str(exc.code)}
     except OSError as exc:
         log.error('API lookup unavailable %s', redact(exc))

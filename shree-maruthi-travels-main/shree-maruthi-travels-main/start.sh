@@ -9,6 +9,17 @@ export WHATSAPP_WATCHER_ENABLED="${WHATSAPP_WATCHER_ENABLED:-0}"
 export TESSERACT_CMD="${TESSERACT_CMD:-/usr/bin/tesseract}"
 export PYTHONUNBUFFERED="${PYTHONUNBUFFERED:-1}"
 export OCR_INGEST_URL="${OCR_INGEST_URL:-http://127.0.0.1:8787}"
+# The OCR worker has no staff cookie. Publish to this container, not the public URL.
+export WEBSITE_API_URL="http://127.0.0.1:${PORT:-8080}/api/v1"
+if [ -z "${RAC_INGEST_KEY:-}" ] && [ -n "${WEBSITE_API_KEY:-}" ]; then
+  export RAC_INGEST_KEY="${WEBSITE_API_KEY}"
+fi
+if [ -z "${WEBSITE_API_KEY:-}" ] && [ -n "${RAC_INGEST_KEY:-}" ]; then
+  export WEBSITE_API_KEY="${RAC_INGEST_KEY}"
+fi
+if [ -z "${OCR_INGEST_KEY:-}" ] && [ -n "${RAC_INGEST_KEY:-}" ]; then
+  export OCR_INGEST_KEY="${RAC_INGEST_KEY}"
+fi
 
 OCR_PID=""
 GUNI_PID=""

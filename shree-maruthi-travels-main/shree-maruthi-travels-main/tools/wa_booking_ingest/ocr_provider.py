@@ -104,18 +104,20 @@ class OCRSpaceProvider(OCRProvider):
         return '\n'.join(parts)
 
 
+RETIRED_GEMINI_MODELS = {'gemini-2.5-flash', 'gemini-2.0-flash'}
+
+
 def _gemini_models():
     import config
     names = []
-    for name in (
-        'gemini-flash-latest',
-        'gemini-3.8-flash',
-        config.GEMINI_MODEL,
-        'gemini-2.5-flash',
-    ):
-        if name and name not in names:
-            names.append(name)
-    return names
+    for name in ('gemini-flash-latest', 'gemini-3.8-flash', config.GEMINI_MODEL):
+        cleaned = str(name or '').strip()
+        if cleaned.startswith('models/'):
+            cleaned = cleaned.split('/', 1)[1]
+        if not cleaned or cleaned in RETIRED_GEMINI_MODELS or cleaned in names:
+            continue
+        names.append(cleaned)
+    return names or ['gemini-flash-latest']
 
 
 def _urlopen(req, timeout=25):
@@ -191,7 +193,7 @@ class GeminiProvider(OCRProvider):
                 method='POST',
             )
             try:
-                with _urlopen(req, timeout=25) as resp:
+                with _urlopen(req, timeout=60) as resp:
                     data = json.loads(resp.read().decode('utf-8'))
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode('utf-8', errors='replace')[:240]
@@ -261,8 +263,7 @@ class FallbackProvider(OCRProvider):
                     return text
                 if provider.name == 'local':
                     last_error = RuntimeError(
-                        'Local OCR could not read a booking ID. '
-                        'Set GEMINI_API_KEY so Gemini 2.5 Flash reads the screenshot.'
+                        'Local OCR could not read the booking table.'
                     )
                 else:
                     last_error = RuntimeError(f'{provider.name} returned empty text')
