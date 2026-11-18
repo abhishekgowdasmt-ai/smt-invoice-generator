@@ -62,11 +62,11 @@ class OCRProviderTests(unittest.TestCase):
         provider = ocr_provider.get_provider()
         self.assertEqual(provider.name, 'local')
 
-    def test_auto_uses_free_readers_before_gemini(self):
+    def test_auto_uses_gemini_then_free_readers(self):
         config.OCR_PROVIDER = 'auto'
         config.GEMINI_API_KEY = 'gemini-test-key-12345'
         config.OCR_SPACE_API_KEY = 'ocrspace-test-key-12345'
-        self.assertEqual(ocr_provider.get_provider().name, 'ocrspace+local+gemini')
+        self.assertEqual(ocr_provider.get_provider().name, 'gemini+ocrspace+local')
 
     def test_table_without_booking_id_is_usable(self):
         text = 'Disposal - 8hrs/80kms\tSedan\t2026-11-18\t13:15\tBattarahalli'

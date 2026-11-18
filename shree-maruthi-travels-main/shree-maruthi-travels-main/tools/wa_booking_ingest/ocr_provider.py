@@ -310,13 +310,13 @@ def get_provider():
         return OptionalAIProvider()
     if requested == 'local':
         return local
-    # Free readers first. Gemini is only the last try, and its free cap is small.
+    # Gemini is free and more accurate. Tesseract runs only after Gemini's free cap is used.
     chain = []
+    if config.GEMINI_API_KEY:
+        chain.append(GeminiProvider())
     if config.OCR_SPACE_API_KEY:
         chain.append(OCRSpaceProvider())
     chain.append(local)
-    if config.GEMINI_API_KEY:
-        chain.append(GeminiProvider())
     return FallbackProvider(chain)
 
 
