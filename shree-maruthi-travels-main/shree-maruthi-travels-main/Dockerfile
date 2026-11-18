@@ -1,7 +1,8 @@
-FROM node:20-alpine AS rac-frontend
+# bookworm, not alpine: Rollup's musl parser rejects react-dom ("Code is nested too deeply").
+FROM node:20-bookworm-slim AS rac-frontend
 WORKDIR /ui
-COPY rac/frontend/package.json ./
-RUN npm install --legacy-peer-deps
+COPY rac/frontend/package.json rac/frontend/package-lock.json ./
+RUN npm ci --legacy-peer-deps
 COPY rac/frontend/ ./
 ENV VITE_API_URL=/api/v1
 RUN npm run build

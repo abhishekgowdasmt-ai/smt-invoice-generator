@@ -2,11 +2,12 @@
 # ONE production image: RAC website (gunicorn :8080) + OCR worker (internal :8787).
 ARG APP=shree-maruthi-travels-main/shree-maruthi-travels-main
 
-FROM node:20-alpine AS rac-frontend
+# bookworm, not alpine: Rollup's musl parser rejects react-dom ("Code is nested too deeply").
+FROM node:20-bookworm-slim AS rac-frontend
 ARG APP
 WORKDIR /ui
-COPY ${APP}/rac/frontend/package.json ./
-RUN npm install --legacy-peer-deps
+COPY ${APP}/rac/frontend/package.json ${APP}/rac/frontend/package-lock.json ./
+RUN npm ci --legacy-peer-deps
 COPY ${APP}/rac/frontend/ ./
 ENV VITE_API_URL=/api/v1
 RUN npm run build
