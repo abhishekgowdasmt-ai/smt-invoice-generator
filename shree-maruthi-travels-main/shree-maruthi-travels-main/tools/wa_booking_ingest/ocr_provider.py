@@ -204,7 +204,10 @@ class GeminiProvider(OCRProvider):
                     data = json.loads(resp.read().decode('utf-8'))
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode('utf-8', errors='replace')[:240]
-                last_error = RuntimeError(redact(f'Gemini {model} HTTP {exc.code} {detail}'))
+                if exc.code == 429:
+                    last_error = RuntimeError(f'Gemini {model} free quota is used up')
+                else:
+                    last_error = RuntimeError(redact(f'Gemini {model} HTTP {exc.code} {detail}'))
                 log.warning('[OCR] %s', last_error)
                 if exc.code in (401, 403, 429):
                     break
@@ -249,9 +252,16 @@ class OptionalAIProvider(OCRProvider):
 
 
 def text_is_usable(text):
-    """Local OCR often returns characters that are not a booking table."""
-    from parser import BOOKING_ID_IN_TEXT
-    return bool(BOOKING_ID_IN_TEXT.search(str(text or '')))
+    """Accept a printed booking ID, or lines that contain a trip date and a time."""
+    from parser import BOOKING_ID_IN_TEXT, parse_time
+    raw = str(text or '')
+    if BOOKING_ID_IN_TEXT.search(raw):
+        return True
+    has_date = bool(
+        re.search(r'\b\d{4}-\d{2}-\d{2}\b', raw)
+        or re.search(r'\b\d{1,2}[-/ ][A-Za-z]{3,9}[-/ ]\d{2,4}\b', raw)
+    )
+    return bool(has_date and parse_time(raw))
 
 
 class FallbackProvider(OCRProvider):
@@ -300,12 +310,13 @@ def get_provider():
         return OptionalAIProvider()
     if requested == 'local':
         return local
+    # Free readers first. Gemini is only the last try, and its free cap is small.
     chain = []
-    if config.GEMINI_API_KEY:
-        chain.append(GeminiProvider())
     if config.OCR_SPACE_API_KEY:
         chain.append(OCRSpaceProvider())
     chain.append(local)
+    if config.GEMINI_API_KEY:
+        chain.append(GeminiProvider())
     return FallbackProvider(chain)
 
 

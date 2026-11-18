@@ -62,11 +62,29 @@ class OCRProviderTests(unittest.TestCase):
         provider = ocr_provider.get_provider()
         self.assertEqual(provider.name, 'local')
 
-    def test_auto_prefers_gemini_then_ocrspace_then_local(self):
+    def test_auto_uses_free_readers_before_gemini(self):
         config.OCR_PROVIDER = 'auto'
         config.GEMINI_API_KEY = 'gemini-test-key-12345'
         config.OCR_SPACE_API_KEY = 'ocrspace-test-key-12345'
-        self.assertEqual(ocr_provider.get_provider().name, 'gemini+ocrspace+local')
+        self.assertEqual(ocr_provider.get_provider().name, 'ocrspace+local+gemini')
+
+    def test_table_without_booking_id_is_usable(self):
+        text = 'Disposal - 8hrs/80kms\tSedan\t2026-11-18\t13:15\tBattarahalli'
+        self.assertTrue(ocr_provider.text_is_usable(text))
+        self.assertFalse(ocr_provider.text_is_usable('not a booking table'))
+
+    def test_gemini_quota_keeps_the_local_table(self):
+        config.OCR_PROVIDER = 'auto'
+        config.GEMINI_API_KEY = 'gemini-test-key-12345'
+        config.OCR_SPACE_API_KEY = ''
+        error = urllib.error.HTTPError(
+            'https://example', 429, 'quota', {}, io.BytesIO(b'{"error":"quota"}')
+        )
+        local_text = 'Disposal - 8hrs/80kms\tSedan\t2026-11-18\t13:15\tBattarahalli'
+        with mock.patch('urllib.request.urlopen', side_effect=error):
+            with mock.patch.object(ocr_provider.LocalOCRProvider, 'extract_text', return_value=local_text):
+                text = ocr_provider.get_provider().extract_text(self.image)
+        self.assertIn('Battarahalli', text)
 
     def test_ocrspace_extracts_text(self):
         config.OCR_SPACE_API_KEY = 'ocrspace-test-key-12345'
