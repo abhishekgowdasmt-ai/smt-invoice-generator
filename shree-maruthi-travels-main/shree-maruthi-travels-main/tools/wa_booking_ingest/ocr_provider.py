@@ -105,16 +105,23 @@ class OCRSpaceProvider(OCRProvider):
 
 
 RETIRED_GEMINI_MODELS = {'gemini-2.5-flash', 'gemini-2.0-flash'}
+# Free-tier keys are rejected with HTTP 429 for this model. Do not call it.
+QUOTA_BLOCKED_GEMINI_MODELS = {'gemini-3.8-flash'}
 
 
 def _gemini_models():
     import config
     names = []
-    for name in ('gemini-flash-latest', 'gemini-3.8-flash', config.GEMINI_MODEL):
+    for name in ('gemini-flash-latest', config.GEMINI_MODEL):
         cleaned = str(name or '').strip()
         if cleaned.startswith('models/'):
             cleaned = cleaned.split('/', 1)[1]
-        if not cleaned or cleaned in RETIRED_GEMINI_MODELS or cleaned in names:
+        if (
+            not cleaned
+            or cleaned in RETIRED_GEMINI_MODELS
+            or cleaned in QUOTA_BLOCKED_GEMINI_MODELS
+            or cleaned in names
+        ):
             continue
         names.append(cleaned)
     return names or ['gemini-flash-latest']
@@ -199,7 +206,7 @@ class GeminiProvider(OCRProvider):
                 detail = exc.read().decode('utf-8', errors='replace')[:240]
                 last_error = RuntimeError(redact(f'Gemini {model} HTTP {exc.code} {detail}'))
                 log.warning('[OCR] %s', last_error)
-                if exc.code in (401, 403):
+                if exc.code in (401, 403, 429):
                     break
                 continue
             except Exception as exc:

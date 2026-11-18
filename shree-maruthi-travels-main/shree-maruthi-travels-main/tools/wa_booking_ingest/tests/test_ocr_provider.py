@@ -94,9 +94,12 @@ class OCRProviderTests(unittest.TestCase):
         fake = FakeResponse({
             'candidates': [{'content': {'parts': [{'text': 'BOOKING_ID\tCAB_TYPE\nB260921-GEMX\tSEDAN'}]}}],
         })
-        with mock.patch('urllib.request.urlopen', return_value=fake):
+        with mock.patch('urllib.request.urlopen', return_value=fake) as opened:
             text = ocr_provider.GeminiProvider().extract_text(self.image)
         self.assertIn('B260921-GEMX', text)
+        requested = opened.call_args[0][0].full_url
+        self.assertIn('gemini-flash-latest', requested)
+        self.assertNotIn('gemini-3.8-flash', requested)
 
     def test_gemini_strips_markdown_and_retries_model(self):
         from ocr_provider import normalize_model_text
