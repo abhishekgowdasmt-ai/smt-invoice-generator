@@ -18,6 +18,12 @@
             <h2>Supervisor Verification</h2>
             <p>Sign in with an approved SMT Gmail. The OD ledger is only for Abhishek and the company Gmail.</p>
             <a class="btn btn-primary" id="google-login-btn" href="/admin/google/login" style="width: 100%; justify-content: center; text-decoration: none; margin-bottom: 1.25rem;">Continue with Google</a>
+            <form id="local-login-form" method="post" action="/admin/local-login" style="display:none; margin-bottom: 1.25rem; text-align: left;">
+                <label for="local-staff-email" style="display:block; font-size: 0.8rem; margin-bottom: 0.4rem;">Staff account on this computer</label>
+                <select id="local-staff-email" name="email" style="width: 100%; margin-bottom: 0.75rem; padding: 0.55rem;"></select>
+                <button class="btn btn-primary" type="submit" style="width: 100%; justify-content: center;">Open the portal</button>
+                <p style="font-size: 0.75rem; margin: 0.75rem 0 0; text-align: center;">Google Sign-In is not set up in this local copy. This sign-in only works on localhost.</p>
+            </form>
             <p id="google-login-hint" style="display:none; color: var(--text-muted); font-size: 0.8rem; margin-bottom: 1.25rem;">Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the host, then use Continue with Google.</p>
             <div class="login-error" id="login-error"></div>
             <button class="btn btn-secondary" style="width: 100%; justify-content: center; margin-top: 0.75rem;" onclick="window.location.href='/'">🏠 Return to Homepage</button>

@@ -68,13 +68,24 @@ const BookingDetailPage = () => {
         send_message_now: sendMessage
       })
       setAssignmentModal(false)
+      setSelectedDriver(null)
+      setAssignmentNotes('')
       loadBooking()
-      if (sendMessage && result.wa_link) {
-        setWaDraft(result)
-        window.open(result.wa_link, '_blank', 'noopener')
-      } else {
-        alert('Booking assigned successfully!')
+      const lines = []
+      if (result.reassigned) {
+        lines.push(result.previous_whatsapp_status === 'sent'
+          ? `${result.previous_driver_name} was told this duty is no longer theirs.`
+          : `${result.previous_driver_name || 'The previous driver'} was not reached on WhatsApp.`)
       }
+      if (!sendMessage) {
+        lines.push(result.reassigned ? 'Duty reassigned. No WhatsApp was sent.' : 'Booking assigned. No WhatsApp was sent.')
+      } else if (result.whatsapp_status === 'sent') {
+        lines.push(`${result.driver_name} received the duty on WhatsApp.`)
+      } else {
+        lines.push(`WhatsApp did not reach ${result.driver_name}.`)
+        if (result.wa_link) setWaDraft(result)
+      }
+      alert(lines.join(' '))
     } catch (err) {
       alert('Failed to assign: ' + err.message)
     } finally {
@@ -82,13 +93,48 @@ const BookingDetailPage = () => {
     }
   }
 
+  const handleResend = async () => {
+    if (!booking?.assignment_id) {
+      alert('No assignment to resend')
+      return
+    }
+    try {
+      const result = await API.resendMessage(booking.assignment_id)
+      loadBooking()
+      if (result.whatsapp_status === 'sent' || result.whatsapp_message_status === 'sent') {
+        alert(`Duty resent to ${result.driver_name} on WhatsApp.`)
+      } else {
+        if (result.wa_link) setWaDraft(result)
+        alert(result.message || 'WhatsApp did not send')
+      }
+    } catch (err) {
+      alert('Failed to resend: ' + err.message)
+    }
+  }
+
+  const handleUnassign = async () => {
+    const name = booking?.assignedDriver?.driver_name || 'this driver'
+    if (!window.confirm(`Remove ${name} from this duty and tell them on WhatsApp that it is no longer theirs?`)) return
+    try {
+      const result = await API.unassignBooking(booking.booking_id)
+      loadBooking()
+      alert(result.message || 'Driver removed')
+    } catch (err) {
+      alert('Failed to remove driver: ' + err.message)
+    }
+  }
+
   const handleUpdateStatus = async (newStatus) => {
-    if (!window.confirm(`Are you sure you want to change status to ${newStatus}?`)) return
+    const driverName = booking?.assignedDriver?.driver_name
+    const extra = newStatus === 'Cancelled' && booking?.assigned_driver_id
+      ? ` ${driverName || 'The driver'} will be told on WhatsApp that this trip is cancelled.`
+      : ''
+    if (!window.confirm(`Are you sure you want to change status to ${newStatus}?${extra}`)) return
     
     try {
-      await API.updateBookingStatus(bookingId, newStatus)
+      const result = await API.updateBookingStatus(bookingId, newStatus)
       loadBooking()
-      alert(`Booking ${newStatus} successfully!`)
+      alert(result.message || `Booking ${newStatus} successfully!`)
     } catch (err) {
       alert('Failed to update status: ' + err.message)
     }
@@ -295,14 +341,34 @@ const BookingDetailPage = () => {
                 </div>
                 <div className="detail-row">
                   <label>Assigned At</label>
-                  <span>{new Date(booking.assigned_at).toLocaleString()}</span>
+                  <span>{booking.assigned_at ? new Date(booking.assigned_at).toLocaleString() : '-'}</span>
+                </div>
+                <div className="detail-row">
+                  <label>WhatsApp</label>
+                  <span>{booking.whatsapp_message_status === 'sent' ? 'Sent' : booking.whatsapp_message_status === 'replaced' ? 'Reassigned' : 'Not sent yet'}</span>
                 </div>
               </div>
             ) : (
               <p className="text-muted">Not assigned yet</p>
             )}
-            {booking.status === 'Unassigned' && (
-              <button onClick={() => setAssignmentModal(true)} className="btn-primary">Assign Now</button>
+            {booking.assigned_driver_id && booking.whatsapp_message_status !== 'sent' && booking.status !== 'Cancelled' && (
+              <p className="text-muted" style={{ marginTop: '12px' }}>The driver has not received this duty on WhatsApp yet.</p>
+            )}
+            {booking.status === 'Cancelled' && booking.assigned_driver_id && (
+              <p className="text-muted" style={{ marginTop: '12px' }}>This booking is cancelled and {booking.assignedDriver?.driver_name || 'the driver'} is still attached. Reassign to put the duty back on a driver. Both drivers get a WhatsApp.</p>
+            )}
+            {booking.status !== 'Completed' && (
+              <div style={{ display: 'flex', gap: '10px', marginTop: '16px', flexWrap: 'wrap' }}>
+                {booking.assigned_driver_id && booking.status !== 'Cancelled' && (
+                  <button onClick={handleResend} className="btn-primary">Resend WhatsApp</button>
+                )}
+                <button onClick={() => setAssignmentModal(true)} className="btn-primary">
+                  {booking.assigned_driver_id ? 'Reassign' : 'Assign Now'}
+                </button>
+                {booking.assigned_driver_id && (
+                  <button onClick={handleUnassign} className="btn-secondary">Remove driver</button>
+                )}
+              </div>
             )}
           </div>
 
@@ -318,8 +384,11 @@ const BookingDetailPage = () => {
         {assignmentModal && (
           <div className="modal-overlay">
             <div className="modal-content">
-              <h2>Assign Booking to Driver</h2>
-              <p style={{ marginBottom: '20px', color: '#666' }}>Booking: {booking.source_booking_id}</p>
+              <h2>{booking.assigned_driver_id ? 'Reassign this duty' : 'Assign Booking to Driver'}</h2>
+              <p style={{ marginBottom: '20px', color: '#666' }}>
+                Booking: {booking.source_booking_id}
+                {booking.assigned_driver_id ? `. ${booking.assignedDriver?.driver_name || 'The current driver'} will be told this duty is no longer theirs.` : ''}
+              </p>
               
               <div style={{ marginBottom: '20px' }}>
                 <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>Select Driver</label>
@@ -340,7 +409,7 @@ const BookingDetailPage = () => {
                   <option value="">-- Select a driver --</option>
                   {drivers.map(driver => (
                     <option key={driver.driver_id} value={driver.driver_id}>
-                      {driver.driver_name} ({driver.whatsapp_number})
+                      {driver.driver_name} ({driver.whatsapp_number}){driver.driver_id === booking.assigned_driver_id ? ' — current' : ''}
                     </option>
                   ))}
                 </select>
@@ -372,7 +441,9 @@ const BookingDetailPage = () => {
                     onChange={(e) => setSendMessage(e.target.checked)}
                     style={{ marginRight: '10px' }}
                   />
-                  Send WhatsApp message to driver after assignment
+                  {booking.assigned_driver_id
+                    ? 'Send WhatsApp: tell the current driver the duty is off them, and send the trip to the new driver'
+                    : 'Send WhatsApp message to driver after assignment'}
                 </label>
               </div>
 
@@ -393,7 +464,7 @@ const BookingDetailPage = () => {
                   className="btn-primary"
                   disabled={assigning || !selectedDriver}
                 >
-                  {assigning ? 'Assigning...' : 'Assign'}
+                  {assigning ? 'Saving...' : (booking.assigned_driver_id ? 'Reassign' : 'Assign')}
                 </button>
               </div>
             </div>

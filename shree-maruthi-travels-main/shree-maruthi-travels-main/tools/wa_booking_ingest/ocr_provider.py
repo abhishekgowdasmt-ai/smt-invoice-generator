@@ -108,10 +108,10 @@ def _gemini_models():
     import config
     names = []
     for name in (
+        'gemini-flash-latest',
+        'gemini-3.8-flash',
         config.GEMINI_MODEL,
         'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-flash-latest',
     ):
         if name and name not in names:
             names.append(name)
@@ -156,11 +156,18 @@ class GeminiProvider(OCRProvider):
             raise RuntimeError('GEMINI_API_KEY is not set')
         encoded = base64.b64encode(_jpeg_bytes(image_path, max_side=2000, max_bytes=3_500_000)).decode('ascii')
         prompt = (
-            'This is an SMT cab booking table screenshot. '
-            'Each booking may be one row like: date | BOOKING_ID duty 12hrs/120kms HH:MM | location. '
-            'Return TSV only with headers BOOKING_ID, BOOKING_TYPE, CAB_TYPE, TRIP_DATE, TRIP_TIME, PLANNED_START_ADDRESS. '
-            'BOOKING_TYPE is Disposal/Drop/Pickup/12hrs. TRIP_DATE as YYYY-MM-DD. TRIP_TIME as HH:MM. '
-            'Leave CAB_TYPE empty unless SEDAN/SUV/CRYSTA/etc is visible. Do not invent values.'
+            'This is a Golden Ikon / SMT cab booking table from a WhatsApp screenshot. '
+            'The header row is blue. Read every data row. '
+            'Some screenshots have columns TRIP_DATE, BOOKING_ID, BOOKING_TYPE, CAB_TYPE, TRIP_TIME, PLANNED_START_ADDRESS. '
+            'Others omit BOOKING_ID. When that column is missing, leave BOOKING_ID blank. Never invent an ID. '
+            'Copy a visible ID exactly, such as B261117-SNR7. '
+            'Return TSV only, no markdown, with headers '
+            'BOOKING_ID, BOOKING_TYPE, CAB_TYPE, TRIP_DATE, TRIP_TIME, PLANNED_START_ADDRESS. '
+            'Keep BOOKING_TYPE as printed, for example "Disposal - 12hrs/120kms" or "Disposal - 8hrs/80kms". '
+            'CAB_TYPE as printed: Sedan, Ertiga, SUV, Crysta. '
+            'TRIP_DATE as YYYY-MM-DD (18-Nov-26 is 2026-11-18). TRIP_TIME as HH:MM (13:00:00 is 13:00). '
+            'PLANNED_START_ADDRESS as printed, including short codes such as BLR37. '
+            'Do not skip a row just because the booking ID is absent.'
         )
         body = json.dumps({
             'contents': [{
@@ -232,6 +239,12 @@ class OptionalAIProvider(OCRProvider):
         return data.get('text') or data.get('output') or ''
 
 
+def text_is_usable(text):
+    """Local OCR often returns characters that are not a booking table."""
+    from parser import BOOKING_ID_IN_TEXT
+    return bool(BOOKING_ID_IN_TEXT.search(str(text or '')))
+
+
 class FallbackProvider(OCRProvider):
     def __init__(self, providers):
         self.providers = [item for item in providers if item]
@@ -244,14 +257,22 @@ class FallbackProvider(OCRProvider):
         for provider in self.providers:
             try:
                 text = provider.extract_text(image_path)
-                if str(text or '').strip():
+                if str(text or '').strip() and (provider.name != 'local' or text_is_usable(text)):
                     return text
-                last_error = RuntimeError(f'{provider.name} returned empty text')
+                if provider.name == 'local':
+                    last_error = RuntimeError(
+                        'Local OCR could not read a booking ID. '
+                        'Set GEMINI_API_KEY so Gemini 2.5 Flash reads the screenshot.'
+                    )
+                else:
+                    last_error = RuntimeError(f'{provider.name} returned empty text')
                 errors.append(str(last_error))
             except Exception as exc:
                 last_error = exc
                 errors.append(f'{provider.name}: {redact(exc)}')
                 log.warning('[OCR] %s failed: %s', provider.name, redact(exc))
+        if not any(item.name != 'local' for item in self.providers):
+            errors.append('No GEMINI_API_KEY or OCR_SPACE_API_KEY is set.')
         if errors:
             raise RuntimeError(' | '.join(errors))
         if last_error:

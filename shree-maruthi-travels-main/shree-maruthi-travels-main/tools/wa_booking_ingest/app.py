@@ -87,6 +87,14 @@ def _counts():
         'workdrive': workdrive_status(),
         'ocr_engine': _ocr_engine_name(),
         'gemini_configured': bool(config.GEMINI_API_KEY),
+        'ocrspace_configured': bool(config.OCR_SPACE_API_KEY),
+        'tesseract_installed': bool(config.tesseract_binary()),
+        'ocr_blocker': '' if (
+            config.GEMINI_API_KEY or config.OCR_SPACE_API_KEY or config.tesseract_binary()
+        ) else (
+            'Set GEMINI_API_KEY in the project .env. Gemini 2.5 Flash is the accurate reader for these screenshots. '
+            'Tesseract is not installed on this computer.'
+        ),
     }
 
 

@@ -151,7 +151,19 @@ def serve_http():
 def run(argv=None):
     argv = list(argv if argv is not None else sys.argv[1:])
     http = '--http' in argv
-    binary, version = require_tesseract()
+    try:
+        binary, version = require_tesseract()
+    except TesseractMissing:
+        if not http:
+            raise
+        binary, version = '', 'not installed'
+        if config.GEMINI_API_KEY or config.OCR_SPACE_API_KEY:
+            log.warning('Tesseract is not installed. External OCR is configured, so uploads still run.')
+        else:
+            log.error(
+                'Tesseract is not installed. Set GEMINI_API_KEY or OCR_SPACE_API_KEY. '
+                'Uploads cannot be read until one of those is set.'
+            )
     log_startup_health(binary, version)
     start_background_loops()
     if http:

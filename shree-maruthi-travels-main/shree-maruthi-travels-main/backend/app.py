@@ -68,6 +68,12 @@ def _cookie_secure():
     return request.is_secure or request.headers.get('X-Forwarded-Proto', '').split(',')[0].strip().lower() == 'https'
 
 
+def _is_loopback():
+    host = (request.host or '').split(',')[0].strip().split(':')[0].strip('[]').lower()
+    remote = (request.remote_addr or '').lower()
+    return host in ('localhost', '127.0.0.1', '::1') and remote in ('127.0.0.1', '::1')
+
+
 def _google_redirect_uri():
     proto = (request.headers.get('X-Forwarded-Proto') or request.scheme or 'https').split(',')[0].strip().lower()
     host = (request.headers.get('X-Forwarded-Host') or request.host or '').split(',')[0].strip()
@@ -125,6 +131,12 @@ def protect_rac_api():
         return None
     if request.method == 'OPTIONS':
         return jsonify({'success': True})
+    if request.path.startswith('/api/v1/bookings/ingest'):
+        import hmac
+        expected = (os.environ.get('RAC_INGEST_KEY') or '').strip()
+        provided = (request.headers.get('X-Ingest-Key') or '').strip()
+        if expected and provided and hmac.compare_digest(expected, provided):
+            return None
     if not is_staff_request():
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     return None
@@ -657,7 +669,10 @@ def admin_login():
 def admin_me():
     staff = staff_auth.current_staff()
     if not staff:
-        return jsonify({'authenticated': False, 'google_login': staff_auth.google_configured()}), 401
+        payload = {'authenticated': False, 'google_login': staff_auth.google_configured()}
+        if not payload['google_login'] and _is_loopback():
+            payload['local_staff'] = sorted(staff_auth.staff_emails())
+        return jsonify(payload), 401
     return jsonify({
         'authenticated': True,
         'email': staff.get('email'),
@@ -665,6 +680,22 @@ def admin_me():
         'can_od': staff_auth.can_od(staff),
         'google_login': staff_auth.google_configured(),
     })
+
+
+@app.route('/admin/local-login', methods=['POST'])
+def admin_local_login():
+    if staff_auth.google_configured() or not _is_loopback():
+        return render_template(
+            'admin_forbidden.html',
+            message='Local sign-in is only available on this computer when Google Sign-In is not configured.',
+        ), 403
+    email = (request.form.get('email') or '').strip().lower()
+    if email not in staff_auth.staff_emails():
+        return render_template('admin_forbidden.html', message='That Gmail is not on the SMT staff list.'), 403
+    token = staff_auth.issue_token(email)
+    if not token:
+        return render_template('admin_forbidden.html', message='Could not start a local staff session.'), 403
+    return _set_staff_cookie(redirect('/admin'), token)
 
 
 @app.route('/admin/google/login')

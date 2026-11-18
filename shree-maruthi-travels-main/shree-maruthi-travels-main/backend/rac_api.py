@@ -68,9 +68,75 @@ def _title_label(value, fallback='Unknown'):
     return text.title()
 
 
+_DIGIT_WORDS = {
+    'ZERO': '0', 'ONE': '1', 'TWO': '2', 'THREE': '3', 'FOUR': '4',
+    'FIVE': '5', 'SIX': '6', 'SEVEN': '7', 'EIGHT': '8', 'NINE': '9',
+}
+
+
+def _plain_char(char):
+    if char.isascii():
+        return char
+    import unicodedata
+    name = unicodedata.name(char, '')
+    if 'DIGIT' in name:
+        for word in reversed(name.split()):
+            if word in _DIGIT_WORDS:
+                return _DIGIT_WORDS[word]
+    if name.startswith('MATHEMATICAL') or name.startswith('FULLWIDTH'):
+        letter = name.split()[-1]
+        if len(letter) == 1 and letter.isalpha():
+            return letter
+    folded = unicodedata.normalize('NFKD', char)
+    return folded if folded.isascii() else ''
+
+
+def _plain_text(value):
+    return ''.join(_plain_char(char) for char in str(value or ''))
+
+
+def clean_driver_name(value):
+    """Drop spreadsheet marks and styled Unicode so a name is plain text."""
+    text = _plain_text(value).replace('\xa0', ' ')
+    text = re.sub(r'(?i)^name\s*:\s*', '', text)
+    text = text.strip(' \t,;:-.')
+    text = text.replace(',', ' ')
+    text = re.sub(r'\.+', ' ', text)
+    text = re.sub(r'\s+', ' ', text).strip(' \t,;:-.')
+    if not re.search(r'[A-Za-z]', text):
+        return re.sub(r'\s+', ' ', str(value or '').strip())
+    def title_word(word):
+        if '-' in word:
+            return '-'.join(title_word(part) for part in word.split('-'))
+        if word.startswith('(') and word.endswith(')') and len(word) > 2:
+            return '(' + title_word(word[1:-1]) + ')'
+        bare = word.strip('()')
+        if len(bare) <= 1:
+            return word.upper()
+        return word[:1].upper() + word[1:].lower()
+
+    return ' '.join(title_word(word) for word in text.split(' '))
+
+
+def clean_phone(value):
+    text = _plain_text(value)
+    digits = re.sub(r'\D', '', text)
+    if not digits:
+        return ''
+    if text.strip().startswith('+') or (len(digits) == 12 and digits.startswith('91')):
+        return '+' + digits
+    return digits
+
+
+def clean_vehicle_number(value):
+    text = _plain_text(value).replace('\xa0', ' ')
+    text = text.strip(' \t,;:-.')
+    return re.sub(r'\s+', ' ', text).upper()
+
+
 def _person_label(value, fallback='Unknown'):
-    text = re.sub(r'\s+', ' ', str(value or '').strip())
-    return text.title() if text else fallback
+    text = clean_driver_name(value)
+    return text or fallback
 
 
 def _month_key(value):
@@ -495,27 +561,79 @@ def _display_date(value):
     return f'{int(day)} {months[month - 1]} {year}'
 
 
-def _whatsapp_body(booking):
-    booking = _present_booking(booking)
-    pickup = (booking.get('pickup_time') or 'N/A')
-    end = (booking.get('end_time') or 'N/A')
-    route = booking.get('route_text') or 'N/A'
-    if len(str(route)) > 100:
-        route = str(route)[:100] + '...'
+def _trip_facts(booking):
+    shown = _present_booking(booking)
     return (
-        'New Ride Assigned\n\n'
-        f"Booking ID: {booking.get('source_booking_id')}\n"
-        f"Date: {_display_date(booking.get('trip_date'))}\n"
-        f"Employee: {booking.get('employee_name')}\n"
-        f"Pickup: {booking.get('planned_start') or 'N/A'}\n"
-        f"Route: {route}\n"
-        f"Pickup Time: {pickup}\n"
-        f"End Time: {end}\n"
-        f"Duty Type: {booking.get('duty_type') or 'N/A'}\n"
-        f"Cab Type: {booking.get('cab_type') or 'N/A'}\n"
-        f"Amount: ₹{booking.get('amount') or 0}\n\n"
-        'Please confirm this trip.'
+        f"Booking ID: {shown.get('source_booking_id') or 'N/A'}\n"
+        f"Date: {_display_date(shown.get('trip_date'))}\n"
+        f"Pickup: {shown.get('planned_start') or 'N/A'}\n"
+        f"Pickup Time: {shown.get('pickup_time') or 'N/A'}\n"
+        f"Duty Type: {shown.get('duty_type') or 'N/A'}\n"
+        f"Cab Type: {shown.get('cab_type') or 'N/A'}"
     )
+
+
+def _whatsapp_body(booking, reassigned=False):
+    headline = 'This duty is now yours.' if reassigned else 'New ride assigned.'
+    return f'{headline}\n\n{_trip_facts(booking)}\n\nPlease confirm this trip.'
+
+
+def _release_message(booking, reason):
+    if reason == 'cancelled':
+        headline = 'This trip is cancelled. Do not proceed.'
+    elif reason == 'reassigned':
+        headline = 'This duty has been taken off you and given to another driver. Do not proceed.'
+    else:
+        headline = 'This duty has been taken off you. Do not proceed.'
+    return f'{headline}\n\n{_trip_facts(booking)}'
+
+
+def _latest_assignment(booking_id):
+    rows = [row for row in rac_store.all_rows('assignments') if row.get('booking_id') == booking_id]
+    active = [row for row in rows if row.get('whatsapp_message_status') != 'replaced']
+    chosen = active or rows
+    chosen.sort(key=lambda row: row.get('created_at') or '')
+    return chosen[-1] if chosen else None
+
+
+def _deliver_whatsapp(booking, driver, assignment_id, body, update_assignment=True):
+    wa_link = _wa_link(driver.get('whatsapp_number'), body)
+    sent, send_info = _wa_bridge_send(driver.get('whatsapp_number'), body)
+    send_status = 'sent' if sent else 'ready'
+    rac_store.insert('messages', {
+        'message_log_id': rac_store.new_id('msg'),
+        'booking_id': booking.get('booking_id'),
+        'driver_id': driver.get('driver_id'),
+        'assignment_id': assignment_id or '',
+        'phone_number': driver.get('whatsapp_number'),
+        'message_body': body,
+        'provider_name': 'wwebjs',
+        'send_status': send_status,
+        'wa_link': wa_link,
+        'error_message': '' if sent else (send_info.get('error') or ''),
+    })
+    if assignment_id and update_assignment:
+        rac_store.update_one('assignments', 'assignment_id', assignment_id, {
+            'whatsapp_message_status': send_status,
+        })
+    return {
+        'sent': sent,
+        'send_status': send_status,
+        'wa_link': wa_link,
+        'error': '' if sent else (send_info.get('error') or ''),
+        'driver_name': driver.get('driver_name') or '',
+        'phone_number': driver.get('whatsapp_number') or '',
+        'message_body': body,
+    }
+
+
+def _adjust_assignment_count(driver, delta):
+    if not driver:
+        return
+    count = int(driver.get('total_assignments') or 0) + delta
+    rac_store.update_one('drivers', 'driver_id', driver.get('driver_id'), {
+        'total_assignments': max(count, 0),
+    })
 
 
 @rac_bp.route('/auth/staff', methods=['GET'])
@@ -724,8 +842,8 @@ def list_drivers():
 @require_rac
 def create_driver():
     payload = request.get_json(silent=True) or {}
-    name = (payload.get('driver_name') or '').strip()
-    phone = (payload.get('whatsapp_number') or '').strip()
+    name = clean_driver_name(payload.get('driver_name'))
+    phone = clean_phone(payload.get('whatsapp_number'))
     if not name:
         return jsonify({'success': False, 'message': 'Driver name is required'}), 400
     existing_name = next(
@@ -740,8 +858,8 @@ def create_driver():
         'driver_id': rac_store.new_id('drv'),
         'driver_name': name,
         'whatsapp_number': phone,
-        'alternate_number': payload.get('alternate_number') or '',
-        'vehicle_number': payload.get('vehicle_number') or '',
+        'alternate_number': clean_phone(payload.get('alternate_number')),
+        'vehicle_number': clean_vehicle_number(payload.get('vehicle_number')),
         'vehicle_type': payload.get('vehicle_type') or '',
         'home_area': payload.get('home_area') or '',
         'notes': payload.get('notes') or '',
@@ -767,16 +885,16 @@ def update_driver(driver_id):
     if not driver:
         return jsonify({'success': False, 'message': 'Driver not found'}), 404
     payload = request.get_json(silent=True) or {}
-    phone = payload.get('whatsapp_number')
+    phone = clean_phone(payload.get('whatsapp_number')) if 'whatsapp_number' in payload else driver.get('whatsapp_number')
     if phone and phone != driver.get('whatsapp_number'):
         existing = rac_store.find_one('drivers', 'whatsapp_number', phone)
         if existing:
             return jsonify({'success': False, 'message': 'WhatsApp number already exists'}), 409
     rac_store.update_one('drivers', 'driver_id', driver_id, {
-        'driver_name': payload.get('driver_name') or driver.get('driver_name'),
+        'driver_name': clean_driver_name(payload.get('driver_name') or driver.get('driver_name')),
         'whatsapp_number': phone or driver.get('whatsapp_number'),
-        'alternate_number': payload.get('alternate_number', driver.get('alternate_number')),
-        'vehicle_number': payload.get('vehicle_number', driver.get('vehicle_number')),
+        'alternate_number': clean_phone(payload.get('alternate_number', driver.get('alternate_number'))),
+        'vehicle_number': clean_vehicle_number(payload.get('vehicle_number', driver.get('vehicle_number'))),
         'vehicle_type': payload.get('vehicle_type', driver.get('vehicle_type')),
         'home_area': payload.get('home_area', driver.get('home_area')),
         'notes': payload.get('notes', driver.get('notes')),
@@ -1146,17 +1264,80 @@ def get_booking(booking_id):
         assigned = rac_store.find_one('drivers', 'driver_id', booking.get('assigned_driver_id'))
     payload = _present_booking(booking)
     payload['assignedDriver'] = assigned
+    latest = _latest_assignment(booking.get('booking_id'))
+    if latest:
+        payload['assignment_id'] = latest.get('assignment_id')
+        payload['whatsapp_message_status'] = latest.get('whatsapp_message_status')
     return jsonify({'success': True, 'data': payload})
 
 
 @rac_bp.route('/bookings/<booking_id>/status', methods=['PATCH'])
 @require_rac
 def update_booking_status(booking_id):
-    if not rac_store.find_one('bookings', 'booking_id', booking_id):
+    booking = rac_store.find_one('bookings', 'booking_id', booking_id)
+    if not booking:
         return jsonify({'success': False, 'message': 'Booking not found'}), 404
     payload = request.get_json(silent=True) or {}
-    rac_store.update_one('bookings', 'booking_id', booking_id, {'status': payload.get('status')})
-    return jsonify({'success': True, 'message': 'Booking status updated'})
+    new_status = payload.get('status')
+    notice = None
+    if new_status == 'Cancelled' and booking.get('status') != 'Cancelled' and booking.get('assigned_driver_id'):
+        driver = rac_store.find_one('drivers', 'driver_id', booking.get('assigned_driver_id'))
+        if driver:
+            notice = _deliver_whatsapp(
+                booking, driver, '',
+                _release_message(booking, 'cancelled'),
+                update_assignment=False,
+            )
+    rac_store.update_one('bookings', 'booking_id', booking_id, {'status': new_status})
+    if notice and notice.get('send_status') == 'sent':
+        message = f"Booking cancelled. {notice.get('driver_name')} was told on WhatsApp not to proceed."
+    elif notice:
+        message = f"Booking cancelled. {notice.get('driver_name')} was not reached on WhatsApp."
+    else:
+        message = 'Booking status updated'
+    return jsonify({'success': True, 'message': message, 'whatsapp_status': (notice or {}).get('send_status') or ''})
+
+
+@rac_bp.route('/bookings/<booking_id>/unassign', methods=['POST'])
+@require_rac
+def unassign_booking(booking_id):
+    booking = rac_store.find_one('bookings', 'booking_id', booking_id)
+    if not booking:
+        return jsonify({'success': False, 'message': 'Booking not found'}), 404
+    if booking.get('status') == 'Completed':
+        return jsonify({'success': False, 'message': 'A completed trip cannot be unassigned'}), 409
+    driver_id = booking.get('assigned_driver_id') or ''
+    if not driver_id:
+        return jsonify({'success': False, 'message': 'This booking has no driver'}), 400
+    payload = request.get_json(silent=True) or {}
+    send_now = payload.get('send_message_now', True) not in (False, 'false', 0, '0')
+    driver = rac_store.find_one('drivers', 'driver_id', driver_id)
+    notice = None
+    if send_now and driver:
+        notice = _deliver_whatsapp(
+            booking, driver, '',
+            _release_message(booking, 'removed'),
+            update_assignment=False,
+        )
+    assignment = _latest_assignment(booking_id)
+    if assignment:
+        rac_store.update_one('assignments', 'assignment_id', assignment.get('assignment_id'), {
+            'whatsapp_message_status': 'replaced',
+        })
+    _adjust_assignment_count(driver, -1)
+    next_status = 'Cancelled' if booking.get('status') == 'Cancelled' else 'Unassigned'
+    rac_store.update_one('bookings', 'booking_id', booking_id, {
+        'status': next_status,
+        'assigned_driver_id': '',
+        'assigned_at': '',
+    })
+    if notice and notice.get('send_status') == 'sent':
+        message = f"{notice.get('driver_name')} was told this duty is no longer theirs."
+    elif notice:
+        message = f"Driver removed. {notice.get('driver_name')} was not reached on WhatsApp."
+    else:
+        message = 'Driver removed'
+    return jsonify({'success': True, 'message': message, 'whatsapp_status': (notice or {}).get('send_status') or ''})
 
 
 @rac_bp.route('/bookings/<booking_id>/payment', methods=['PATCH'])
@@ -1373,11 +1554,62 @@ def create_assignment():
     booking = rac_store.find_one('bookings', 'booking_id', booking_id)
     if not booking:
         return jsonify({'success': False, 'message': 'Booking not found'}), 404
-    if booking.get('assigned_driver_id'):
-        return jsonify({'success': False, 'message': 'Booking is already assigned'}), 409
+    if booking.get('status') == 'Completed':
+        return jsonify({'success': False, 'message': 'A completed trip cannot be reassigned'}), 409
     driver = rac_store.find_one('drivers', 'driver_id', driver_id)
     if not driver:
         return jsonify({'success': False, 'message': 'Driver not found'}), 404
+    send_now = payload.get('send_message_now', True) not in (False, 'false', 0, '0')
+    previous_id = booking.get('assigned_driver_id') or ''
+    previous_notice = None
+    reassigned = bool(previous_id and previous_id != driver_id)
+    if previous_id == driver_id:
+        assignment = _latest_assignment(booking_id)
+        assignment_id = assignment.get('assignment_id') if assignment else rac_store.new_id('asg')
+        if not assignment:
+            rac_store.insert('assignments', {
+                'assignment_id': assignment_id,
+                'booking_id': booking_id,
+                'driver_id': driver_id,
+                'assigned_by': request.rac_user.get('user_id'),
+                'assignment_notes': (payload.get('assignment_notes') or '')[:500],
+                'whatsapp_message_status': 'skipped',
+            })
+        rac_store.update_one('bookings', 'booking_id', booking_id, {'status': 'Assigned'})
+        body = _whatsapp_body(booking)
+        notice = _deliver_whatsapp(booking, driver, assignment_id, body) if send_now else {
+            'send_status': 'skipped', 'wa_link': _wa_link(driver.get('whatsapp_number'), body),
+            'error': '', 'driver_name': driver.get('driver_name'), 'phone_number': driver.get('whatsapp_number'),
+            'message_body': body,
+        }
+        return jsonify({
+            'success': True,
+            'message': 'Duty resent to the same driver',
+            'assignment_id': assignment_id,
+            'reassigned': False,
+            'resent': True,
+            'whatsapp_status': notice.get('send_status'),
+            'wa_link': notice.get('wa_link'),
+            'message_body': notice.get('message_body') or body,
+            'driver_name': driver.get('driver_name'),
+            'phone_number': driver.get('whatsapp_number'),
+            'whatsapp_error': notice.get('error') or '',
+        })
+    if reassigned:
+        old_driver = rac_store.find_one('drivers', 'driver_id', previous_id)
+        old_assignment = _latest_assignment(booking_id)
+        if send_now and old_driver:
+            previous_notice = _deliver_whatsapp(
+                booking, old_driver,
+                old_assignment.get('assignment_id') if old_assignment else '',
+                _release_message(booking, 'reassigned'),
+                update_assignment=False,
+            )
+        if old_assignment:
+            rac_store.update_one('assignments', 'assignment_id', old_assignment.get('assignment_id'), {
+                'whatsapp_message_status': 'replaced',
+            })
+        _adjust_assignment_count(old_driver, -1)
     assignment_id = rac_store.new_id('asg')
     rac_store.insert('assignments', {
         'assignment_id': assignment_id,
@@ -1392,40 +1624,31 @@ def create_assignment():
         'assigned_driver_id': driver_id,
         'assigned_at': datetime.utcnow().isoformat() + 'Z',
     })
-    rac_store.update_one('drivers', 'driver_id', driver_id, {
-        'total_assignments': int(driver.get('total_assignments') or 0) + 1,
-    })
-    body = _whatsapp_body(booking)
-    wa_link = _wa_link(driver.get('whatsapp_number'), body)
-    sent, send_info = (False, {})
-    if payload.get('send_message_now', True):
-        sent, send_info = _wa_bridge_send(driver.get('whatsapp_number'), body)
-    send_status = 'sent' if sent else 'ready'
-    rac_store.update_one('assignments', 'assignment_id', assignment_id, {
-        'whatsapp_message_status': send_status,
-    })
-    rac_store.insert('messages', {
-        'message_log_id': rac_store.new_id('msg'),
-        'booking_id': booking_id,
-        'driver_id': driver_id,
-        'assignment_id': assignment_id,
-        'phone_number': driver.get('whatsapp_number'),
-        'message_body': body,
-        'provider_name': 'wwebjs',
-        'send_status': send_status,
-        'wa_link': wa_link,
-        'error_message': '' if sent else (send_info.get('error') or ''),
-    })
+    _adjust_assignment_count(driver, 1)
+    body = _whatsapp_body(booking, reassigned=reassigned)
+    if send_now:
+        notice = _deliver_whatsapp(booking, driver, assignment_id, body)
+    else:
+        notice = {
+            'send_status': 'skipped',
+            'wa_link': _wa_link(driver.get('whatsapp_number'), body),
+            'error': '',
+            'message_body': body,
+        }
     return jsonify({
         'success': True,
-        'message': 'Booking assigned successfully',
+        'message': 'Duty reassigned' if reassigned else 'Booking assigned successfully',
         'assignment_id': assignment_id,
-        'whatsapp_status': send_status,
-        'wa_link': wa_link,
-        'message_body': body,
+        'reassigned': reassigned,
+        'whatsapp_status': notice.get('send_status'),
+        'wa_link': notice.get('wa_link'),
+        'message_body': notice.get('message_body') or body,
         'driver_name': driver.get('driver_name'),
         'phone_number': driver.get('whatsapp_number'),
-        'whatsapp_error': send_info.get('error') if not sent else '',
+        'whatsapp_error': notice.get('error') or '',
+        'previous_driver_name': (previous_notice or {}).get('driver_name') or '',
+        'previous_whatsapp_status': (previous_notice or {}).get('send_status') or '',
+        'previous_whatsapp_error': (previous_notice or {}).get('error') or '',
     }), 201
 
 
@@ -1457,20 +1680,21 @@ def resend_message(assignment_id):
         return jsonify({'success': False, 'message': 'Assignment not found'}), 404
     booking = rac_store.find_one('bookings', 'booking_id', assignment.get('booking_id')) or {}
     driver = rac_store.find_one('drivers', 'driver_id', assignment.get('driver_id')) or {}
+    if not driver:
+        return jsonify({'success': False, 'message': 'Driver not found'}), 404
     body = _whatsapp_body(booking)
-    wa_link = _wa_link(driver.get('whatsapp_number'), body)
-    sent, send_info = _wa_bridge_send(driver.get('whatsapp_number'), body)
-    send_status = 'sent' if sent else 'ready'
-    rac_store.update_one('assignments', 'assignment_id', assignment_id, {'whatsapp_message_status': send_status})
+    notice = _deliver_whatsapp(booking, driver, assignment_id, body)
+    sent = notice.get('send_status') == 'sent'
     return jsonify({
         'success': True,
         'message': 'Message sent from your linked WhatsApp' if sent else 'WhatsApp is not linked yet. Scan the QR, or open the chat on your phone.',
-        'whatsapp_message_status': send_status,
-        'wa_link': wa_link,
+        'whatsapp_message_status': notice.get('send_status'),
+        'whatsapp_status': notice.get('send_status'),
+        'wa_link': notice.get('wa_link'),
         'message_body': body,
         'driver_name': driver.get('driver_name'),
         'phone_number': driver.get('whatsapp_number'),
-        'whatsapp_error': send_info.get('error') if not sent else '',
+        'whatsapp_error': notice.get('error') or '',
     })
 
 

@@ -111,11 +111,12 @@ def parse_time(value):
 
 
 def split_row(line):
-    text = str(line or '').strip()
-    if not text:
+    text = str(line or '').strip(' ')
+    if not text.strip():
         return []
     if '\t' in text:
-        return [part.strip() for part in text.split('\t') if part.strip()]
+        # Keep blank cells so a missing BOOKING_ID does not shift the other columns.
+        return [part.strip() for part in text.split('\t')]
     if '|' in text:
         return [part.strip() for part in text.split('|') if part.strip()]
     return [part.strip() for part in re.split(r'\s{2,}', text) if part.strip()]
@@ -280,10 +281,22 @@ def salvage_payload(payload):
     return payload
 
 
+def _starts_booking_row(line):
+    """A new row has a booking ID, or a date and a time when the ID column is absent."""
+    if extract_booking_id(line):
+        return True
+    text = str(line or '')
+    has_date = bool(
+        parse_date(text)
+        or re.search(r'\b\d{4}-\d{2}-\d{2}\b', text)
+    )
+    return bool(has_date and parse_time(text))
+
+
 def _coalesce_ocr_lines(lines):
     merged = []
     for line in lines:
-        if extract_booking_id(line) or not merged:
+        if _starts_booking_row(line) or not merged:
             merged.append(line)
         else:
             merged[-1] = f'{merged[-1]} | {line}'
@@ -291,7 +304,7 @@ def _coalesce_ocr_lines(lines):
 
 
 def parse_table_text(text, source_message_id='', source_image=''):
-    lines = [line.strip() for line in str(text or '').splitlines() if line.strip()]
+    lines = [line.strip(' ') for line in str(text or '').splitlines() if line.strip()]
     if not lines:
         return []
     headers = None

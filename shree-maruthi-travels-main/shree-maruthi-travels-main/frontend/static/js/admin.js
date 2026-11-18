@@ -38,7 +38,25 @@ function showLoginOverlay(me) {
     document.getElementById('admin-login-overlay').classList.remove('hidden');
     document.getElementById('admin-workspace').style.display = 'none';
     const hint = document.getElementById('google-login-hint');
-    if (hint) hint.style.display = me && me.google_login ? 'none' : 'block';
+    const localForm = document.getElementById('local-login-form');
+    const googleBtn = document.getElementById('google-login-btn');
+    const emails = (me && me.local_staff) || [];
+    if (localForm && emails.length) {
+        const select = document.getElementById('local-staff-email');
+        select.replaceChildren();
+        emails.forEach((email) => {
+            const option = document.createElement('option');
+            option.value = email;
+            option.textContent = email;
+            if (email.indexOf('abhishek') === 0) option.selected = true;
+            select.appendChild(option);
+        });
+        localForm.style.display = 'block';
+        if (googleBtn) googleBtn.style.display = 'none';
+        if (hint) hint.style.display = 'none';
+    } else if (hint) {
+        hint.style.display = me && me.google_login ? 'none' : 'block';
+    }
     const params = new URLSearchParams(window.location.search);
     const errorEl = document.getElementById('login-error');
     if (params.get('login_error') === 'not_allowed') {

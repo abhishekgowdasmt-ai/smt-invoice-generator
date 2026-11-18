@@ -29,6 +29,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parse_date('17/09/2026'), '2026-09-17')
         self.assertEqual(parse_date('2026-09-17'), '2026-09-17')
         self.assertEqual(parse_date('17 Sep 2026'), '2026-09-17')
+        self.assertEqual(parse_date('18-Nov-26'), '2026-11-18')
         self.assertIsNone(parse_date('not a date'))
 
     def test_times(self):
@@ -36,6 +37,7 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(parse_time('09.15'), '09:15')
         self.assertEqual(parse_time('1330'), '13:30')
         self.assertEqual(parse_time('1:05 PM'), '13:05')
+        self.assertEqual(parse_time('13:00:00'), '13:00')
         self.assertIsNone(parse_time('99:99'))
 
     def test_table_extraction(self):
@@ -47,6 +49,59 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(rows[0]['trip_time'], '08:30')
         self.assertEqual(rows[2]['cab_type'], 'CRYSTA')
         self.assertEqual(rows[0]['source_message_id'], 'msg-1')
+
+    def test_golden_ikon_tables(self):
+        with_id = (
+            'BOOKING_ID\tBOOKING_TYPE\tCAB_TYPE\tTRIP_DATE\tTRIP_TIME\tPLANNED_START_ADDRESS\n'
+            'B261117-SNR7\tDisposal - 12hrs/120kms\tErtiga\t18-Nov-26\t13:00:00\tBLR37\n'
+            'B261117-X9MF\tDisposal - 12hrs/120kms\tErtiga\t18-Nov-26\t13:30:00\tNallurhalli, Whitefield\n'
+        )
+        rows = parse_table_text(with_id)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]['booking_id'], 'B261117-SNR7')
+        self.assertEqual(rows[0]['trip_date'], '2026-11-18')
+        self.assertEqual(rows[0]['trip_time'], '13:00')
+        self.assertEqual(rows[0]['planned_start_address'], 'BLR37')
+        ok, reasons, cleaned = validate_booking(rows[0])
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['cab_type'], 'SUV')
+
+        no_id = (
+            'BOOKING_ID\tBOOKING_TYPE\tCAB_TYPE\tTRIP_DATE\tTRIP_TIME\tPLANNED_START_ADDRESS\n'
+            '\tDisposal - 8hrs/80kms\tSedan\t18-Nov-26\t13:15:00\tBattarahalli\n'
+            '\tDisposal - 12hrs/120kms\tSedan\t18-Nov-26\t13:15:00\tHalasuru\n'
+            '\tDisposal - 8hrs/80kms\tSedan\t18-Nov-26\t13:20:00\tBLR8 FC Bande Kodigehalli\n'
+        )
+        missing = parse_table_text(no_id)
+        self.assertEqual(len(missing), 3)
+        self.assertFalse(missing[0]['booking_id'])
+        self.assertEqual(missing[0]['trip_date'], '2026-11-18')
+        self.assertEqual(missing[0]['planned_start_address'], 'Battarahalli')
+        iso_dates = (
+            'BOOKING_ID\tBOOKING_TYPE\tCAB_TYPE\tTRIP_DATE\tTRIP_TIME\tPLANNED_START_ADDRESS\n'
+            '\tDisposal - 8hrs/ 80kms\tSedan\t2026-11-18\t13:15\tBattarahalli\n'
+            '\tDisposal - 12hrs/ 120kms\tSedan\t2026-11-18\t13:30\tHalasuru\n'
+            '\tDisposal - 12hrs/ 120kms\tSedan\t2026-11-18\t16:00\tKadugodi\n'
+        )
+        iso_rows = parse_table_text(iso_dates)
+        self.assertEqual(len(iso_rows), 3)
+        self.assertEqual(iso_rows[1]['planned_start_address'], 'Halasuru')
+        self.assertEqual(iso_rows[1]['trip_time'], '13:30')
+        ok, reasons, cleaned = validate_booking(iso_rows[2])
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'Kadugodi-20261118-1600-Sedan')
+
+        ok, reasons, cleaned = validate_booking(missing[0])
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'Battarahalli-20261118-1315-Sedan')
+        self.assertTrue(cleaned['booking_id_generated'])
+
+        other = dict(missing[0])
+        other['planned_start_address'] = 'BLR8 FC Bande Kodigehalli'
+        other['trip_time'] = '13:20:00'
+        ok, reasons, cleaned = validate_booking(other)
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'BLR8FCBandeKodigehalli-20261118-1320-Sedan')
 
     def test_malformed_ocr_does_not_invent(self):
         rows = parse_table_text(
@@ -77,12 +132,12 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(cleaned['trip_time'], '08:30')
 
     def test_missing_id(self):
-        ok, reasons, _ = validate_booking({
+        ok, reasons, cleaned = validate_booking({
             'booking_type': 'DROP', 'cab_type': 'SEDAN', 'trip_date': '2026-09-17',
             'trip_time': '09:00', 'planned_start_address': 'Harlur',
         })
-        self.assertFalse(ok)
-        self.assertTrue(any('booking_id' in item for item in reasons))
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['booking_id'], 'Harlur-20260917-0900-Sedan')
 
     def test_sep_dash_date_and_jumbled_pipe_row(self):
         self.assertEqual(parse_date('21-Sep-26'), '2026-09-21')
@@ -115,9 +170,22 @@ class ValidateTests(unittest.TestCase):
         self.assertEqual(cleaned['booking_id'], 'B260920-FHMH')
         self.assertFalse(cleaned.get('cab_type'))
 
-    def test_missing_date_uses_upload_date(self):
+    def test_missing_date_prefers_booking_id_then_upload_date(self):
         ok, reasons, cleaned = validate_booking({
             'booking_id': 'B260920-FHMH',
+            'booking_type': 'Disposal',
+            'cab_type': '',
+            'trip_date': '',
+            'trip_time': '07:45',
+            'planned_start_address': 'Ramanagara',
+            'upload_date': '2026-09-21T06:11:00Z',
+            'confidence': 0.83,
+        })
+        self.assertTrue(ok, reasons)
+        self.assertEqual(cleaned['trip_date'], '2026-09-20')
+
+        ok, reasons, cleaned = validate_booking({
+            'booking_id': 'TRIP-4412',
             'booking_type': 'Disposal',
             'cab_type': '',
             'trip_date': '',
@@ -133,6 +201,7 @@ class ValidateTests(unittest.TestCase):
         from validate import normalize_cab
         self.assertEqual(normalize_cab('SEDAN'), 'Sedan')
         self.assertEqual(normalize_cab('suv'), 'SUV')
+        self.assertEqual(normalize_cab('Ertiga'), 'SUV')
 
     def test_approve_salvages_dumped_booking_id(self):
         ok, reasons, cleaned = validate_booking({

@@ -1,8 +1,12 @@
-"""Validate extracted booking rows. Never invent missing values."""
+"""Validate extracted booking rows.
+
+A blank booking ID is filled from the place, date, time, and cab. Every other
+missing field stays blank and is sent to review.
+"""
 import re
 from datetime import datetime, timedelta, timezone
 
-from parser import ID_RE, extract_booking_id, parse_date, parse_time, salvage_payload
+from parser import ID_RE, date_from_booking_id, extract_booking_id, parse_date, parse_time, salvage_payload
 
 GARBAGE = re.compile(r'^[^A-Za-z0-9]+$')
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -32,11 +36,26 @@ def upload_booking_date(row=None):
     return datetime.now(IST).strftime('%Y-%m-%d')
 
 
+def booking_id_from_fields(address, trip_date, trip_time, cab):
+    """ID when the screenshot has none: place name + trip date + trip time + cab."""
+    place = re.sub(r'[^A-Za-z0-9]+', '', str(address or ''))
+    day = re.sub(r'\D', '', str(parse_date(trip_date) or ''))
+    clock = re.sub(r'\D', '', str(parse_time(trip_time) or ''))
+    vehicle = re.sub(r'[^A-Za-z0-9]+', '', str(cab or ''))
+    if not place or len(day) != 8 or len(clock) != 4 or not vehicle:
+        return ''
+    suffix = f'-{day}-{clock}-{vehicle}'
+    room = 50 - len(suffix)
+    if room < 1:
+        return ''
+    return f'{place[:room]}{suffix}'
+
+
 def normalize_cab(value):
     key = re.sub(r'[^a-z0-9]+', '', str(value or '').lower())
     if not key:
         return ''
-    if key in ('suv', 'muv') or 'cryst' in key or 'innova' in key:
+    if key in ('suv', 'muv') or 'cryst' in key or 'innova' in key or 'ertiga' in key:
         return 'SUV'
     if key in ('sedan', 'dzire', 'swift', 'etios', 'ciaz', 'tiago'):
         return 'Sedan'
@@ -46,16 +65,14 @@ def normalize_cab(value):
 
 
 def validate_booking(row, staff_override=False):
+    original_address = _clean((row or {}).get('planned_start_address'))
     row = salvage_payload(row)
     reasons = []
-    booking_id = extract_booking_id(row.get('booking_id')) or _clean(row.get('booking_id'))
-    if not booking_id:
-        reasons.append('booking_id is missing')
-    elif not ID_RE.match(booking_id):
-        reasons.append('booking_id does not look like a real ID')
+    printed_id = extract_booking_id(row.get('booking_id')) or _clean(row.get('booking_id'))
     trip_date = parse_date(row.get('trip_date')) or _clean(row.get('trip_date'))
     if not trip_date:
-        trip_date = upload_booking_date(row)
+        # Booking IDs are BYYMMDD-XXXX, which is more reliable than stamping today's date.
+        trip_date = date_from_booking_id(printed_id) or upload_booking_date(row)
     elif not parse_date(trip_date) and not re.match(r'^\d{4}-\d{2}-\d{2}$', trip_date):
         reasons.append('trip_date is not a valid date')
     trip_time = parse_time(row.get('trip_time')) or _clean(row.get('trip_time'))
@@ -74,6 +91,15 @@ def validate_booking(row, staff_override=False):
     address = _clean(row.get('planned_start_address'))
     if not address:
         reasons.append('planned_start_address is missing')
+    generated = False
+    booking_id = printed_id
+    if not booking_id and original_address:
+        booking_id = booking_id_from_fields(original_address, trip_date, trip_time, cab)
+        generated = bool(booking_id)
+    if not booking_id:
+        reasons.append('booking_id is missing')
+    elif not ID_RE.match(booking_id):
+        reasons.append('booking_id does not look like a real ID')
     confidence = float(row.get('confidence') or 0)
     required_missing = any(
         'missing' in item or 'not a valid' in item or 'does not look' in item or 'corrupted' in item
@@ -84,6 +110,7 @@ def validate_booking(row, staff_override=False):
     ok = not reasons
     cleaned = dict(row)
     cleaned['booking_id'] = booking_id
+    cleaned['booking_id_generated'] = generated
     cleaned['trip_date'] = parse_date(trip_date) or trip_date
     cleaned['trip_time'] = parse_time(trip_time) or trip_time
     cleaned['cab_type'] = cab

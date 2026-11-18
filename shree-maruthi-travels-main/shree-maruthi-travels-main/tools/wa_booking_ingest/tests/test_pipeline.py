@@ -136,9 +136,17 @@ class PipelineTests(unittest.TestCase):
         self.run_image(second, db.SOURCE_WEBSITE, 'up-8', [_row('B260919-AA05')])
         self.assertEqual({item['booking_id'] for item in self.published}, {'B260919-AA04', 'B260919-AA05'})
 
-    def test_05_ocr_missing_booking_id(self):
+    def test_05_missing_booking_id_uses_place_date_time_cab(self):
         path = _png(self.tmp / 'e.png', (20, 20, 20))
         _, status, rec = self.run_image(path, db.SOURCE_WEBSITE, 'up-9', [_row('', '2026-09-19')])
+        self.assertEqual(status, db.STATUS_PUBLISHED)
+        self.assertEqual(self.published[0]['booking_id'], 'Whitefield-20260919-0830-Sedan')
+        self.assertEqual(rec.get('booking_id'), 'Whitefield-20260919-0830-Sedan')
+
+    def test_05b_missing_booking_id_without_place_stays_in_review(self):
+        path = _png(self.tmp / 'e2.png', (20, 21, 20))
+        row = _row('', '2026-09-19', planned_start_address='')
+        _, status, rec = self.run_image(path, db.SOURCE_WEBSITE, 'up-9b', [row])
         self.assertEqual(status, db.STATUS_REVIEW_REQUIRED)
         self.assertIn('booking ID', rec.get('error') or '')
         self.assertEqual(self.published, [])

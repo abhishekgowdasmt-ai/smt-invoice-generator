@@ -41,6 +41,7 @@ export const API = {
   getBookings: (params) => apiCall(`/bookings?${new URLSearchParams(params)}`),
   getBooking: (id) => apiCall(`/bookings/${id}`),
   updateBookingStatus: (id, status) => apiCall(`/bookings/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  unassignBooking: (id) => apiCall(`/bookings/${id}/unassign`, { method: 'POST', body: JSON.stringify({ send_message_now: true }) }),
   updateBookingPayment: (id, data) => apiCall(`/bookings/${id}/payment`, { method: 'PATCH', body: JSON.stringify(data) }),
   updateBookingsPaymentBulk: (data) => apiCall('/bookings/payments/bulk', { method: 'PATCH', body: JSON.stringify(data) }),
 

@@ -5,7 +5,7 @@ import { API } from '../services/api'
 const cabChoice = (value) => {
   const key = String(value || '').replace(/[^a-z0-9]/gi, '').toLowerCase()
   if (!key) return ''
-  if (key === 'suv' || key === 'muv' || key.includes('cryst') || key.includes('innova')) return 'SUV'
+  if (key === 'suv' || key === 'muv' || key.includes('cryst') || key.includes('innova') || key.includes('ertiga')) return 'SUV'
   if (key.includes('sedan') || ['dzire', 'swift', 'etios', 'ciaz', 'tiago'].includes(key)) return 'Sedan'
   return ''
 }
@@ -108,7 +108,15 @@ const BookingOcrPage = () => {
             <div className="stat"><span className="label">Duplicate bookings</span><span className="value">{status.duplicate_booking ?? 0}</span></div>
             <div className="stat"><span className="label">Review required</span><span className="value">{status.needs_review ?? 0}</span></div>
             <div className="stat"><span className="label">Failed</span><span className="value">{status.failed ?? 0}</span></div>
-            <div className="stat"><span className="label">OCR engine</span><span className="value">{status.gemini_configured ? (status.ocr_engine || 'gemini') : 'Tesseract only'}</span></div>
+            <div className="stat"><span className="label">OCR engine</span><span className="value">{status.ocr_engine || 'not configured'}</span></div>
+          </div>
+        )}
+        {status && status.ocr_blocker && (
+          <div className="alert alert-error" style={{ marginBottom: '16px' }}>{status.ocr_blocker}</div>
+        )}
+        {status && !status.gemini_configured && !status.ocr_blocker && (
+          <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+            Gemini is not configured, so screenshots are not using the accurate reader. Add a Gemini API key to the project .env and restart. OCR.space is only the backup.
           </div>
         )}
         <div className="upload-box" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
