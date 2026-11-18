@@ -7,7 +7,16 @@ from flask import request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 STAFF_COOKIE = 'smt_staff'
-STAFF_TOKEN = os.environ.get('STAFF_TOKEN') or 'smt-session-token'
+
+
+def require_secret(name):
+    value = (os.environ.get(name) or '').strip()
+    if len(value) < 32:
+        raise RuntimeError(f'{name} must be set to a random value of at least 32 characters')
+    return value
+
+
+STAFF_TOKEN = require_secret('STAFF_TOKEN')
 _SERIALIZER = URLSafeTimedSerializer(STAFF_TOKEN, salt='smt-staff-v2')
 
 DEFAULT_STAFF = (

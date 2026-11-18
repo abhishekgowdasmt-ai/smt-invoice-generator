@@ -12,19 +12,10 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 import requests
 
 import rac_store
+import staff_auth
 
 rac_bp = Blueprint('rac', __name__)
-RAC_EMAIL = os.environ.get('RAC_EMAIL') or 'admin@dispatch.local'
-RAC_PASSWORD = os.environ.get('RAC_PASSWORD') or 'Admin@12345'
-RAC_USER = {
-    'user_id': 'rac-admin-1',
-    'email': RAC_EMAIL,
-    'first_name': 'Admin',
-    'last_name': 'User',
-    'role': 'admin',
-    'active': True,
-}
-TOKEN = URLSafeTimedSerializer(os.environ.get('RAC_JWT_SECRET') or os.environ.get('STAFF_TOKEN') or 'smt-rac-zoho-secret', salt='rac-dispatch')
+TOKEN = URLSafeTimedSerializer(staff_auth.require_secret('RAC_JWT_SECRET'), salt='rac-dispatch')
 
 COLUMN_MAPPING = {
     'SL NO': 'sl_no',
@@ -255,11 +246,14 @@ def _auth_user():
     except Exception:
         staff = None
     if staff and staff.get('email'):
-        user = dict(RAC_USER)
-        user['email'] = staff['email']
-        user['first_name'] = staff['email'].split('@')[0]
-        user['role'] = 'admin' if staff.get('role') == 'od' else 'staff'
-        return user
+        return {
+            'user_id': 'rac-staff',
+            'email': staff['email'],
+            'first_name': staff['email'].split('@')[0],
+            'last_name': '',
+            'role': 'admin' if staff.get('role') == 'od' else 'staff',
+            'active': True,
+        }
     return None
 
 
@@ -274,37 +268,49 @@ def require_rac(fn):
     return wrapped
 
 
-def _ingest_key_ok():
-    provided = (request.headers.get('X-Ingest-Key') or '').strip()
-    if not provided:
-        return False
+def _ingest_secrets():
     secrets = []
     for name in ('RAC_INGEST_KEY', 'WEBSITE_API_KEY', 'OCR_INGEST_KEY'):
         value = (os.environ.get(name) or '').strip()
         if value and value not in secrets:
             secrets.append(value)
-    return any(hmac.compare_digest(expected, provided) for expected in secrets)
+    return secrets
+
+
+def _ingest_actor():
+    return {
+        'user_id': 'rac-ingest',
+        'email': '',
+        'first_name': 'Ingest',
+        'last_name': '',
+        'role': 'ingest',
+        'active': True,
+    }
+
+
+def _ingest_key_ok():
+    provided = (request.headers.get('X-Ingest-Key') or '').strip()
+    if not provided:
+        return False
+    return any(hmac.compare_digest(expected, provided) for expected in _ingest_secrets())
+
+
+def ingest_gate():
+    """503 when OCR publishing is off. 401 when a key is set but this request does not have it."""
+    if not _ingest_secrets():
+        return jsonify({'success': False, 'message': 'OCR publishing is not configured'}), 503
+    if _ingest_key_ok():
+        return None
+    return jsonify({'success': False, 'message': 'Unauthorized'}), 401
 
 
 def require_rac_or_ingest(fn):
     @wraps(fn)
     def wrapped(*args, **kwargs):
-        host = (request.host or '').split(':')[0].strip('[]').lower()
-        remote = (request.remote_addr or '').lower()
-        if host in ('localhost', '127.0.0.1', '::1') and remote in ('127.0.0.1', '::1'):
-            user = dict(RAC_USER)
-            user['role'] = 'ingest'
-            request.rac_user = user
-            return fn(*args, **kwargs)
-        if _ingest_key_ok():
-            user = dict(RAC_USER)
-            user['role'] = 'ingest'
-            request.rac_user = user
-            return fn(*args, **kwargs)
-        user = _auth_user()
-        if not user:
-            return jsonify({'success': False, 'message': 'Unauthorized - Sign in on the SMT portal first'}), 401
-        request.rac_user = user
+        blocked = ingest_gate()
+        if blocked is not None:
+            return blocked
+        request.rac_user = _ingest_actor()
         return fn(*args, **kwargs)
     return wrapped
 
@@ -651,25 +657,26 @@ def _adjust_assignment_count(driver, delta):
 
 @rac_bp.route('/auth/staff', methods=['GET'])
 def staff_session():
-    import staff_auth
     staff = staff_auth.current_staff()
-    user = dict(RAC_USER)
-    if staff and staff.get('email'):
-        user['email'] = staff['email']
-        user['first_name'] = staff['email'].split('@')[0]
-        user['role'] = 'admin' if staff.get('role') == 'od' else 'staff'
+    if not staff or not staff.get('email'):
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+    user = {
+        'user_id': 'rac-staff',
+        'email': staff['email'],
+        'first_name': staff['email'].split('@')[0],
+        'last_name': '',
+        'role': 'admin' if staff.get('role') == 'od' else 'staff',
+        'active': True,
+    }
     return jsonify({'success': True, 'token': TOKEN.dumps(user), 'user': user})
 
 
 @rac_bp.route('/auth/login', methods=['POST'])
 def login():
-    payload = request.get_json(silent=True) or {}
-    email = (payload.get('email') or '').strip().lower()
-    password = payload.get('password') or ''
-    if email != RAC_EMAIL.strip().lower() or password != RAC_PASSWORD:
-        return jsonify({'success': False, 'message': 'Invalid email or password'}), 401
-    token = TOKEN.dumps(RAC_USER)
-    return jsonify({'success': True, 'token': token, 'user': RAC_USER})
+    return jsonify({
+        'success': False,
+        'message': 'Password login is removed. Sign in with an approved SMT Gmail.',
+    }), 410
 
 
 @rac_bp.route('/auth/logout', methods=['POST'])

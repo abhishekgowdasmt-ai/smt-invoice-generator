@@ -116,7 +116,7 @@ App.jsx (Auth Context + Routing)
 
 ## Testing the Frontend
 
-1. **Login**: user@dispatch.local / Admin@12345
+1. **Sign in**: Google staff sign-in at `/admin`, then open dispatch
 2. **Upload**: Go to Upload tab → drag Excel file → view results
 3. **Bookings**: View uploaded bookings → click to see details
 4. **Drivers**: Add/edit drivers → view in list

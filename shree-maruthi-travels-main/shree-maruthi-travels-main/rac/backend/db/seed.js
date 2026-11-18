@@ -1,5 +1,4 @@
-import { sequelize, User, Driver } from '../src/models/index.js';
-import { hashPassword } from '../src/utils/auth.js';
+import { sequelize, Driver } from '../src/models/index.js';
 
 const seed = async () => {
   try {
@@ -8,23 +7,6 @@ const seed = async () => {
     // Sync database
     await sequelize.sync({ alter: process.env.NODE_ENV !== 'production' });
     console.log('✅ Database synchronized');
-
-    // Create test admin user
-    const existingUser = await User.findOne({ where: { email: 'admin@dispatch.local' } });
-    if (!existingUser) {
-      const hashedPassword = await hashPassword('Admin@12345');
-      await User.create({
-        email: 'admin@dispatch.local',
-        password_hash: hashedPassword,
-        first_name: 'Admin',
-        last_name: 'User',
-        role: 'admin',
-        active: true
-      });
-      console.log('✅ Admin user created: admin@dispatch.local / Admin@12345');
-    } else {
-      console.log('ℹ️ Admin user already exists');
-    }
 
     // Create sample drivers
     const sampleDrivers = [

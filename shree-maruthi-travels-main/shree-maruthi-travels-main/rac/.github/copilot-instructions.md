@@ -235,9 +235,8 @@ docker-compose logs -f  # View logs
 
 ## Testing Locally
 
-### Test Credentials
-- Email: `admin@dispatch.local`
-- Password: `Admin@12345`
+### Sign-in
+Dispatch uses the SMT Google staff sign-in. There is no local password account.
 
 (Create this user manually or run seed script)
 

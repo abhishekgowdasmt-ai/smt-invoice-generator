@@ -120,12 +120,9 @@ All endpoints require JWT authentication except `/auth/login`.
 - `GET /api/v1/messages` - List message logs
 - `GET /api/v1/messages/:id` - Get message details
 
-## Default Test Credentials
+## Sign-in
 
-- Email: `admin@dispatch.local`
-- Password: `Admin@12345`
-
-(Create this user by running seed script or manually)
+Dispatch uses the SMT Google staff sign-in at `/admin`. There is no local password account.
 
 ## Development Checklist - Phase 1
 

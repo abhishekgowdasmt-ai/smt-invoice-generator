@@ -8,8 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 import db from './config/database.js';
-import { User, Driver } from './models/index.js';
-import { hashPassword } from './utils/auth.js';
+import { Driver } from './models/index.js';
 import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
 import uploadRoutes from './routes/upload.js';
@@ -99,19 +98,6 @@ app.listen(PORT, '0.0.0.0', async () => {
   try {
     await db.sync({ alter: process.env.NODE_ENV !== 'production' });
     console.log('✅ Database synced');
-
-    const existingUser = await User.findOne({ where: { email: 'admin@dispatch.local' } });
-    if (!existingUser) {
-      await User.create({
-        email: 'admin@dispatch.local',
-        password_hash: await hashPassword('Admin@12345'),
-        first_name: 'Admin',
-        last_name: 'User',
-        role: 'admin',
-        active: true
-      });
-      console.log('✅ Admin user created: admin@dispatch.local / Admin@12345');
-    }
 
     const sampleDrivers = [
       { driver_name: 'RAJA KUMAR', whatsapp_number: '+919876543210', vehicle_number: 'KA-01-AB-1234', vehicle_type: 'SEDAN', home_area: 'BANGALORE' },

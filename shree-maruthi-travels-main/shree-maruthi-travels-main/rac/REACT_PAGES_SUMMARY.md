@@ -90,9 +90,7 @@ npm run dev
 docker-compose up
 ```
 
-### 2. Login with test credentials
-- Email: `admin@dispatch.local`
-- Password: `Admin@12345`
+### 2. Sign in with Google at `/admin`, then open dispatch
 
 ### 3. Test each page
 1. **Dashboard** - View KPI metrics
