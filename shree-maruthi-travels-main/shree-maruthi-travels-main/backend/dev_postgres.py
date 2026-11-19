@@ -7,6 +7,7 @@ import os
 import re
 import uuid
 from datetime import date
+from decimal import Decimal
 
 
 def development_database_url():
@@ -2586,3 +2587,738 @@ def delete_vehicle_document(user_id, vehicle_id, document_id):
         return {"ok": True, "vehicle": vehicle}
 
     return _owner_work(user_id, work)
+
+
+_BOOKING_TEXT_FIELDS = (
+    "source_booking_id",
+    "legacy_booking_id",
+    "duty_type",
+    "cab_type",
+    "planned_start",
+    "route_text",
+    "employee_name",
+    "source_name",
+    "source_mobile",
+    "source_vehicle_no",
+    "remarks",
+)
+_BOOKING_TIME_FIELDS = ("pickup_time", "end_time")
+_BOOKING_CHARGE_FIELDS = ("amount", "toll", "parking")
+_BOOKING_READING_FIELDS = ("start_km", "end_km", "total_km")
+_BOOKING_STATUSES = (
+    "unassigned",
+    "assigned",
+    "accepted",
+    "started",
+    "completed",
+    "cancelled",
+)
+_BOOKING_CREATE_FIELDS = set(
+    ("branch_id", "company_id", "trip_date")
+    + _BOOKING_TEXT_FIELDS
+    + _BOOKING_TIME_FIELDS
+    + _BOOKING_CHARGE_FIELDS
+    + _BOOKING_READING_FIELDS
+)
+_BOOKING_REJECTED_FIELDS = {
+    "status",
+    "origin",
+    "id",
+    "created_at",
+    "user_id",
+    "actor_user_id",
+    "assigned_by",
+    "legacy_source",
+    "identity_status",
+    "branch_inferred",
+    "ingest_source",
+    "ingest_message_id",
+    "ingest_confidence",
+    "contract_id",
+    "enquiry_id",
+    "import_batch_id",
+    "driver_id",
+    "vehicle_id",
+    "assignment_id",
+    "verification_status",
+    "created_by",
+    "reviewed_by",
+}
+_BOOKING_UPDATE_SQL = (
+    ("branch_id", "branch_id = %s::uuid"),
+    ("company_id", "company_id = %s::uuid"),
+    ("source_booking_id", "source_booking_id = %s"),
+    ("legacy_booking_id", "legacy_booking_id = %s"),
+    ("trip_date", "trip_date = %s"),
+    ("pickup_time", "pickup_time = %s"),
+    ("end_time", "end_time = %s"),
+    ("duty_type", "duty_type = %s"),
+    ("cab_type", "cab_type = %s"),
+    ("planned_start", "planned_start = %s"),
+    ("route_text", "route_text = %s"),
+    ("employee_name", "employee_name = %s"),
+    ("source_name", "source_name = %s"),
+    ("source_mobile", "source_mobile = %s"),
+    ("source_vehicle_no", "source_vehicle_no = %s"),
+    ("remarks", "remarks = %s"),
+)
+_SOURCE_INDEX_REQUIRED = (
+    "The global source booking ID index is not installed."
+)
+
+
+def _actor_work(user_id, work):
+    done = authorized_transaction(user_id, work)
+    if not done or done.get("role") not in ("owner", "staff"):
+        return None
+    return done.get("result")
+
+
+def _clean_clock(value):
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return False
+    text = value.strip()
+    if not text:
+        return None
+    match = re.fullmatch(r"(\d{1,2}):(\d{2})(?::(\d{2}))?", text)
+    if not match:
+        return False
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    second = int(match.group(3) or 0)
+    if hour > 23 or minute > 59 or second > 59:
+        return False
+    return f"{hour:02d}:{minute:02d}:{second:02d}"
+
+
+def _clean_number(value):
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+        return False
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        if not re.fullmatch(r"\d+(?:\.\d+)?", text):
+            return False
+        number = float(text)
+    else:
+        number = float(value)
+    if number < 0 or number > 9999999999:
+        return False
+    return number
+
+
+def _booking_form(payload):
+    if not isinstance(payload, dict):
+        return None, "Booking details are not valid."
+    rejected = sorted(set(payload) & _BOOKING_REJECTED_FIELDS)
+    if rejected:
+        return None, "The server assigns booking status and identity."
+    unknown = sorted(set(payload) - _BOOKING_CREATE_FIELDS)
+    if unknown:
+        return None, "Booking details are not valid."
+    branch_id = _parse_uuid(payload.get("branch_id"))
+    if branch_id is None:
+        return None, "Branch is not valid."
+    trip_date = _clean_date(payload.get("trip_date"))
+    if trip_date is False or trip_date is None:
+        return None, "Trip date is required."
+    company_raw = payload.get("company_id")
+    if company_raw in (None, ""):
+        company_id = None
+    else:
+        company_id = _parse_uuid(company_raw)
+        if company_id is None:
+            return None, "Company is not valid."
+    fields = {
+        "branch_id": branch_id,
+        "company_id": company_id,
+        "trip_date": trip_date,
+    }
+    for name in _BOOKING_TEXT_FIELDS:
+        if name not in payload:
+            fields[name] = None
+            continue
+        cleaned = _clean_text(payload.get(name))
+        if cleaned is False:
+            return None, "Booking details are not valid."
+        if cleaned is not None and len(cleaned) > 500:
+            return None, "Booking details are too long."
+        fields[name] = cleaned
+    for name in _BOOKING_TIME_FIELDS:
+        if name not in payload:
+            fields[name] = None
+            continue
+        cleaned = _clean_clock(payload.get(name))
+        if cleaned is False:
+            return None, "Pickup and end times must be clock times."
+        fields[name] = cleaned
+    for name in _BOOKING_CHARGE_FIELDS + _BOOKING_READING_FIELDS:
+        if name not in payload:
+            fields[name] = None
+            continue
+        cleaned = _clean_number(payload.get(name))
+        if cleaned is False:
+            return None, "Amounts and distances must be zero or greater."
+        fields[name] = cleaned
+    return fields, None
+
+
+def _booking_value(value):
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return float(value)
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
+def _booking_shape(row):
+    (
+        booking_id, branch_id, company_id, source_booking_id, legacy_booking_id,
+        trip_date, pickup_time, end_time, duty_type, cab_type, planned_start,
+        route_text, employee_name, source_name, source_mobile, source_vehicle_no,
+        status, remarks, origin, created_at, amount, toll, parking,
+        start_km, end_km, total_km,
+    ) = row
+    return {
+        "id": booking_id,
+        "branch_id": branch_id,
+        "company_id": company_id,
+        "source_booking_id": source_booking_id,
+        "legacy_booking_id": legacy_booking_id,
+        "trip_date": _booking_value(trip_date),
+        "pickup_time": _booking_value(pickup_time),
+        "end_time": _booking_value(end_time),
+        "duty_type": duty_type,
+        "cab_type": cab_type,
+        "planned_start": planned_start,
+        "route_text": route_text,
+        "employee_name": employee_name,
+        "source_name": source_name,
+        "source_mobile": source_mobile,
+        "source_vehicle_no": source_vehicle_no,
+        "status": status,
+        "remarks": remarks,
+        "origin": origin,
+        "created_at": _booking_value(created_at),
+        "amount": _booking_value(amount),
+        "toll": _booking_value(toll),
+        "parking": _booking_value(parking),
+        "start_km": _booking_value(start_km),
+        "end_km": _booking_value(end_km),
+        "total_km": _booking_value(total_km),
+    }
+
+
+def _select_operation_booking(cur, booking_id):
+    cur.execute(
+        """
+        SELECT b.id::text, b.branch_id::text, b.company_id::text,
+               b.source_booking_id, b.legacy_booking_id, b.trip_date,
+               b.pickup_time, b.end_time, b.duty_type, b.cab_type,
+               b.planned_start, b.route_text, b.employee_name, b.source_name,
+               b.source_mobile, b.source_vehicle_no, b.status, b.remarks,
+               b.origin, b.created_at, c.customer_amount, c.toll, c.parking,
+               r.start_km, r.end_km, r.total_km
+        FROM bookings b
+        LEFT JOIN booking_charges c ON c.booking_id = b.id
+        LEFT JOIN duty_readings r ON r.booking_id = b.id
+        WHERE b.id = %s::uuid
+        """,
+        (booking_id,),
+    )
+    row = cur.fetchone()
+    if row is None:
+        return None
+    return _booking_shape(row)
+
+
+def _booking_database_error(exc):
+    diag = getattr(exc, "diag", None)
+    constraint = getattr(diag, "constraint_name", None) or ""
+    sqlstate = getattr(diag, "sqlstate", None) or ""
+    if sqlstate == "42501":
+        return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+    if constraint == "booking_company_branch_fk":
+        return {"ok": False, "error": "invalid", "message": "That company is not available in this city."}
+    if constraint == "bookings_branch_id_fkey":
+        return {"ok": False, "error": "invalid", "message": "Branch is not valid."}
+    if constraint == "bookings_clean_source_code":
+        return {"ok": False, "error": "conflict", "message": "That source booking ID is already used."}
+    if constraint == "bookings_legacy_uq":
+        return {"ok": False, "error": "conflict", "message": "That legacy booking ID is already used."}
+    if constraint == "charges_nonnegative":
+        return {"ok": False, "error": "invalid", "message": "Amounts and distances must be zero or greater."}
+    if sqlstate == "22003":
+        return {"ok": False, "error": "invalid", "message": "Amounts and distances are too large."}
+    primary = getattr(diag, "message_primary", None) or ""
+    if sqlstate == "P0001" and primary.startswith("Moving this booking would leave"):
+        # Fixed text raised by booking_place_guard. The text is not returned.
+        return {
+            "ok": False,
+            "error": "conflict",
+            "message": "Earlier driver or vehicle history blocks moving this booking.",
+        }
+    return {"ok": False, "error": "invalid", "message": "Booking could not be saved."}
+
+
+def list_operation_bookings(user_id, branch_id=None, trip_date=None, status=None, search=None):
+    if status is not None and status not in _BOOKING_STATUSES:
+        return {"ok": False, "error": "invalid", "message": "Status filter is not valid."}
+    if trip_date is False:
+        return {"ok": False, "error": "invalid", "message": "Trip date filter is not valid."}
+    if branch_id is False:
+        return {"ok": False, "error": "invalid", "message": "Branch filter is not valid."}
+
+    def work(cur):
+        clauses = []
+        params = []
+        if branch_id:
+            clauses.append("b.branch_id = %s::uuid")
+            params.append(branch_id)
+        if trip_date:
+            clauses.append("b.trip_date = %s")
+            params.append(trip_date)
+        if status:
+            clauses.append("b.status = %s")
+            params.append(status)
+        if search:
+            escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+            like = "%" + escaped + "%"
+            clauses.append(
+                "(b.source_booking_id ILIKE %s ESCAPE '\\' "
+                "OR b.employee_name ILIKE %s ESCAPE '\\' "
+                "OR b.source_name ILIKE %s ESCAPE '\\')"
+            )
+            params.extend((like, like, like))
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        cur.execute(
+            f"""
+            SELECT b.id::text, b.branch_id::text, b.company_id::text,
+                   b.source_booking_id, b.legacy_booking_id, b.trip_date,
+                   b.pickup_time, b.end_time, b.duty_type, b.cab_type,
+                   b.planned_start, b.route_text, b.employee_name, b.source_name,
+                   b.source_mobile, b.source_vehicle_no, b.status, b.remarks,
+                   b.origin, b.created_at, c.customer_amount, c.toll, c.parking,
+                   r.start_km, r.end_km, r.total_km
+            FROM bookings b
+            LEFT JOIN booking_charges c ON c.booking_id = b.id
+            LEFT JOIN duty_readings r ON r.booking_id = b.id
+            {where}
+            ORDER BY b.trip_date DESC NULLS LAST, b.created_at DESC, b.id
+            """,
+            params,
+        )
+        return {"ok": True, "bookings": [_booking_shape(row) for row in cur.fetchall()]}
+
+    return _actor_work(user_id, work)
+
+
+def create_operation_booking(user_id, payload):
+    fields, error = _booking_form(payload or {})
+    if error:
+        return {"ok": False, "error": "invalid", "message": error}
+
+    def work(cur):
+        import psycopg
+
+        cur.execute("SAVEPOINT operation_booking")
+        try:
+            cur.execute("SELECT staff_can_branch(%s::uuid)", (fields["branch_id"],))
+            allowed = cur.fetchone()
+            if not allowed or not allowed[0]:
+                cur.execute("RELEASE SAVEPOINT operation_booking")
+                return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+            if fields["company_id"] is not None:
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM company_branches
+                    WHERE company_id = %s::uuid AND branch_id = %s::uuid
+                    """,
+                    (fields["company_id"], fields["branch_id"]),
+                )
+                if cur.fetchone() is None:
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "invalid",
+                        "message": "That company is not available in this city.",
+                    }
+            if fields["source_booking_id"] is not None:
+                cur.execute(
+                    """
+                    SELECT trip_date
+                    FROM bookings
+                    WHERE source_booking_id = %s
+                      AND identity_status = 'clean'
+                    FOR UPDATE
+                    """,
+                    (fields["source_booking_id"],),
+                )
+                existing_dates = [
+                    row[0].isoformat() if hasattr(row[0], "isoformat") else row[0]
+                    for row in cur.fetchall()
+                ]
+                if any(row_date != fields["trip_date"] for row_date in existing_dates):
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "conflict",
+                        "message": "That source booking ID is already used on another date.",
+                    }
+                if any(row_date == fields["trip_date"] for row_date in existing_dates):
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "conflict",
+                        "message": "That source booking ID is already used on this date.",
+                    }
+            cur.execute(
+                """
+                INSERT INTO bookings (
+                    branch_id, company_id, origin, legacy_source, legacy_booking_id,
+                    source_booking_id, trip_date, pickup_time, end_time, duty_type,
+                    cab_type, planned_start, route_text, employee_name, source_name,
+                    source_mobile, source_vehicle_no, status, remarks
+                )
+                VALUES (
+                    %s::uuid, %s::uuid, 'rac', %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s,
+                    %s, %s, 'unassigned', %s
+                )
+                RETURNING id::text
+                """,
+                (
+                    fields["branch_id"],
+                    fields["company_id"],
+                    "rac" if fields["legacy_booking_id"] else None,
+                    fields["legacy_booking_id"],
+                    fields["source_booking_id"],
+                    fields["trip_date"],
+                    fields["pickup_time"],
+                    fields["end_time"],
+                    fields["duty_type"],
+                    fields["cab_type"],
+                    fields["planned_start"],
+                    fields["route_text"],
+                    fields["employee_name"],
+                    fields["source_name"],
+                    fields["source_mobile"],
+                    fields["source_vehicle_no"],
+                    fields["remarks"],
+                ),
+            )
+            booking_id = cur.fetchone()[0]
+            if any(fields[name] is not None for name in _BOOKING_CHARGE_FIELDS):
+                cur.execute(
+                    """
+                    INSERT INTO booking_charges (booking_id, customer_amount, toll, parking)
+                    VALUES (%s::uuid, %s, %s, %s)
+                    """,
+                    (booking_id, fields["amount"], fields["toll"], fields["parking"]),
+                )
+            if any(fields[name] is not None for name in _BOOKING_READING_FIELDS):
+                cur.execute(
+                    """
+                    INSERT INTO duty_readings (booking_id, start_km, end_km, total_km)
+                    VALUES (%s::uuid, %s, %s, %s)
+                    """,
+                    (booking_id, fields["start_km"], fields["end_km"], fields["total_km"]),
+                )
+            booking = _select_operation_booking(cur, booking_id)
+        except psycopg.Error as exc:
+            cur.execute("ROLLBACK TO SAVEPOINT operation_booking")
+            return _booking_database_error(exc)
+        cur.execute("RELEASE SAVEPOINT operation_booking")
+        if booking is None:
+            return {"ok": False, "error": "invalid", "message": "Booking could not be saved."}
+        return {"ok": True, "booking": booking}
+
+    return _actor_work(user_id, work)
+
+
+def _booking_changes(payload):
+    """Keys absent from a PATCH stay unchanged. Present nulls clear optional fields."""
+    if not isinstance(payload, dict):
+        return None, "Booking details are not valid."
+    if set(payload) & _BOOKING_REJECTED_FIELDS:
+        return None, "The server assigns booking status and identity."
+    if set(payload) - _BOOKING_CREATE_FIELDS:
+        return None, "Booking details are not valid."
+    changes = {}
+    if "branch_id" in payload:
+        branch_id = _parse_uuid(payload.get("branch_id"))
+        if branch_id is None:
+            return None, "Branch is not valid."
+        changes["branch_id"] = branch_id
+    if "trip_date" in payload:
+        trip_date = _clean_date(payload.get("trip_date"))
+        if trip_date is False or trip_date is None:
+            return None, "Trip date is required."
+        changes["trip_date"] = trip_date
+    if "company_id" in payload:
+        company_raw = payload.get("company_id")
+        if company_raw in (None, ""):
+            changes["company_id"] = None
+        else:
+            company_id = _parse_uuid(company_raw)
+            if company_id is None:
+                return None, "Company is not valid."
+            changes["company_id"] = company_id
+    for name in _BOOKING_TEXT_FIELDS:
+        if name not in payload:
+            continue
+        cleaned = _clean_text(payload.get(name))
+        if cleaned is False:
+            return None, "Booking details are not valid."
+        if cleaned is not None and len(cleaned) > 500:
+            return None, "Booking details are too long."
+        changes[name] = cleaned
+    for name in _BOOKING_TIME_FIELDS:
+        if name not in payload:
+            continue
+        cleaned = _clean_clock(payload.get(name))
+        if cleaned is False:
+            return None, "Pickup and end times must be clock times."
+        changes[name] = cleaned
+    for name in _BOOKING_CHARGE_FIELDS + _BOOKING_READING_FIELDS:
+        if name not in payload:
+            continue
+        cleaned = _clean_number(payload.get(name))
+        if cleaned is False:
+            return None, "Amounts and distances must be zero or greater."
+        changes[name] = cleaned
+    if not changes:
+        return None, "No booking changes were supplied."
+    return changes, None
+
+
+def _source_index_is_global(cur):
+    cur.execute(
+        """
+        SELECT indexdef
+        FROM pg_indexes
+        WHERE schemaname = 'public' AND indexname = 'bookings_clean_source_code'
+        """
+    )
+    row = cur.fetchone()
+    if row is None:
+        return False
+    definition = row[0].lower()
+    return (
+        "(source_booking_id)" in definition
+        and "branch_id" not in definition
+        and "trip_date" not in definition
+        and "source_booking_id is not null" in definition
+        and "identity_status" in definition
+        and "clean" in definition
+    )
+
+
+def _write_booking_child(cur, booking_id, table, columns, changes):
+    supplied = [(key, column) for key, column in columns if key in changes]
+    if not supplied:
+        return
+    cur.execute(
+        f"SELECT 1 FROM {table} WHERE booking_id = %s::uuid FOR UPDATE",
+        (booking_id,),
+    )
+    exists = cur.fetchone() is not None
+    if not exists:
+        if all(changes[key] is None for key, _column in supplied):
+            return
+        names = ["booking_id"] + [column for _key, column in supplied]
+        holders = ["%s::uuid"] + ["%s"] * len(supplied)
+        values = [booking_id] + [changes[key] for key, _column in supplied]
+        cur.execute(
+            f"INSERT INTO {table} ({', '.join(names)}) VALUES ({', '.join(holders)})",
+            values,
+        )
+        return
+    assignments = [f"{column} = %s" for _key, column in supplied]
+    values = [changes[key] for key, _column in supplied] + [booking_id]
+    cur.execute(
+        f"UPDATE {table} SET {', '.join(assignments)} WHERE booking_id = %s::uuid",
+        values,
+    )
+
+
+def update_operation_booking(user_id, booking_id, payload):
+    booking_id = _parse_uuid(booking_id)
+    if booking_id is None:
+        return {"ok": False, "error": "not_found", "message": "Booking was not found."}
+    changes, error = _booking_changes(payload or {})
+    if error:
+        return {"ok": False, "error": "invalid", "message": error}
+
+    def work(cur):
+        import psycopg
+
+        cur.execute("SAVEPOINT operation_booking")
+        try:
+            cur.execute(
+                """
+                SELECT status, identity_status, origin, source_booking_id, trip_date,
+                       branch_id::text, company_id::text
+                FROM bookings
+                WHERE id = %s::uuid
+                FOR UPDATE
+                """,
+                (booking_id,),
+            )
+            current = cur.fetchone()
+            if current is None:
+                cur.execute("RELEASE SAVEPOINT operation_booking")
+                return {"ok": False, "error": "not_found", "message": "Booking was not found."}
+            (
+                status, identity_status, origin, current_source, current_date,
+                current_branch, current_company,
+            ) = current
+            if origin != "rac":
+                cur.execute("RELEASE SAVEPOINT operation_booking")
+                return {
+                    "ok": False,
+                    "error": "conflict",
+                    "message": "Only a RAC booking can be edited here.",
+                }
+            if status != "unassigned":
+                cur.execute("RELEASE SAVEPOINT operation_booking")
+                return {
+                    "ok": False,
+                    "error": "conflict",
+                    "message": "Only an unassigned booking can be edited.",
+                }
+            if "source_booking_id" in changes and changes["source_booking_id"] == current_source:
+                del changes["source_booking_id"]
+            if "source_booking_id" in changes:
+                if changes["source_booking_id"] is None:
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "conflict",
+                        "message": "A source booking ID cannot be removed once it is set.",
+                    }
+                if identity_status != "clean":
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "conflict",
+                        "message": "A source booking ID cannot be added to this booking.",
+                    }
+            destination = changes.get("branch_id", current_branch)
+            if "branch_id" in changes:
+                cur.execute("SELECT staff_can_branch(%s::uuid)", (changes["branch_id"],))
+                allowed = cur.fetchone()
+                if not allowed or not allowed[0]:
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+            company_id = changes["company_id"] if "company_id" in changes else current_company
+            if company_id is not None:
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM company_branches
+                    WHERE company_id = %s::uuid AND branch_id = %s::uuid
+                    """,
+                    (company_id, destination),
+                )
+                if cur.fetchone() is None:
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "invalid",
+                        "message": "That company is not available in this city.",
+                    }
+            if changes.get("source_booking_id"):
+                if not _source_index_is_global(cur):
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {"ok": False, "error": "unavailable", "message": _SOURCE_INDEX_REQUIRED}
+                cur.execute(
+                    """
+                    SELECT trip_date
+                    FROM bookings
+                    WHERE source_booking_id = %s
+                      AND identity_status = 'clean'
+                      AND id <> %s::uuid
+                    FOR UPDATE
+                    """,
+                    (changes["source_booking_id"], booking_id),
+                )
+                existing_dates = [
+                    row[0].isoformat() if hasattr(row[0], "isoformat") else row[0]
+                    for row in cur.fetchall()
+                ]
+                requested_date = changes.get("trip_date")
+                if requested_date is None:
+                    requested_date = (
+                        current_date.isoformat() if hasattr(current_date, "isoformat") else current_date
+                    )
+                if any(row_date != requested_date for row_date in existing_dates):
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "conflict",
+                        "message": "That source booking ID is already used on another date.",
+                    }
+                if any(row_date == requested_date for row_date in existing_dates):
+                    cur.execute("RELEASE SAVEPOINT operation_booking")
+                    return {
+                        "ok": False,
+                        "error": "conflict",
+                        "message": "That source booking ID is already used on this date.",
+                    }
+            assignments = []
+            params = []
+            for key, expression in _BOOKING_UPDATE_SQL:
+                if key in changes:
+                    assignments.append(expression)
+                    params.append(changes[key])
+            if "legacy_booking_id" in changes:
+                assignments.append("legacy_source = %s")
+                params.append("rac" if changes["legacy_booking_id"] else None)
+            if assignments:
+                params.append(booking_id)
+                cur.execute(
+                    f"UPDATE bookings SET {', '.join(assignments)} WHERE id = %s::uuid",
+                    params,
+                )
+            _write_booking_child(
+                cur,
+                booking_id,
+                "booking_charges",
+                (
+                    ("amount", "customer_amount"),
+                    ("toll", "toll"),
+                    ("parking", "parking"),
+                ),
+                changes,
+            )
+            _write_booking_child(
+                cur,
+                booking_id,
+                "duty_readings",
+                (
+                    ("start_km", "start_km"),
+                    ("end_km", "end_km"),
+                    ("total_km", "total_km"),
+                ),
+                changes,
+            )
+            booking = _select_operation_booking(cur, booking_id)
+        except psycopg.Error as exc:
+            cur.execute("ROLLBACK TO SAVEPOINT operation_booking")
+            return _booking_database_error(exc)
+        cur.execute("RELEASE SAVEPOINT operation_booking")
+        if booking is None:
+            return {"ok": False, "error": "invalid", "message": "Booking could not be saved."}
+        return {"ok": True, "booking": booking}
+
+    return _actor_work(user_id, work)

@@ -167,6 +167,106 @@ def api_branches():
     return jsonify({'success': True, 'data': rows})
 
 
+def _operations_actor():
+    staff = accepted_staff()
+    if not staff:
+        return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
+    if dev_postgres.local_development_dsn() is None:
+        return None, (jsonify({'success': False, 'message': 'Booking register is not available'}), 503)
+    found = dev_postgres.resolve_login_identity(staff.get('email'))
+    if not found.get('ok') or found.get('role') not in ('owner', 'staff'):
+        if found.get('role') in ('driver', 'client'):
+            return None, (jsonify({'success': False, 'message': 'Only a supervisor can manage bookings'}), 403)
+        return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
+    return found['id'], None
+
+
+def _operations_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Booking register is not available'}), 503
+    if result.get('ok'):
+        payload = {'success': True, 'data': result.get('bookings', result.get('booking'))}
+        return jsonify(payload), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Booking request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message}), 404
+    if error == 'forbidden':
+        return jsonify({'success': False, 'message': message}), 403
+    if error == 'conflict':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'unavailable':
+        return jsonify({'success': False, 'message': message}), 503
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': 'Booking request could not be completed'}), 400
+
+
+def _operation_booking_filters():
+    branch = (request.args.get('branch') or '').strip()
+    branch_id = None
+    if branch:
+        branch_id = dev_postgres._parse_uuid(branch)
+        if branch_id is None:
+            maps = dev_postgres._branch_maps()
+            if maps is None:
+                return None
+            by_code, _ = maps
+            found = by_code.get(branch.upper())
+            if found is None:
+                return {'error': 'invalid', 'message': 'Branch filter is not valid.'}
+            branch_id = found['id']
+    trip_raw = request.args.get('trip_date')
+    trip_date = None
+    if trip_raw not in (None, ''):
+        trip_date = dev_postgres._clean_date(trip_raw)
+    status = (request.args.get('status') or '').strip().lower() or None
+    search = (request.args.get('search') or '').strip()
+    if len(search) > 80:
+        return {'error': 'invalid', 'message': 'Search is too long.'}
+    return {
+        'branch_id': branch_id,
+        'trip_date': trip_date,
+        'status': status,
+        'search': search or None,
+    }
+
+
+@app.route('/api/operations/bookings', methods=['GET', 'POST'])
+def api_operation_bookings():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        filters = _operation_booking_filters()
+        if filters is None:
+            return jsonify({'success': False, 'message': 'Booking register is not available'}), 503
+        if filters.get('error'):
+            return jsonify({'success': False, 'message': filters['message']}), 400
+        return _operations_response(dev_postgres.list_operation_bookings(
+            user_id,
+            branch_id=filters['branch_id'],
+            trip_date=filters['trip_date'],
+            status=filters['status'],
+            search=filters['search'],
+        ))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Booking details are not valid.'}), 400
+    return _operations_response(dev_postgres.create_operation_booking(user_id, payload), created=True)
+
+
+@app.route('/api/operations/bookings/<booking_id>', methods=['PATCH'])
+def api_operation_booking_update(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Booking details are not valid.'}), 400
+    return _operations_response(dev_postgres.update_operation_booking(user_id, booking_id, payload))
+
+
 def _company_owner(denied_message='Only an owner can manage companies'):
     staff = accepted_staff()
     if not staff:
