@@ -335,6 +335,10 @@ def _driver_response(result, created=False):
         payload = {'success': True}
         if 'drivers' in result:
             payload['data'] = result['drivers']
+        elif 'warnings' in result:
+            payload['data'] = result['warnings']
+        elif 'documents' in result and 'driver' not in result:
+            payload['data'] = result['documents']
         else:
             payload['data'] = result.get('driver')
         return jsonify(payload), (201 if created else 200)
@@ -359,7 +363,20 @@ def _driver_filters():
         active = False
     else:
         return None, (jsonify({'success': False, 'message': 'Active must be true or false'}), 400)
-    return {'branch_code': branch, 'active': active, 'name': name}, None
+    verification = request.args.get('verification_status')
+    if verification in (None, ''):
+        verification = None
+    elif verification not in ('unverified', 'verified', 'rejected'):
+        return None, (jsonify({
+            'success': False,
+            'message': 'Verification status must be unverified, verified, or rejected',
+        }), 400)
+    return {
+        'branch_code': branch,
+        'active': active,
+        'name': name,
+        'verification_status': verification,
+    }, None
 
 
 @app.route('/api/drivers', methods=['GET', 'POST'])
@@ -422,6 +439,45 @@ def api_driver_active(driver_id):
     if not isinstance(payload, dict):
         return jsonify({'success': False, 'message': 'Active must be true or false'}), 400
     return _driver_response(dev_postgres.set_driver_active(user_id, driver_id, payload))
+
+
+@app.route('/api/driver-duplicate-warnings', methods=['GET'])
+def api_driver_duplicate_warnings():
+    user_id, denied = _company_owner('Only an owner can review duplicate drivers')
+    if denied:
+        return denied
+    return _driver_response(dev_postgres.list_duplicate_warnings(user_id))
+
+
+@app.route('/api/drivers/<driver_id>/documents', methods=['GET', 'POST'])
+def api_driver_documents(driver_id):
+    user_id, denied = _company_owner('Only an owner can manage driver documents')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _driver_response(dev_postgres.list_driver_documents(user_id, driver_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Document details are not valid.'}), 400
+    return _driver_response(
+        dev_postgres.add_driver_document(user_id, driver_id, payload),
+        created=True,
+    )
+
+
+@app.route('/api/drivers/<driver_id>/documents/<document_id>', methods=['PATCH', 'DELETE'])
+def api_driver_document(driver_id, document_id):
+    user_id, denied = _company_owner('Only an owner can manage driver documents')
+    if denied:
+        return denied
+    if request.method == 'DELETE':
+        return _driver_response(dev_postgres.delete_driver_document(user_id, driver_id, document_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Document details are not valid.'}), 400
+    return _driver_response(
+        dev_postgres.update_driver_document(user_id, driver_id, document_id, payload)
+    )
 
 
 def _vehicle_response(result, created=False):

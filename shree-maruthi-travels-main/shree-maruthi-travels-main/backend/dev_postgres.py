@@ -1243,7 +1243,7 @@ def _date_text(value):
     return str(value)
 
 
-def _driver_shape(row, by_id, events=None, changes=None):
+def _driver_shape(row, by_id, events=None, changes=None, documents=None, warnings=None):
     driver_id, name, phone, licence, expiry, active, primary_id, memberships, verification_status = row
     primary = by_id.get(primary_id)
     branches = []
@@ -1277,6 +1277,10 @@ def _driver_shape(row, by_id, events=None, changes=None):
         shape["verification_events"] = events
     if changes is not None:
         shape["active_changes"] = changes
+    if documents is not None:
+        shape["documents"] = documents
+    if warnings is not None:
+        shape["duplicate_warnings"] = warnings
     return shape
 
 
@@ -1324,7 +1328,7 @@ def _driver_form(payload, creating):
     return fields, None
 
 
-def _select_drivers(cur, driver_id=None, branch_id=None, active=None, name=None):
+def _select_drivers(cur, driver_id=None, branch_id=None, active=None, name=None, verification_status=None):
     where = []
     params = []
     if driver_id is not None:
@@ -1336,6 +1340,9 @@ def _select_drivers(cur, driver_id=None, branch_id=None, active=None, name=None)
     if active is not None:
         where.append("d.active = %s")
         params.append(active)
+    if verification_status is not None:
+        where.append("d.verification_status = %s")
+        params.append(verification_status)
     if name:
         where.append("d.display_name ILIKE %s ESCAPE '\\'")
         params.append(_like_contains(name))
@@ -1388,7 +1395,13 @@ def _insert_driver_with_primary_branch(cur, fields, branch_id):
     return driver_id
 
 
-def list_drivers(user_id, branch_code=None, active=None, name=None):
+def list_drivers(user_id, branch_code=None, active=None, name=None, verification_status=None):
+    if verification_status not in (None, "unverified", "verified", "rejected"):
+        return {
+            "ok": False,
+            "error": "invalid",
+            "message": "Verification status must be unverified, verified, or rejected",
+        }
     maps = _branch_maps()
     if maps is None:
         return None
@@ -1408,8 +1421,21 @@ def list_drivers(user_id, branch_code=None, active=None, name=None):
             return {"ok": False, "error": "invalid", "message": "Driver details are not valid"}
 
     def work(cur):
-        rows = _select_drivers(cur, branch_id=branch_id, active=active, name=cleaned_name)
-        return {"ok": True, "drivers": [_driver_shape(row, by_id) for row in rows]}
+        rows = _select_drivers(
+            cur,
+            branch_id=branch_id,
+            active=active,
+            name=cleaned_name,
+            verification_status=verification_status,
+        )
+        warnings = _duplicate_warnings_by_driver(cur)
+        return {
+            "ok": True,
+            "drivers": [
+                _driver_shape(row, by_id, warnings=warnings.get(row[0], []))
+                for row in rows
+            ],
+        }
 
     return _owner_work(user_id, work)
 
@@ -1456,19 +1482,29 @@ def _timestamp_text(value):
     return str(value)
 
 
+def _history_actor(actor_id, name, email):
+    return {
+        "actor_user_id": actor_id,
+        "actor_name": name,
+        "actor_email": email,
+    }
+
+
 def _driver_history(cur, driver_id):
     cur.execute(
         """
-        SELECT id::text, event_kind, event_name, reason, from_status, to_status,
-               active_after, actor_user_id::text, created_at
-        FROM driver_verification_events
-        WHERE driver_id = %s::uuid
-        ORDER BY created_at, id
+        SELECT e.id::text, e.event_kind, e.event_name, e.reason, e.from_status, e.to_status,
+               e.active_after, e.actor_user_id::text, u.full_name, u.email, e.created_at
+        FROM driver_verification_events e
+        LEFT JOIN users u ON u.id = e.actor_user_id
+        WHERE e.driver_id = %s::uuid
+        ORDER BY e.created_at, e.id
         """,
         (driver_id,),
     )
-    events = [
-        {
+    events = []
+    for event_id, kind, name, reason, from_status, to_status, active_after, actor_id, actor_name, actor_email, created_at in cur.fetchall():
+        event = {
             "id": event_id,
             "event_kind": kind,
             "event_name": name,
@@ -1476,34 +1512,33 @@ def _driver_history(cur, driver_id):
             "from_status": from_status,
             "to_status": to_status,
             "active_after": active_after,
-            "actor_user_id": actor_id,
             "created_at": _timestamp_text(created_at),
         }
-        for event_id, kind, name, reason, from_status, to_status, active_after, actor_id, created_at
-        in cur.fetchall()
-    ]
+        event.update(_history_actor(actor_id, actor_name, actor_email))
+        events.append(event)
     cur.execute(
         """
-        SELECT id::text, verification_status, active_before, active_after,
-               reason, actor_user_id::text, created_at
-        FROM driver_active_changes
-        WHERE driver_id = %s::uuid
-        ORDER BY created_at, id
+        SELECT c.id::text, c.verification_status, c.active_before, c.active_after,
+               c.reason, c.actor_user_id::text, u.full_name, u.email, c.created_at
+        FROM driver_active_changes c
+        LEFT JOIN users u ON u.id = c.actor_user_id
+        WHERE c.driver_id = %s::uuid
+        ORDER BY c.created_at, c.id
         """,
         (driver_id,),
     )
-    changes = [
-        {
+    changes = []
+    for change_id, status, before, after, reason, actor_id, actor_name, actor_email, created_at in cur.fetchall():
+        change = {
             "id": change_id,
             "verification_status": status,
             "active_before": before,
             "active_after": after,
             "reason": reason,
-            "actor_user_id": actor_id,
             "created_at": _timestamp_text(created_at),
         }
-        for change_id, status, before, after, reason, actor_id, created_at in cur.fetchall()
-    ]
+        change.update(_history_actor(actor_id, actor_name, actor_email))
+        changes.append(change)
     return events, changes
 
 
@@ -1512,7 +1547,12 @@ def _driver_result(cur, driver_id, by_id):
     if not rows:
         return {"ok": False, "error": "not_found", "message": "Driver not found"}
     events, changes = _driver_history(cur, driver_id)
-    return {"ok": True, "driver": _driver_shape(rows[0], by_id, events, changes)}
+    documents = _select_driver_documents(cur, driver_id)
+    warnings = _duplicate_warnings_by_driver(cur, driver_id).get(driver_id, [])
+    return {
+        "ok": True,
+        "driver": _driver_shape(rows[0], by_id, events, changes, documents, warnings),
+    }
 
 
 def _activation_refusal(status):
@@ -1677,6 +1717,308 @@ def set_driver_active(user_id, driver_id, payload):
         if failed:
             return failed
         return _driver_result(cur, parsed, by_id)
+
+    return _owner_work(user_id, work)
+
+
+def _other_driver(driver_id, name, phone, licence, status, active):
+    return {
+        "id": driver_id,
+        "display_name": name,
+        "phone": phone,
+        "license_number": licence,
+        "verification_status": status,
+        "active": bool(active),
+    }
+
+
+def _duplicate_warning_rows(cur, driver_id=None):
+    params = ()
+    where = ""
+    if driver_id is not None:
+        where = "WHERE w.driver_id = %s::uuid OR w.other_driver_id = %s::uuid"
+        params = (driver_id, driver_id)
+    cur.execute(
+        f"""
+        SELECT w.match_kind, w.match_value,
+               a.id::text, a.display_name, a.phone, a.license_number,
+               a.verification_status, a.active,
+               b.id::text, b.display_name, b.phone, b.license_number,
+               b.verification_status, b.active
+        FROM driver_duplicate_warnings w
+        JOIN drivers a ON a.id = w.driver_id
+        JOIN drivers b ON b.id = w.other_driver_id
+        {where}
+        ORDER BY w.match_kind, a.display_name, b.display_name, a.id, b.id
+        """,
+        params,
+    )
+    return cur.fetchall()
+
+
+def _duplicate_indexes(cur, driver_id=None):
+    by_driver = {}
+    pairs = []
+    for (
+        kind, value,
+        left_id, left_name, left_phone, left_licence, left_status, left_active,
+        right_id, right_name, right_phone, right_licence, right_status, right_active,
+    ) in _duplicate_warning_rows(cur, driver_id):
+        left = _other_driver(left_id, left_name, left_phone, left_licence, left_status, left_active)
+        right = _other_driver(right_id, right_name, right_phone, right_licence, right_status, right_active)
+        pairs.append({
+            "match_kind": kind,
+            "match_value": value,
+            "driver": left,
+            "other_driver": right,
+        })
+        by_driver.setdefault(left_id, []).append({
+            "match_kind": kind,
+            "match_value": value,
+            "other_driver": right,
+        })
+        by_driver.setdefault(right_id, []).append({
+            "match_kind": kind,
+            "match_value": value,
+            "other_driver": left,
+        })
+    return pairs, by_driver
+
+
+def _duplicate_warnings_by_driver(cur, driver_id=None):
+    _, by_driver = _duplicate_indexes(cur, driver_id)
+    return by_driver
+
+
+def list_duplicate_warnings(user_id):
+    def work(cur):
+        pairs, _ = _duplicate_indexes(cur)
+        return {"ok": True, "warnings": pairs}
+
+    return _owner_work(user_id, work)
+
+
+_DRIVER_DOCUMENT_SENSITIVE = {
+    "id",
+    "driver_id",
+    "created_at",
+    "file_path",
+    "storage_path",
+    "legacy_sqlite_id",
+}
+_DRIVER_DOCUMENT_FIELDS = {"doc_type", "doc_number", "expiry_date"}
+
+
+def _driver_document_form(payload):
+    if not isinstance(payload, dict):
+        return None, "Document details are not valid."
+    if _DRIVER_DOCUMENT_SENSITIVE.intersection(payload):
+        return None, "That field cannot be set on a driver document."
+    if set(payload) - _DRIVER_DOCUMENT_FIELDS:
+        return None, "Document details are not valid."
+    if not payload:
+        return None, "No document details to update."
+    fields = {}
+    if "doc_type" in payload:
+        doc_type = _clean_text(payload.get("doc_type"))
+        if doc_type is False:
+            return None, "Document details are not valid."
+        if not doc_type:
+            return None, "Document type is required."
+        fields["doc_type"] = doc_type
+    if "doc_number" in payload:
+        doc_number = _clean_text(payload.get("doc_number"))
+        if doc_number is False:
+            return None, "Document details are not valid."
+        if not doc_number:
+            return None, "Document number is required."
+        fields["doc_number"] = doc_number
+    if "expiry_date" in payload:
+        expiry = _clean_date(payload.get("expiry_date"))
+        if expiry is False:
+            return None, "Enter an expiry as YYYY-MM-DD."
+        fields["expiry_date"] = expiry
+    if not fields:
+        return None, "No document details to update."
+    return fields, None
+
+
+def _driver_document_shape(row):
+    document_id, doc_type, doc_number, expiry = row
+    return {
+        "id": document_id,
+        "doc_type": doc_type,
+        "doc_number": doc_number,
+        "expiry_date": _date_text(expiry),
+    }
+
+
+def _select_driver_documents(cur, driver_id):
+    cur.execute(
+        """
+        SELECT id::text, doc_type, doc_number, expiry_date
+        FROM driver_documents
+        WHERE driver_id = %s::uuid
+        ORDER BY doc_type, expiry_date NULLS LAST, id
+        """,
+        (driver_id,),
+    )
+    return [_driver_document_shape(row) for row in cur.fetchall()]
+
+
+def _visible_driver(cur, driver_id):
+    cur.execute(
+        """
+        SELECT 1
+        FROM drivers d
+        WHERE d.id = %s::uuid
+          AND EXISTS (
+              SELECT 1 FROM driver_branches db WHERE db.driver_id = d.id
+          )
+        """,
+        (driver_id,),
+    )
+    return cur.fetchone() is not None
+
+
+def _driver_document_write(cur, sql, params):
+    import psycopg
+
+    cur.execute("SAVEPOINT driver_document_write")
+    try:
+        cur.execute(sql, params)
+    except psycopg.Error as exc:
+        cur.execute("ROLLBACK TO SAVEPOINT driver_document_write")
+        if getattr(exc, "sqlstate", None) == "42501":
+            return {"ok": False, "error": "not_found", "message": "Driver not found"}
+        if isinstance(exc, psycopg.errors.CheckViolation):
+            return {"ok": False, "error": "invalid", "message": "Document type and number are required."}
+        if isinstance(exc, psycopg.errors.ForeignKeyViolation):
+            return {"ok": False, "error": "not_found", "message": "Driver not found"}
+        return {"ok": False, "error": "invalid", "message": "Document details are not valid."}
+    affected = cur.rowcount
+    cur.execute("RELEASE SAVEPOINT driver_document_write")
+    return affected
+
+
+def list_driver_documents(user_id, driver_id):
+    parsed = _parse_uuid(driver_id)
+    if parsed is None:
+        return {"ok": False, "error": "not_found", "message": "Driver not found"}
+
+    def work(cur):
+        if not _visible_driver(cur, parsed):
+            return {"ok": False, "error": "not_found", "message": "Driver not found"}
+        return {"ok": True, "documents": _select_driver_documents(cur, parsed)}
+
+    return _owner_work(user_id, work)
+
+
+def add_driver_document(user_id, driver_id, payload):
+    parsed = _parse_uuid(driver_id)
+    if parsed is None:
+        return {"ok": False, "error": "not_found", "message": "Driver not found"}
+    fields, error = _driver_document_form(payload or {})
+    if error:
+        return {"ok": False, "error": "invalid", "message": error}
+    if "doc_type" not in fields:
+        return {"ok": False, "error": "invalid", "message": "Document type is required."}
+    if "doc_number" not in fields:
+        return {"ok": False, "error": "invalid", "message": "Document number is required."}
+    maps = _branch_maps()
+    if maps is None:
+        return None
+    _, by_id = maps
+    document_id = str(uuid.uuid4())
+
+    def work(cur):
+        if not _visible_driver(cur, parsed):
+            return {"ok": False, "error": "not_found", "message": "Driver not found"}
+        outcome = _driver_document_write(
+            cur,
+            """
+            INSERT INTO driver_documents (id, driver_id, doc_type, doc_number, expiry_date)
+            VALUES (%s::uuid, %s::uuid, %s, %s, %s)
+            """,
+            (
+                document_id,
+                parsed,
+                fields["doc_type"],
+                fields["doc_number"],
+                fields.get("expiry_date"),
+            ),
+        )
+        if isinstance(outcome, dict):
+            return outcome
+        return _driver_result(cur, parsed, by_id)
+
+    return _owner_work(user_id, work)
+
+
+def update_driver_document(user_id, driver_id, document_id, payload):
+    parsed_driver = _parse_uuid(driver_id)
+    parsed_document = _parse_uuid(document_id)
+    if parsed_driver is None or parsed_document is None:
+        return {"ok": False, "error": "not_found", "message": "Document not found"}
+    fields, error = _driver_document_form(payload or {})
+    if error:
+        return {"ok": False, "error": "invalid", "message": error}
+    maps = _branch_maps()
+    if maps is None:
+        return None
+    _, by_id = maps
+    assignments = []
+    params = []
+    for column in ("doc_type", "doc_number", "expiry_date"):
+        if column in fields:
+            assignments.append(f"{column} = %s")
+            params.append(fields[column])
+
+    def work(cur):
+        if not _visible_driver(cur, parsed_driver):
+            return {"ok": False, "error": "not_found", "message": "Driver not found"}
+        outcome = _driver_document_write(
+            cur,
+            "UPDATE driver_documents SET "
+            + ", ".join(assignments)
+            + " WHERE id = %s::uuid AND driver_id = %s::uuid",
+            (*params, parsed_document, parsed_driver),
+        )
+        if isinstance(outcome, dict):
+            return outcome
+        if outcome != 1:
+            return {"ok": False, "error": "not_found", "message": "Document not found"}
+        return _driver_result(cur, parsed_driver, by_id)
+
+    return _owner_work(user_id, work)
+
+
+def delete_driver_document(user_id, driver_id, document_id):
+    parsed_driver = _parse_uuid(driver_id)
+    parsed_document = _parse_uuid(document_id)
+    if parsed_driver is None or parsed_document is None:
+        return {"ok": False, "error": "not_found", "message": "Document not found"}
+    maps = _branch_maps()
+    if maps is None:
+        return None
+    _, by_id = maps
+
+    def work(cur):
+        if not _visible_driver(cur, parsed_driver):
+            return {"ok": False, "error": "not_found", "message": "Driver not found"}
+        outcome = _driver_document_write(
+            cur,
+            """
+            DELETE FROM driver_documents
+            WHERE id = %s::uuid AND driver_id = %s::uuid
+            """,
+            (parsed_document, parsed_driver),
+        )
+        if isinstance(outcome, dict):
+            return outcome
+        if outcome != 1:
+            return {"ok": False, "error": "not_found", "message": "Document not found"}
+        return _driver_result(cur, parsed_driver, by_id)
 
     return _owner_work(user_id, work)
 

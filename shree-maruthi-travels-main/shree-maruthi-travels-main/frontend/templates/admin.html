@@ -478,9 +478,15 @@
                         <option value="HYD">Hyderabad</option>
                     </select>
                     <select id="pg-driver-active" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDrivers()">
-                        <option value="">All statuses</option>
+                        <option value="">All activity</option>
                         <option value="true">Active</option>
                         <option value="false">Inactive</option>
+                    </select>
+                    <select id="pg-driver-verification" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDrivers()">
+                        <option value="">All verification</option>
+                        <option value="unverified">Unverified</option>
+                        <option value="verified">Verified</option>
+                        <option value="rejected">Rejected</option>
                     </select>
                 </div>
                 <p id="pg-drivers-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading drivers...</p>
@@ -497,13 +503,14 @@
                                     <th>Licence number</th>
                                     <th>Primary branch</th>
                                     <th>Verification</th>
+                                    <th>Duplicate warning</th>
                                     <th>Active</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="pg-drivers-table-body">
                                 <tr>
-                                    <td colspan="6" style="text-align: center; color: var(--text-muted);">Loading drivers...</td>
+                                    <td colspan="8" style="text-align: center; color: var(--text-muted);">Loading drivers...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -843,6 +850,6 @@
     </div>
 
     <!-- Script file containing admin logic and auth headers -->
-    <script src="{{ url_for('static', filename='js/admin.js') }}?v=revision8"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}?v=revision8-documents"></script>
 </body>
 </html>

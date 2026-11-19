@@ -25,6 +25,27 @@ REPO_ROOT = APP_ROOT.parents[1]
 for key in ("STAFF_TOKEN", "RAC_JWT_SECRET", "SMT_DEV_DATABASE_URL", "SMT_DEV_BOOTSTRAP_OWNER_ID"):
     os.environ.pop(key, None)
 load_dotenv(APP_ROOT / ".env")
+
+
+def _prefer_disposable_database():
+    """Point this process at the disposable database when the caller names one.
+
+    SMT_DEV_DATABASE_URL in .env stays on smt_dev. The override is applied only
+    while SMT_REVISION8_DISPOSABLE is set, and the test gate still refuses
+    smt_dev, postgres, and any server that is not on this machine.
+    """
+    flag = (os.environ.get("SMT_REVISION8_DISPOSABLE") or "").strip().lower()
+    if flag not in ("1", "yes", "true"):
+        return
+    override = (os.environ.get("SMT_REVISION8_DATABASE_URL") or "").strip().strip("\"'")
+    if override:
+        os.environ["SMT_DEV_DATABASE_URL"] = override
+    owner = (os.environ.get("SMT_REVISION8_BOOTSTRAP_OWNER_ID") or "").strip().strip("\"'")
+    if owner:
+        os.environ["SMT_DEV_BOOTSTRAP_OWNER_ID"] = owner
+
+
+_prefer_disposable_database()
 sys.path.insert(0, str(APP_ROOT))
 sys.path.insert(0, str(BACKEND))
 

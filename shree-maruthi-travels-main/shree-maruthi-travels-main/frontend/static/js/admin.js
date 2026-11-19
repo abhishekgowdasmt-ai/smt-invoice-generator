@@ -1667,6 +1667,64 @@ function pgVerificationLabel(status) {
     return 'Unverified';
 }
 
+function pgVerificationBadge(status) {
+    const badge = document.createElement('span');
+    const tone = status === 'verified' ? 'valid' : status === 'rejected' ? 'expired' : 'warning';
+    badge.className = 'doc-badge ' + tone;
+    badge.textContent = pgVerificationLabel(status);
+    return badge;
+}
+
+function pgDuplicateSummary(driver) {
+    const warnings = driver.duplicate_warnings || [];
+    if (!warnings.length) return 'None';
+    const labels = [];
+    warnings.forEach((warning) => {
+        const label = warning.match_kind === 'phone' ? 'Phone' : 'Licence';
+        if (labels.indexOf(label) === -1) labels.push(label);
+    });
+    return labels.join(', ');
+}
+
+function pgActorLabel(record) {
+    return (record && (record.actor_name || record.actor_email)) || 'Owner';
+}
+
+function pgHistoryWhen(value) {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleString();
+}
+
+function renderPgDuplicateWarnings(warnings, container) {
+    container.replaceChildren();
+    if (!warnings || !warnings.length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No duplicate phone or licence warning.';
+        container.appendChild(empty);
+        return;
+    }
+    const note = document.createElement('p');
+    note.style.color = '#b45309';
+    note.textContent = 'Duplicate warning only. Matching drivers are not merged, deleted, or rejected.';
+    container.appendChild(note);
+    warnings.forEach((warning) => {
+        const other = warning.other_driver || {};
+        const line = document.createElement('p');
+        const kind = warning.match_kind === 'phone' ? 'Same phone' : 'Same licence';
+        line.textContent = [
+            kind,
+            other.display_name,
+            other.phone,
+            other.license_number,
+            other.verification_status ? pgVerificationLabel(other.verification_status) : '',
+            other.active === false ? 'Inactive' : other.active === true ? 'Active' : ''
+        ].filter(Boolean).join(' · ');
+        container.appendChild(line);
+    });
+}
+
 function pgDriverActionButton(label, onClick) {
     const button = document.createElement('button');
     button.type = 'button';
@@ -1683,7 +1741,7 @@ function renderPgDrivers(drivers) {
     if (!drivers.length) {
         const row = document.createElement('tr');
         const cell = document.createElement('td');
-        cell.colSpan = 7;
+        cell.colSpan = 8;
         cell.style.textAlign = 'center';
         cell.style.color = 'var(--text-muted)';
         cell.textContent = 'No drivers in this directory yet.';
@@ -1702,7 +1760,9 @@ function renderPgDrivers(drivers) {
         const branch = document.createElement('td');
         branch.textContent = pgDriverBranchLabel(driver);
         const verification = document.createElement('td');
-        verification.textContent = pgVerificationLabel(driver.verification_status);
+        verification.appendChild(pgVerificationBadge(driver.verification_status));
+        const warnings = document.createElement('td');
+        warnings.textContent = pgDuplicateSummary(driver);
         const active = document.createElement('td');
         active.textContent = driver.active ? 'Active' : 'Inactive';
         const actions = document.createElement('td');
@@ -1723,46 +1783,49 @@ function renderPgDrivers(drivers) {
                 () => changePgDriverActive(driver, !driver.active)
             ));
         }
-        row.append(name, phone, licence, branch, verification, active, actions);
+        row.append(name, phone, licence, branch, verification, warnings, active, actions);
         tbody.appendChild(row);
     });
 }
 
-async function fetchPgDrivers() {
+async function fetchPgDrivers(doneMessage) {
     if (!smtToken) return;
     const tbody = document.getElementById('pg-drivers-table-body');
     const addButton = document.getElementById('pg-drivers-add-button');
     const isOwner = staffSession.role === 'od';
     if (addButton) addButton.style.display = isOwner ? '' : 'none';
     setPgDriverStatus('Loading drivers...');
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading drivers...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading drivers...</td></tr>';
     const params = new URLSearchParams();
     const name = document.getElementById('pg-driver-search').value.trim();
     const branch = document.getElementById('pg-driver-branch').value;
     const active = document.getElementById('pg-driver-active').value;
+    const verificationField = document.getElementById('pg-driver-verification');
+    const verification = verificationField ? verificationField.value : '';
     if (name) params.set('name', name);
     if (branch) params.set('branch', branch);
     if (active) params.set('active', active);
+    if (verification) params.set('verification_status', verification);
     const query = params.toString();
     try {
         const res = await fetch(`/api/drivers${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
         const body = await res.json();
         if (res.status === 403) {
             setPgDriverStatus(body.message || 'Only an owner can manage drivers.', true);
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Driver management is limited to owners.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Driver management is limited to owners.</td></tr>';
             return;
         }
         if (!res.ok || !body.success) {
             setPgDriverStatus(body.message || 'Drivers could not be loaded.', true);
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #ef4444;">Drivers could not be loaded.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Drivers could not be loaded.</td></tr>';
             return;
         }
-        setPgDriverStatus('');
+        setPgDriverStatus(typeof doneMessage === 'string' ? doneMessage : '');
         renderPgDrivers(body.data || []);
     } catch (err) {
         console.error(err);
         setPgDriverStatus('Drivers could not be loaded.', true);
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #ef4444;">Drivers could not be loaded.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Drivers could not be loaded.</td></tr>';
     }
 }
 
@@ -1797,6 +1860,7 @@ function showAddPgDriverModal() {
                 </select>
             </div>
             <p id="pg-driver-form-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+            <div id="pg-driver-form-warnings"></div>
             <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Save driver</button>
         </form>
     `;
@@ -1832,6 +1896,7 @@ async function savePgDriver(event) {
     if (!driverId) {
         payload.primary_branch_code = document.getElementById('pg-driver-city').value;
     }
+    error.style.color = '#ef4444';
     error.textContent = 'Saving driver...';
     try {
         const res = await fetch(driverId ? `/api/drivers/${driverId}` : '/api/drivers', {
@@ -1845,12 +1910,166 @@ async function savePgDriver(event) {
             error.textContent = body.message || 'The driver could not be saved.';
             return;
         }
+        const warnings = (body.data && body.data.duplicate_warnings) || [];
+        fetchPgDrivers(warnings.length ? 'Driver saved. Review the duplicate warning.' : 'Driver saved.');
+        if (warnings.length) {
+            error.style.color = '#b45309';
+            error.textContent = 'Driver saved. Review the duplicate warning below. Nothing was merged or changed.';
+            renderPgDuplicateWarnings(warnings, document.getElementById('pg-driver-form-warnings'));
+            return;
+        }
         closeAdminModal();
-        fetchPgDrivers();
     } catch (err) {
         console.error(err);
         error.textContent = 'The driver could not be saved.';
     }
+}
+
+function renderPgDriverDetails(driver) {
+    const holder = document.createElement('div');
+    const title = document.createElement('h3');
+    title.textContent = driver.display_name || '';
+    const lines = document.createElement('p');
+    const status = document.createElement('span');
+    status.appendChild(pgVerificationBadge(driver.verification_status));
+    lines.append(
+        document.createTextNode([
+            driver.phone,
+            driver.license_number,
+            driver.license_expiry ? `Licence expires ${driver.license_expiry}` : '',
+            driver.active ? 'Active' : 'Inactive'
+        ].filter(Boolean).join(' · ') + ' · '),
+        status
+    );
+    const primary = document.createElement('p');
+    primary.textContent = `Primary branch: ${pgDriverBranchLabel(driver) || 'Not recorded'}`;
+    const extra = document.createElement('p');
+    const others = (driver.branches || []).filter((branch) => !branch.primary);
+    extra.textContent = others.length
+        ? `Additional branches: ${others.map((branch) => branch.city || branch.code).join(', ')}`
+        : 'Additional branches: none';
+
+    const warningTitle = document.createElement('h4');
+    warningTitle.textContent = 'Duplicate warnings';
+    const warningList = document.createElement('div');
+    renderPgDuplicateWarnings(driver.duplicate_warnings, warningList);
+
+    const reviews = document.createElement('div');
+    const reviewTitle = document.createElement('h4');
+    reviewTitle.textContent = 'Verification history';
+    reviews.appendChild(reviewTitle);
+    const reviewItems = driver.verification_events || [];
+    if (!reviewItems.length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No verification history yet.';
+        reviews.appendChild(empty);
+    } else {
+        reviewItems.forEach((event) => {
+            const item = document.createElement('p');
+            item.textContent = [
+                event.event_name,
+                `${event.from_status} to ${event.to_status}`,
+                event.reason,
+                pgActorLabel(event),
+                pgHistoryWhen(event.created_at)
+            ].filter(Boolean).join(' · ');
+            reviews.appendChild(item);
+        });
+    }
+    const changes = document.createElement('div');
+    const changeTitle = document.createElement('h4');
+    changeTitle.textContent = 'Suspension history';
+    changes.appendChild(changeTitle);
+    const changeItems = driver.active_changes || [];
+    if (!changeItems.length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No suspension or restoration yet.';
+        changes.appendChild(empty);
+    } else {
+        changeItems.forEach((change) => {
+            const item = document.createElement('p');
+            const before = change.active_before ? 'active' : 'inactive';
+            const after = change.active_after ? 'active' : 'inactive';
+            item.textContent = [
+                `${before} to ${after}`,
+                change.reason,
+                pgActorLabel(change),
+                pgHistoryWhen(change.created_at)
+            ].filter(Boolean).join(' · ');
+            changes.appendChild(item);
+        });
+    }
+
+    const documentTitle = document.createElement('h4');
+    documentTitle.textContent = 'Driver documents';
+    const documentNote = document.createElement('p');
+    documentNote.style.color = 'var(--text-secondary)';
+    documentNote.textContent = 'These records store a type, number, and expiry for this PostgreSQL driver. No file is uploaded.';
+    const documentList = document.createElement('div');
+    (driver.documents || []).forEach((documentRow) => {
+        const item = document.createElement('p');
+        item.textContent = [
+            documentRow.doc_type,
+            documentRow.doc_number,
+            documentRow.expiry_date ? `expires ${documentRow.expiry_date}` : 'no expiry'
+        ].join(' · ');
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'status-select';
+        edit.style.marginLeft = '0.5rem';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+            document.getElementById('pg-driver-document-id').value = documentRow.id;
+            document.getElementById('pg-driver-document-type').value = documentRow.doc_type || '';
+            document.getElementById('pg-driver-document-number').value = documentRow.doc_number || '';
+            document.getElementById('pg-driver-document-expiry').value = documentRow.expiry_date || '';
+            const error = document.getElementById('pg-driver-document-error');
+            error.style.color = 'var(--text-secondary)';
+            error.textContent = 'Editing this document. Save to keep the change.';
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'status-select';
+        remove.style.marginLeft = '0.25rem';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => deletePgDriverDocument(driver.id, documentRow.id));
+        item.append(edit, remove);
+        documentList.appendChild(item);
+    });
+    if (!(driver.documents || []).length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No driver documents recorded.';
+        documentList.appendChild(empty);
+    }
+    const form = document.createElement('form');
+    form.addEventListener('submit', (event) => savePgDriverDocument(event, driver.id));
+    form.innerHTML = `
+        <input type="hidden" id="pg-driver-document-id" value="">
+        <div class="form-grid-2">
+            <div class="form-group-custom">
+                <label>Document type*</label>
+                <input type="text" id="pg-driver-document-type" class="form-control-custom" required>
+            </div>
+            <div class="form-group-custom">
+                <label>Document number*</label>
+                <input type="text" id="pg-driver-document-number" class="form-control-custom" required>
+            </div>
+        </div>
+        <div class="form-group-custom">
+            <label>Expiry</label>
+            <input type="date" id="pg-driver-document-expiry" class="form-control-custom">
+        </div>
+        <p id="pg-driver-document-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+        <button type="submit" class="btn btn-primary">Save document</button>
+    `;
+    holder.append(
+        title, lines, primary, extra,
+        warningTitle, warningList,
+        reviews, changes,
+        documentTitle, documentNote, documentList, form
+    );
+    document.getElementById('admin-modal-title').textContent = 'PostgreSQL driver';
+    document.getElementById('admin-modal-body').replaceChildren(holder);
 }
 
 async function showPgDriverDetails(driverId) {
@@ -1858,74 +2077,102 @@ async function showPgDriverDetails(driverId) {
     try {
         const res = await fetch(`/api/drivers/${driverId}`, { credentials: 'same-origin' });
         const body = await res.json();
-        const holder = document.createElement('div');
         if (!res.ok || !body.success) {
+            const holder = document.createElement('p');
             holder.textContent = body.message || 'The driver could not be loaded.';
             document.getElementById('admin-modal-body').replaceChildren(holder);
             return;
         }
-        const driver = body.data;
-        const title = document.createElement('h3');
-        title.textContent = driver.display_name || '';
-        const lines = document.createElement('p');
-        lines.textContent = [
-            driver.phone,
-            driver.license_number,
-            driver.license_expiry ? `Licence expires ${driver.license_expiry}` : '',
-            pgVerificationLabel(driver.verification_status),
-            driver.active ? 'Active' : 'Inactive'
-        ].filter(Boolean).join(' · ');
-        const primary = document.createElement('p');
-        primary.textContent = `Primary branch: ${pgDriverBranchLabel(driver) || 'Not recorded'}`;
-        const extra = document.createElement('p');
-        const others = (driver.branches || []).filter((branch) => !branch.primary);
-        extra.textContent = others.length
-            ? `Additional branches: ${others.map((branch) => branch.city || branch.code).join(', ')}`
-            : 'Additional branches: none';
-        const reviews = document.createElement('div');
-        const reviewTitle = document.createElement('h4');
-        reviewTitle.textContent = 'Verification history';
-        reviews.appendChild(reviewTitle);
-        const reviewItems = driver.verification_events || [];
-        if (!reviewItems.length) {
-            const empty = document.createElement('p');
-            empty.textContent = 'No verification history yet.';
-            reviews.appendChild(empty);
-        } else {
-            reviewItems.forEach((event) => {
-                const item = document.createElement('p');
-                item.textContent = `${event.event_name}: ${event.reason} (${event.from_status} to ${event.to_status})`;
-                reviews.appendChild(item);
-            });
-        }
-        const changes = document.createElement('div');
-        const changeTitle = document.createElement('h4');
-        changeTitle.textContent = 'Suspension history';
-        changes.appendChild(changeTitle);
-        const changeItems = driver.active_changes || [];
-        if (!changeItems.length) {
-            const empty = document.createElement('p');
-            empty.textContent = 'No suspension or restoration yet.';
-            changes.appendChild(empty);
-        } else {
-            changeItems.forEach((change) => {
-                const item = document.createElement('p');
-                const before = change.active_before ? 'active' : 'inactive';
-                const after = change.active_after ? 'active' : 'inactive';
-                item.textContent = `${before} to ${after}: ${change.reason}`;
-                changes.appendChild(item);
-            });
-        }
-        holder.append(title, lines, primary, extra, reviews, changes);
-        document.getElementById('admin-modal-title').textContent = 'PostgreSQL driver';
-        document.getElementById('admin-modal-body').replaceChildren(holder);
+        renderPgDriverDetails(body.data);
     } catch (err) {
         console.error(err);
-        document.getElementById('admin-modal-body').textContent = 'The driver could not be loaded.';
+        const holder = document.createElement('p');
+        holder.textContent = 'The driver could not be loaded.';
+        document.getElementById('admin-modal-body').replaceChildren(holder);
     }
 }
 
-async function postPgDriverAction(path, payload, pending) {
+async function savePgDriverDocument(event, driverId) {
+    event.preventDefault();
+    const error = document.getElementById('pg-driver-document-error');
+    const documentId = document.getElementById('pg-driver-document-id').value;
+    const docType = document.getElementById('pg-driver-document-type').value.trim();
+    const docNumber = document.getElementById('pg-driver-document-number').value.trim();
+    error.style.color = '#ef4444';
+    if (!docType) {
+        error.textContent = 'Document type is required.';
+        return;
+    }
+    if (!docNumber) {
+        error.textContent = 'Document number is required.';
+        return;
+    }
+    const payload = {
+        doc_type: docType,
+        doc_number: docNumber,
+        expiry_date: document.getElementById('pg-driver-document-expiry').value
+    };
+    error.style.color = 'var(--text-secondary)';
+    error.textContent = 'Saving document...';
+    try {
+        const res = await fetch(
+            documentId
+                ? `/api/drivers/${driverId}/documents/${documentId}`
+                : `/api/drivers/${driverId}/documents`,
+            {
+                method: documentId ? 'PATCH' : 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }
+        );
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.style.color = '#ef4444';
+            error.textContent = body.message || 'The document could not be saved.';
+            return;
+        }
+        setPgDriverStatus(documentId ? 'Driver document updated.' : 'Driver document saved.');
+        renderPgDriverDetails(body.data);
+    } catch (err) {
+        console.error(err);
+        error.style.color = '#ef4444';
+        error.textContent = 'The document could not be saved.';
+    }
+}
+
+async function deletePgDriverDocument(driverId, documentId) {
+    if (!window.confirm('Remove this driver document record? The driver stays in the directory. No file is stored.')) return;
+    const error = document.getElementById('pg-driver-document-error');
+    if (error) {
+        error.style.color = 'var(--text-secondary)';
+        error.textContent = 'Removing document...';
+    }
+    try {
+        const res = await fetch(`/api/drivers/${driverId}/documents/${documentId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            if (error) {
+                error.style.color = '#ef4444';
+                error.textContent = body.message || 'The document could not be removed.';
+            }
+            return;
+        }
+        setPgDriverStatus('Driver document removed.');
+        renderPgDriverDetails(body.data);
+    } catch (err) {
+        console.error(err);
+        if (error) {
+            error.style.color = '#ef4444';
+            error.textContent = 'The document could not be removed.';
+        }
+    }
+}
+
+async function postPgDriverAction(path, payload, pending, successMessage) {
     setPgDriverStatus(pending);
     try {
         const res = await fetch(path, {
@@ -1939,8 +2186,7 @@ async function postPgDriverAction(path, payload, pending) {
             setPgDriverStatus(body.message || 'The driver could not be updated.', true);
             return;
         }
-        setPgDriverStatus('');
-        fetchPgDrivers();
+        fetchPgDrivers(successMessage);
     } catch (err) {
         console.error(err);
         setPgDriverStatus('The driver could not be updated.', true);
@@ -1958,7 +2204,8 @@ async function reviewPgDriver(driver, decision) {
     await postPgDriverAction(
         `/api/drivers/${driver.id}/reviews`,
         { decision, reason: reason.trim() },
-        `${verb} driver...`
+        `${verb} driver...`,
+        decision === 'verified' ? 'Driver approved.' : 'Driver rejected.'
     );
 }
 
@@ -1972,7 +2219,8 @@ async function resubmitPgDriver(driver) {
     await postPgDriverAction(
         `/api/drivers/${driver.id}/resubmissions`,
         { reason: reason.trim() },
-        'Resubmit driver...'
+        'Resubmit driver...',
+        'Driver resubmitted. A new approval is still required.'
     );
 }
 
@@ -1987,7 +2235,8 @@ async function changePgDriverActive(driver, next) {
     await postPgDriverAction(
         `/api/drivers/${driver.id}/active`,
         { active: next, reason: reason.trim() },
-        `${verb} driver...`
+        `${verb} driver...`,
+        next ? 'Driver restored.' : 'Driver suspended.'
     );
 }
 
