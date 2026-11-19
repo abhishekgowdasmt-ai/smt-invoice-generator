@@ -1,0 +1,616 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,560;9..144,680&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+body.home {
+    --ink: #14221c;
+    --ink-soft: #3d4f46;
+    --paper: #f3efe6;
+    --paper-2: #fffdf8;
+    --line: rgba(20, 34, 28, 0.12);
+    --pine: #1c3d32;
+    --pine-2: #245445;
+    --copper: #b8613a;
+    --sand: #e7d7bf;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Manrope, sans-serif;
+    letter-spacing: 0;
+}
+
+body.home h1,
+body.home h2,
+body.home h3,
+body.home h4 {
+    font-family: Fraunces, Georgia, serif;
+    font-weight: 560;
+    letter-spacing: -0.03em;
+}
+
+body.home .ambient-glow,
+body.home .ambient-glow-left,
+body.home .jmr-accent-strip,
+body.home .device-switcher-widget {
+    display: none;
+}
+
+body.home .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.85rem 4vw;
+    background: rgba(243, 239, 230, 0.9);
+    border-bottom: 1px solid var(--line);
+    backdrop-filter: blur(16px);
+}
+
+body.home .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: max-content;
+}
+
+body.home .logo img {
+    height: 42px;
+    width: auto;
+}
+
+body.home .logo-text h1 {
+    font-family: Manrope, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+body.home .logo-text p {
+    color: var(--ink-soft);
+    font-size: 0.72rem;
+}
+
+body.home .mobile-menu-btn {
+    display: none;
+    border: 1px solid var(--line);
+    background: var(--paper-2);
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    font-weight: 700;
+}
+
+body.home nav#navbar-menu {
+    display: block;
+}
+
+body.home nav#navbar-menu ul {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+body.home nav#navbar-menu a {
+    color: var(--ink-soft);
+    font-size: 0.88rem;
+    font-weight: 650;
+    padding: 0.45rem 0.65rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+body.home nav#navbar-menu a:hover,
+body.home nav#navbar-menu a.active {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.7);
+}
+
+body.home .nav-phone,
+body.home .nav-quote {
+    border-radius: 999px;
+    line-height: 1.1;
+}
+
+body.home .nav-quote {
+    background: #1c3d32;
+    padding: 0.55rem 0.9rem;
+}
+
+body.home .nav-phone {
+    border: 1px solid var(--line);
+    background: var(--paper-2);
+}
+
+body.home .nav-quote,
+body.home .btn-solid {
+    background: var(--pine);
+    color: #f7f3ea !important;
+}
+
+body.home .hero {
+    display: grid;
+    grid-template-columns: 1.15fr 0.85fr;
+    gap: 3rem;
+    align-items: end;
+    padding: 4.5rem 4vw 7rem;
+    background:
+        radial-gradient(circle at 80% 20%, rgba(184, 97, 58, 0.28), transparent 28%),
+        linear-gradient(160deg, #10241c 0%, #1c3d32 58%, #2d5a45 100%);
+    color: #f6f1e7;
+}
+
+body.home .eyebrow {
+    display: inline-flex;
+    margin-bottom: 1rem;
+    padding: 0.3rem 0.7rem;
+    border: 1px solid rgba(246, 241, 231, 0.25);
+    border-radius: 999px;
+    color: var(--sand);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+body.home .hero h2 {
+    max-width: 12ch;
+    font-size: clamp(3.2rem, 6vw, 5.6rem);
+    line-height: 0.92;
+    color: #f6f1e7;
+}
+
+body.home .hero h2 span {
+    color: #f0c9a0;
+}
+
+body.home .hero-copy {
+    max-width: 38rem;
+    margin: 1.25rem 0 1.75rem;
+    color: rgba(246, 241, 231, 0.82);
+    font-size: 1.08rem;
+}
+
+body.home .hero-actions,
+body.home .stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+body.home .btn-ghost {
+    border: 1px solid rgba(246, 241, 231, 0.35);
+    color: #f6f1e7 !important;
+    background: transparent;
+    border-radius: 999px;
+    padding: 0.8rem 1.1rem;
+    font-weight: 700;
+}
+
+body.home .btn-solid {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.8rem 1.15rem;
+    font-weight: 750;
+}
+
+body.home .stat {
+    min-width: 8rem;
+    padding-top: 0.8rem;
+    border-top: 1px solid rgba(246, 241, 231, 0.2);
+}
+
+body.home .stat strong {
+    display: block;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.6rem;
+}
+
+body.home .stat span {
+    color: rgba(246, 241, 231, 0.7);
+    font-size: 0.82rem;
+}
+
+body.home .hero-panel {
+    position: relative;
+    min-height: 360px;
+    border-radius: 28px;
+    overflow: hidden;
+    background: #0d1c17 center/cover no-repeat;
+    box-shadow: 0 30px 70px rgba(0, 0, 0, 0.25);
+}
+
+body.home .hero-panel img {
+    width: 100%;
+    height: 420px;
+    object-fit: cover;
+    display: block;
+}
+
+body.home .hero-note {
+    position: absolute;
+    left: 1rem;
+    bottom: 1rem;
+    max-width: 16rem;
+    padding: 0.9rem 1rem;
+    border-radius: 18px;
+    background: rgba(243, 239, 230, 0.94);
+    color: var(--ink);
+}
+
+body.home .hero-note strong {
+    display: block;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 1.2rem;
+}
+
+body.home .booking-dock {
+    display: grid;
+    grid-template-columns: 0.9fr 1.1fr;
+    gap: 1.25rem;
+    margin: -4rem 4vw 0;
+    position: relative;
+    z-index: 2;
+}
+
+body.home .booking-panel-card,
+body.home .panel {
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    box-shadow: 0 18px 50px rgba(20, 34, 28, 0.06);
+    padding: 1.4rem;
+}
+
+body.home .booking-panel-header h3,
+body.home .panel h3 {
+    font-size: 1.7rem;
+    margin-bottom: 0.35rem;
+}
+
+body.home .booking-panel-header p,
+body.home .lede {
+    color: var(--ink-soft);
+    margin-bottom: 1rem;
+}
+
+body.home .form-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+body.home .form-group-custom {
+    margin-bottom: 0.75rem;
+}
+
+body.home .form-group-custom label {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 0.78rem;
+    font-weight: 750;
+    color: var(--ink-soft);
+}
+
+body.home .form-control-custom {
+    width: 100%;
+    border: 1px solid var(--line);
+    background: #fff;
+    border-radius: 12px;
+    padding: 0.75rem 0.8rem;
+    color: var(--ink);
+}
+
+body.home .form-control-custom:focus {
+    border-color: var(--pine-2);
+    box-shadow: 0 0 0 3px rgba(36, 84, 69, 0.12);
+}
+
+body.home .pills-row {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+}
+
+body.home .pills-row .btn-style {
+    border: 1px solid var(--line);
+    background: transparent;
+    border-radius: 999px;
+    padding: 0.45rem 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+body.home .pills-row .btn-style.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+}
+
+body.home .form-check-inline-custom {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.8rem;
+    font-weight: 650;
+}
+
+body.home .btn-submit-custom,
+body.home .jmr-book-btn {
+    border: 0;
+    border-radius: 999px;
+    background: var(--copper);
+    color: #fff;
+    font-weight: 800;
+    padding: 0.8rem 1.1rem;
+    cursor: pointer;
+}
+
+body.home .section {
+    padding: 5rem 4vw;
+}
+
+body.home .section-kicker {
+    color: var(--copper);
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+body.home .section h2 {
+    font-size: clamp(2rem, 4vw, 3.4rem);
+    line-height: 1;
+    margin: 0.4rem 0 1rem;
+}
+
+body.home .service-grid,
+body.home .review-grid,
+body.home .stat-grid,
+body.home .split {
+    display: grid;
+    gap: 1rem;
+}
+
+body.home .service-grid {
+    grid-template-columns: repeat(4, 1fr);
+}
+
+body.home .review-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+body.home .service-card,
+body.home .review-grid article,
+body.home .stat-grid article {
+    background: var(--paper-2);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 1.2rem;
+}
+
+body.home .service-card h4,
+body.home .review-grid h5 {
+    font-family: Manrope, sans-serif;
+    font-size: 1.05rem;
+    margin-bottom: 0.35rem;
+}
+
+body.home .split {
+    grid-template-columns: 1.1fr 0.9fr;
+    align-items: center;
+}
+
+body.home .stat-grid {
+    grid-template-columns: 1fr 1fr;
+}
+
+body.home .stat-grid strong {
+    display: block;
+    font-family: Fraunces, Georgia, serif;
+    font-size: 2.2rem;
+}
+
+body.home .quote {
+    margin-top: 1.2rem;
+    padding-left: 1rem;
+    border-left: 3px solid var(--copper);
+}
+
+body.home .ev-card {
+    background: #e7f2ea;
+    border-radius: 24px;
+    padding: 1.5rem;
+}
+
+body.home .fleet-wrap > div {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    gap: 1rem !important;
+}
+
+body.home .fleet-wrap .booking-panel-card {
+    padding: 1rem !important;
+    background: var(--paper-2) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 20px !important;
+    box-shadow: none !important;
+}
+
+body.home .contact-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+body.home .site-footer {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 1fr;
+    gap: 2rem;
+    padding: 3rem 4vw 1.5rem;
+    background: var(--ink);
+    color: #efe8db;
+}
+
+body.home .site-footer a {
+    color: #efe8db;
+}
+
+body.home .site-footer ul {
+    display: grid;
+    gap: 0.45rem;
+}
+
+body.home .legal {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgba(239, 232, 219, 0.15);
+    padding-top: 1rem;
+    color: rgba(239, 232, 219, 0.65);
+    font-size: 0.85rem;
+}
+
+body.home .chat-widget {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    z-index: 50;
+}
+
+body.home .chat-trigger {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: var(--pine);
+    color: #fff;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 12px 30px rgba(20, 34, 28, 0.25);
+}
+
+body.home .chat-window {
+    display: none;
+    position: absolute;
+    right: 0;
+    bottom: 68px;
+    width: min(340px, calc(100vw - 2rem));
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 20px 50px rgba(20, 34, 28, 0.18);
+}
+
+body.home .chat-window.open {
+    display: block;
+}
+
+body.home .chat-header,
+body.home .chat-input-area {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.8rem;
+}
+
+body.home .chat-header {
+    background: var(--pine);
+    color: #fff;
+}
+
+body.home .chat-close,
+body.home .chat-send,
+body.home .quick-reply-btn {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+body.home .chat-messages {
+    max-height: 240px;
+    overflow: auto;
+    padding: 0.8rem;
+}
+
+body.home .chat-bubble {
+    background: #f3efe6;
+    border-radius: 14px;
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+body.home .chat-bubble.user {
+    background: #e7f2ea;
+}
+
+body.home .chat-quick-replies {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0 0.8rem 0.5rem;
+}
+
+body.home .quick-reply-btn {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.3rem 0.6rem;
+    background: #fff;
+}
+
+body.home .chat-input {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.6rem 0.8rem;
+}
+
+@media (max-width: 980px) {
+    body.home .hero,
+    body.home .booking-dock,
+    body.home .split,
+    body.home .contact-grid,
+    body.home .site-footer,
+    body.home .service-grid,
+    body.home .review-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body.home .mobile-menu-btn {
+        display: inline-flex;
+    }
+
+    body.home nav#navbar-menu {
+        display: none;
+        position: absolute;
+        top: 72px;
+        left: 4vw;
+        right: 4vw;
+        background: var(--paper-2);
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        padding: 0.6rem;
+    }
+
+    body.home nav#navbar-menu.open {
+        display: block;
+    }
+
+    body.home nav#navbar-menu ul {
+        display: grid;
+    }
+
+    body.home .form-grid-2,
+    body.home .stat-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body.home .hero {
+        padding-top: 2.5rem;
+    }
+
+    body.home .hero h2 {
+        max-width: none;
+    }
+}

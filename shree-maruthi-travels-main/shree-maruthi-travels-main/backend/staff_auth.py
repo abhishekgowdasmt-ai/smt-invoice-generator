@@ -1,6 +1,6 @@
 """Staff Google Sign-In and role allowlists."""
 import os
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit
 
 import requests
 from flask import request
@@ -22,7 +22,6 @@ _SERIALIZER = URLSafeTimedSerializer(STAFF_TOKEN, salt='smt-staff-v2')
 DEFAULT_STAFF = (
     'abhishekgowdasmt@gmail.com',
     'shreemaruthitravels5999@gmail.com',
-    'veeruashwini01@gmail.com',
     'bhaskarbhaskarreddy9005@gmail.com',
 )
 DEFAULT_OD = (
@@ -58,6 +57,36 @@ def role_for(email):
     if email in staff_emails():
         return 'staff'
     return None
+
+
+def postgres_role_for(email):
+    """Map the existing allowlist onto Revision 7. There is no admin role."""
+    role = role_for(email)
+    if role == 'od':
+        return 'owner'
+    if role == 'staff':
+        return 'staff'
+    return None
+
+
+def safe_local_path(target, fallback='/admin'):
+    """Keep a post-login redirect inside this application."""
+    if not isinstance(target, str):
+        return fallback
+    candidate = target.strip()
+    if not candidate or any(ord(ch) < 32 or ord(ch) == 127 for ch in candidate):
+        return fallback
+    if not candidate.startswith('/') or candidate.startswith('//') or candidate.startswith('/\\'):
+        return fallback
+    if '\\' in candidate or '://' in candidate:
+        return fallback
+    lowered = candidate.lower()
+    if lowered.startswith('/%2f') or lowered.startswith('/%5c'):
+        return fallback
+    parts = urlsplit(candidate)
+    if parts.scheme or parts.netloc:
+        return fallback
+    return candidate
 
 
 def issue_token(email):

@@ -1,0 +1,143 @@
+{
+  "json_driver_rows": 1577,
+  "distinct_driver_ids": 1459,
+  "reused_id_groups": 118,
+  "reused_id_rows": 236,
+  "reused_plate_difference_groups": {
+    "same_text": 93,
+    "spelling_only": 24,
+    "different_vehicle": 1
+  },
+  "reused_phone_difference_groups": {
+    "same_text": 115,
+    "different_number": 3
+  },
+  "exact_repeated_name_groups": 50,
+  "exact_repeated_name_rows": 105,
+  "punctuation_name_groups": 90,
+  "punctuation_name_rows": 224,
+  "shared_phone_groups": 246,
+  "shared_phone_rows": 612,
+  "alternate_numbers_filled": 414,
+  "shared_registration_groups": 194,
+  "shared_registration_rows": 476,
+  "spelling_variant_groups": 40,
+  "missing_rows": 56,
+  "missing_name_rows": 0,
+  "missing_phone_rows": 30,
+  "missing_vehicle_rows": 0,
+  "vehicle_not_a_registration_rows": 19,
+  "multiple_registrations_in_one_field": 0,
+  "notes_filled": 1576,
+  "home_area_filled": 0,
+  "prefix_counts": {
+    "KA": 1547,
+    "(none)": 19,
+    "KK": 2,
+    "AP": 2,
+    "K4": 1,
+    "K0": 2,
+    "A0": 1,
+    "AK": 2,
+    "05": 1
+  },
+  "bookings": 7719,
+  "assignments": 1,
+  "bookings_with_assigned_driver": 1,
+  "distinct_assigned_driver_ids": 1,
+  "source_name_bookings_whose_text_matches_a_driver_name": 7664,
+  "employee_name_bookings_whose_text_matches_a_driver_name": 618,
+  "plates_with_bengaluru_area_end_location": 709,
+  "plates_with_hyderabad_area_end_location": 0,
+  "drivers_whose_plate_has_both_area_mentions": 0,
+  "history_source_top": [
+    [
+      "NOV 2025 RSC-GOLDEN IKON 1.xlsx / MONTH OF NOV RAC XL",
+      976
+    ],
+    [
+      "JAN 2026 RAC BOOKING XL 555544.xlsx / JAN 2026 RAC BOOKING XL",
+      916
+    ],
+    [
+      "MONTH OF MAY TO AUGUST FULL DUTY XL RAC 2026.xlsx / MONTH OF JUNE",
+      907
+    ],
+    [
+      "MONTH OF FEB 2026 RAC XL 1671 NEW SMT--.xlsx / MONTH OF FEB 2026 XL",
+      844
+    ],
+    [
+      "MONTH OF JULY RAC 1671.xlsx / MONTH OF JULY 2026",
+      813
+    ],
+    [
+      "MONTH OF DECEMBER 2025 RAC.xlsx / MONTH OF DEC 2025",
+      792
+    ],
+    [
+      "APRIL RAC XL 2026 NEW-NEW 222.xlsx / APRIL XL",
+      686
+    ],
+    [
+      "MONTH OF MAY TO AUGUST FULL DUTY XL RAC 2026.xlsx / MONTH OF AUGUST 2026",
+      533
+    ]
+  ],
+  "history_source_city_words": {},
+  "historical_driver_file_keys": [
+    "active_status",
+    "alternate_number",
+    "driver_id",
+    "driver_name",
+    "home_area",
+    "notes",
+    "total_assignments",
+    "vehicle_number",
+    "vehicle_type",
+    "whatsapp_number"
+  ],
+  "historical_city_like_fields": [
+    "home_area"
+  ],
+  "sqlite_companies": [
+    {
+      "name": "Amazon Bangalore",
+      "address": "Amazon Development Centre, Mahadevapura, Bangalore"
+    },
+    {
+      "name": "TCS Whitefield",
+      "address": "TCS Vydehi RC, Whitefield, Bangalore"
+    },
+    {
+      "name": "Optum Bellandur",
+      "address": "Eco Space, Bellandur, Bangalore"
+    }
+  ],
+  "sqlite_registration_overlaps": 0,
+  "sqlite_phone_overlaps": 0,
+  "sqlite_name_overlaps": 2,
+  "postgres_registration_overlaps": 0,
+  "postgres_note": "",
+  "hashes_unchanged": true,
+  "sha256_rac": "9eef328b74b587d7ae027ed9cc15fcb0790ffa115140531d5bf2568429fe9aee",
+  "sha256_history": "4abe61e10eb8e7dad99ea542194312609bdde7834a0da5a08a98fc0caabee6a0",
+  "name_not_plain_text_rows": 22,
+  "notes_are_import_boilerplate": true,
+  "notes_values": [
+    "Imported from RAC Excel. Add WhatsApp later.",
+    "Imported from RAC Excel.",
+    ""
+  ],
+  "end_location_bookings_bengaluru_area": 2080,
+  "end_location_bookings_hyderabad_area": 0,
+  "source_name_unmatched_values": {
+    "website_upload": 11
+  },
+  "reused_pairs_booking_name_and_plate": {
+    "both_names": 38,
+    "one_name": 71,
+    "neither_name": 9
+  },
+  "sqlite_name_overlap_detail": "Harish K overlaps demo Harish K. and Manjunath V overlaps demo Manjunath V. after the period is removed. Phones do not overlap."
+}

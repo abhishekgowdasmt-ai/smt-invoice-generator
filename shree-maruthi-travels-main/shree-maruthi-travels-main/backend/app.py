@@ -27,6 +27,9 @@ except ImportError:
 
 from rac_api import rac_bp
 import staff_auth
+import dev_postgres
+
+dev_postgres.check_development_database()
 
 # Resolve template and static folder relative to this file
 site_root = os.path.abspath(os.path.join(base_dir, '..'))
@@ -82,8 +85,22 @@ def _google_redirect_uri():
     return f'{proto}://{host}/admin/google/callback'
 
 
+def accepted_staff():
+    """Staff cookie, plus a local database check when development PostgreSQL is configured."""
+    staff = staff_auth.current_staff()
+    if not staff:
+        return None
+    if dev_postgres.local_development_dsn() is None:
+        return staff
+    found = dev_postgres.resolve_login_identity(staff.get('email'))
+    expected = staff_auth.postgres_role_for(staff.get('email'))
+    if not found.get('ok') or found.get('role') != expected:
+        return None
+    return staff
+
+
 def is_staff_request():
-    return staff_auth.current_staff() is not None
+    return accepted_staff() is not None
 
 
 def require_staff_page():
@@ -102,11 +119,398 @@ def require_od_page():
 
 
 def _set_staff_cookie(resp, token):
-    resp.set_cookie(STAFF_COOKIE, token, httponly=True, samesite='Lax', secure=_cookie_secure(), max_age=60 * 60 * 12)
+    resp.set_cookie(
+        STAFF_COOKIE,
+        token,
+        path='/',
+        httponly=True,
+        samesite='Lax',
+        secure=_cookie_secure(),
+        max_age=60 * 60 * 12,
+    )
     return resp
 
 
+def _clear_staff_cookie(resp):
+    resp.delete_cookie(
+        STAFF_COOKIE,
+        path='/',
+        httponly=True,
+        samesite='Lax',
+        secure=_cookie_secure(),
+    )
+    return resp
+
+
+def _local_identity_rejected(email):
+    """Production without a local database URL keeps the existing allowlist session."""
+    if dev_postgres.local_development_dsn() is None:
+        return False
+    found = dev_postgres.resolve_login_identity(email)
+    expected = staff_auth.postgres_role_for(email)
+    if not found.get('ok') or found.get('role') != expected:
+        print(f"[WARN] Local staff identity rejected: {found.get('reason') or 'unavailable'}")
+        return True
+    return False
+
+
 app.register_blueprint(rac_bp, url_prefix='/api/v1')
+
+
+# Local development branch directory. Production without a localhost database URL returns 503.
+@app.route('/api/branches', methods=['GET'])
+def api_branches():
+    include_inactive = (request.args.get('include_inactive') or '').strip().lower() in ('1', 'true', 'yes')
+    rows = dev_postgres.list_branches(include_inactive=include_inactive)
+    if rows is None:
+        return jsonify({'success': False, 'message': 'Branch directory is not available'}), 503
+    return jsonify({'success': True, 'data': rows})
+
+
+def _company_owner(denied_message='Only an owner can manage companies'):
+    staff = accepted_staff()
+    if not staff:
+        return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
+    if dev_postgres.local_development_dsn() is None:
+        return None, (jsonify({'success': False, 'message': 'Company directory is not available'}), 503)
+    found = dev_postgres.resolve_login_identity(staff.get('email'))
+    if not found.get('ok') or found.get('role') != 'owner':
+        if found.get('role') in ('staff', 'driver', 'client'):
+            return None, (jsonify({'success': False, 'message': denied_message}), 403)
+        return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
+    return found['id'], None
+
+
+def _company_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Company directory is not available'}), 503
+    if result.get('ok'):
+        payload = {'success': True}
+        if 'companies' in result:
+            payload['data'] = result['companies']
+        elif 'clients' in result:
+            payload['data'] = result['clients']
+        elif 'client' in result:
+            payload['data'] = result['client']
+        elif 'drivers' in result:
+            payload['data'] = result['drivers']
+        elif 'vehicles' in result:
+            payload['data'] = result['vehicles']
+        else:
+            payload['data'] = result.get('company')
+        return jsonify(payload), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Company request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message if result.get('message') else 'Company not found'}), 404
+    if error == 'duplicate':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'in_use':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': 'Company request could not be completed'}), 400
+
+
+@app.route('/api/companies', methods=['GET', 'POST'])
+def api_companies():
+    user_id, denied = _company_owner()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _company_response(dev_postgres.list_companies(user_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Company details are not valid'}), 400
+    return _company_response(dev_postgres.create_company(user_id, payload), created=True)
+
+
+@app.route('/api/companies/<company_id>', methods=['GET', 'PATCH'])
+def api_company_detail(company_id):
+    user_id, denied = _company_owner()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _company_response(dev_postgres.get_company(user_id, company_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Company details are not valid'}), 400
+    return _company_response(dev_postgres.update_company(user_id, company_id, payload))
+
+
+@app.route('/api/companies/<company_id>/branches/<code>', methods=['POST', 'DELETE'])
+def api_company_branch(company_id, code):
+    user_id, denied = _company_owner()
+    if denied:
+        return denied
+    if request.method == 'POST':
+        return _company_response(dev_postgres.add_company_branch(user_id, company_id, code))
+    return _company_response(dev_postgres.remove_company_branch(user_id, company_id, code))
+
+
+@app.route('/api/clients', methods=['POST'])
+def api_clients():
+    user_id, denied = _company_owner('Only an owner can manage clients')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Client details are not valid'}), 400
+    return _company_response(dev_postgres.create_client(user_id, payload), created=True)
+
+
+@app.route('/api/companies/<company_id>/clients', methods=['GET', 'POST'])
+def api_company_clients(company_id):
+    user_id, denied = _company_owner('Only an owner can manage clients')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _company_response(dev_postgres.list_company_clients(user_id, company_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Choose a client to link'}), 400
+    return _company_response(dev_postgres.link_company_client(user_id, company_id, payload))
+
+
+@app.route('/api/companies/<company_id>/clients/<client_id>', methods=['DELETE'])
+def api_company_client_link(company_id, client_id):
+    user_id, denied = _company_owner('Only an owner can manage clients')
+    if denied:
+        return denied
+    return _company_response(dev_postgres.unlink_company_client(user_id, company_id, client_id))
+
+
+@app.route('/api/companies/<company_id>/drivers', methods=['GET', 'POST'])
+def api_company_drivers(company_id):
+    user_id, denied = _company_owner('Only an owner can link drivers to companies')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _company_response(dev_postgres.list_company_drivers(user_id, company_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Choose a driver from the directory'}), 400
+    return _company_response(
+        dev_postgres.link_company_driver(user_id, company_id, payload),
+        created=True,
+    )
+
+
+@app.route('/api/companies/<company_id>/drivers/<driver_id>', methods=['DELETE'])
+def api_company_driver_link(company_id, driver_id):
+    user_id, denied = _company_owner('Only an owner can link drivers to companies')
+    if denied:
+        return denied
+    return _company_response(dev_postgres.unlink_company_driver(user_id, company_id, driver_id))
+
+
+@app.route('/api/companies/<company_id>/vehicles', methods=['GET', 'POST'])
+def api_company_vehicles(company_id):
+    user_id, denied = _company_owner('Only an owner can link vehicles to companies')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _company_response(dev_postgres.list_company_vehicles(user_id, company_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Choose a vehicle from the directory'}), 400
+    return _company_response(
+        dev_postgres.link_company_vehicle(user_id, company_id, payload),
+        created=True,
+    )
+
+
+@app.route('/api/companies/<company_id>/vehicles/<vehicle_id>', methods=['DELETE'])
+def api_company_vehicle_link(company_id, vehicle_id):
+    user_id, denied = _company_owner('Only an owner can link vehicles to companies')
+    if denied:
+        return denied
+    return _company_response(dev_postgres.unlink_company_vehicle(user_id, company_id, vehicle_id))
+
+
+def _driver_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Driver directory is not available'}), 503
+    if result.get('ok'):
+        payload = {'success': True}
+        if 'drivers' in result:
+            payload['data'] = result['drivers']
+        else:
+            payload['data'] = result.get('driver')
+        return jsonify(payload), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Driver request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message if result.get('message') else 'Driver not found'}), 404
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': 'Driver request could not be completed'}), 400
+
+
+def _driver_filters():
+    branch = request.args.get('branch')
+    active_raw = request.args.get('active')
+    name = request.args.get('name')
+    if active_raw in (None, ''):
+        active = None
+    elif active_raw.lower() in ('1', 'true', 'yes'):
+        active = True
+    elif active_raw.lower() in ('0', 'false', 'no'):
+        active = False
+    else:
+        return None, (jsonify({'success': False, 'message': 'Active must be true or false'}), 400)
+    return {'branch_code': branch, 'active': active, 'name': name}, None
+
+
+@app.route('/api/drivers', methods=['GET', 'POST'])
+def api_drivers():
+    user_id, denied = _company_owner('Only an owner can manage drivers')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        filters, invalid = _driver_filters()
+        if invalid:
+            return invalid
+        return _driver_response(dev_postgres.list_drivers(user_id, **filters))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Driver details are not valid'}), 400
+    return _driver_response(dev_postgres.create_driver(user_id, payload), created=True)
+
+
+@app.route('/api/drivers/<driver_id>', methods=['GET', 'PATCH'])
+def api_driver_detail(driver_id):
+    user_id, denied = _company_owner('Only an owner can manage drivers')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _driver_response(dev_postgres.get_driver(user_id, driver_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Driver details are not valid'}), 400
+    return _driver_response(dev_postgres.update_driver(user_id, driver_id, payload))
+
+
+@app.route('/api/drivers/<driver_id>/reviews', methods=['POST'])
+def api_driver_review(driver_id):
+    user_id, denied = _company_owner('Only an owner can review drivers')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Review details are not valid'}), 400
+    return _driver_response(dev_postgres.review_driver(user_id, driver_id, payload))
+
+
+@app.route('/api/drivers/<driver_id>/resubmissions', methods=['POST'])
+def api_driver_resubmission(driver_id):
+    user_id, denied = _company_owner('Only an owner can resubmit drivers')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Resubmission details are not valid'}), 400
+    return _driver_response(dev_postgres.resubmit_driver(user_id, driver_id, payload))
+
+
+@app.route('/api/drivers/<driver_id>/active', methods=['POST'])
+def api_driver_active(driver_id):
+    user_id, denied = _company_owner('Only an owner can suspend or restore drivers')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Active must be true or false'}), 400
+    return _driver_response(dev_postgres.set_driver_active(user_id, driver_id, payload))
+
+
+def _vehicle_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Vehicle directory is not available'}), 503
+    if result.get('ok'):
+        payload = {'success': True}
+        if 'vehicles' in result:
+            payload['data'] = result['vehicles']
+        else:
+            payload['data'] = result.get('vehicle')
+        return jsonify(payload), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Vehicle request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message if result.get('message') else 'Vehicle not found'}), 404
+    if error == 'duplicate':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'in_use':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': 'Vehicle request could not be completed'}), 400
+
+
+def _vehicle_filters():
+    branch = request.args.get('branch')
+    status = request.args.get('status')
+    registration = request.args.get('registration')
+    if status in (None, ''):
+        status = None
+    elif status.strip().lower() not in ('active', 'inactive'):
+        return None, (jsonify({'success': False, 'message': 'Status must be active or inactive'}), 400)
+    else:
+        status = status.strip().lower()
+    return {'branch_code': branch, 'status': status, 'registration': registration}, None
+
+
+@app.route('/api/vehicles', methods=['GET', 'POST'])
+def api_vehicles():
+    user_id, denied = _company_owner('Only an owner can manage vehicles')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        filters, invalid = _vehicle_filters()
+        if invalid:
+            return invalid
+        return _vehicle_response(dev_postgres.list_vehicles(user_id, **filters))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Vehicle details are not valid'}), 400
+    return _vehicle_response(dev_postgres.create_vehicle(user_id, payload), created=True)
+
+
+@app.route('/api/vehicles/<vehicle_id>', methods=['GET', 'PATCH'])
+def api_vehicle_detail(vehicle_id):
+    user_id, denied = _company_owner('Only an owner can manage vehicles')
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _vehicle_response(dev_postgres.get_vehicle(user_id, vehicle_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Vehicle details are not valid'}), 400
+    return _vehicle_response(dev_postgres.update_vehicle(user_id, vehicle_id, payload))
+
+
+@app.route('/api/vehicles/<vehicle_id>/documents', methods=['POST'])
+def api_vehicle_documents(vehicle_id):
+    user_id, denied = _company_owner('Only an owner can manage vehicles')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Document details are not valid'}), 400
+    return _vehicle_response(dev_postgres.add_vehicle_document(user_id, vehicle_id, payload), created=True)
+
+
+@app.route('/api/vehicles/<vehicle_id>/documents/<document_id>', methods=['PATCH', 'DELETE'])
+def api_vehicle_document(vehicle_id, document_id):
+    user_id, denied = _company_owner('Only an owner can manage vehicles')
+    if denied:
+        return denied
+    if request.method == 'DELETE':
+        return _vehicle_response(dev_postgres.delete_vehicle_document(user_id, vehicle_id, document_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Document details are not valid'}), 400
+    return _vehicle_response(dev_postgres.update_vehicle_document(user_id, vehicle_id, document_id, payload))
 
 
 @app.errorhandler(Exception)
@@ -666,7 +1070,7 @@ def admin_login():
 
 @app.route('/api/admin/me', methods=['GET'])
 def admin_me():
-    staff = staff_auth.current_staff()
+    staff = accepted_staff()
     if not staff:
         payload = {'authenticated': False, 'google_login': staff_auth.google_configured()}
         if not payload['google_login'] and _is_loopback():
@@ -692,7 +1096,7 @@ def admin_local_login():
     if email not in staff_auth.staff_emails():
         return render_template('admin_forbidden.html', message='That Gmail is not on the SMT staff list.'), 403
     token = staff_auth.issue_token(email)
-    if not token:
+    if not token or _local_identity_rejected(email):
         return render_template('admin_forbidden.html', message='Could not start a local staff session.'), 403
     return _set_staff_cookie(redirect('/admin'), token)
 
@@ -705,7 +1109,7 @@ def admin_google_login():
             message='Google Sign-In is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the host.',
         ), 503
     redirect_uri = _google_redirect_uri()
-    state = staff_auth.dump_state({'next': request.args.get('next') or '/admin'})
+    state = staff_auth.dump_state({'next': staff_auth.safe_local_path(request.args.get('next'))})
     return redirect(staff_auth.google_authorize_url(redirect_uri, state))
 
 
@@ -722,7 +1126,7 @@ def admin_google_callback():
     if fail or not email:
         return redirect('/admin?login_error=google')
     token = staff_auth.issue_token(email)
-    if not token:
+    if not token or _local_identity_rejected(email):
         return redirect('/admin?login_error=not_allowed')
     dest = '/admin'
     try:
@@ -730,8 +1134,7 @@ def admin_google_callback():
         dest = payload.get('next') or dest
     except (BadSignature, SignatureExpired, TypeError, ValueError):
         pass
-    if not dest.startswith('/'):
-        dest = '/admin'
+    dest = staff_auth.safe_local_path(dest)
     resp = redirect(dest)
     return _set_staff_cookie(resp, token)
 
@@ -739,8 +1142,7 @@ def admin_google_callback():
 @app.route('/api/admin/logout', methods=['POST'])
 def admin_logout():
     resp = make_response(jsonify({"ok": True}), 200)
-    resp.delete_cookie(STAFF_COOKIE)
-    return resp
+    return _clear_staff_cookie(resp)
 
 
 @app.route('/api/inquiries', methods=['GET'])

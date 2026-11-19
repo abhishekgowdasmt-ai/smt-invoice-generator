@@ -36,8 +36,9 @@ const Navigation = () => {
   }, [])
 
   const handleLogout = () => {
-    logout()
-    window.location.href = '/admin'
+    logout().finally(() => {
+      window.location.href = '/admin'
+    })
   }
 
   const submitSearch = (event) => {

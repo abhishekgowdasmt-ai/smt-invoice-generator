@@ -8,7 +8,7 @@ from functools import wraps
 from urllib.parse import quote
 
 from flask import Blueprint, Response, jsonify, request, send_file
-from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from itsdangerous import URLSafeTimedSerializer
 import requests
 
 import rac_store
@@ -232,14 +232,7 @@ def _paginate(rows, page, limit):
 
 
 def _auth_user():
-    header = request.headers.get('Authorization') or ''
-    if header.startswith('Bearer '):
-        token = header.split(' ', 1)[1].strip()
-        if token:
-            try:
-                return TOKEN.loads(token, max_age=60 * 60 * 24 * 7)
-            except (BadSignature, SignatureExpired):
-                pass
+    """The staff cookie is the session. The dispatch bearer is not accepted."""
     try:
         import staff_auth
         staff = staff_auth.current_staff()

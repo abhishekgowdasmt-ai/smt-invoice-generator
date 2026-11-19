@@ -73,7 +73,7 @@ function revealWorkspace(me) {
     document.getElementById('admin-login-overlay').classList.add('hidden');
     document.getElementById('admin-workspace').style.display = 'flex';
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'companies', 'ev', 'tracking', 'settings', 'help'];
     switchTab(allowed.includes(hash) ? hash : 'home');
 }
 
@@ -110,7 +110,7 @@ function closeAdminNav() {
     if (workspace) workspace.classList.remove('nav-open');
 }
 
-const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev'];
+const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'companies', 'ev'];
 
 // --- TAB SWITCHER ---
 function switchTab(tabId) {
@@ -160,6 +160,10 @@ function switchTab(tabId) {
         fetchCabs();
     } else if (tabId === 'drivers') {
         fetchDrivers();
+    } else if (tabId === 'pg-drivers') {
+        fetchPgDrivers();
+    } else if (tabId === 'pg-vehicles') {
+        fetchPgVehicles();
     } else if (tabId === 'companies') {
         fetchCompanies();
     } else if (tabId === 'ev') {
@@ -172,7 +176,7 @@ function switchTab(tabId) {
 window.addEventListener('hashchange', () => {
     if (!smtToken) return;
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'companies', 'ev', 'tracking', 'settings', 'help'];
     if (!allowed.includes(hash)) return;
     const current = document.querySelector('.admin-tab-content.active');
     if (current && current.id === `tab-${hash}`) return;
@@ -885,99 +889,107 @@ async function deleteDriver(driverId) {
 }
 
 // --- COMPANIES MANAGEMENT ---
+const companyDirectory = new Map();
+
+function setCompanyStatus(message, isError) {
+    const status = document.getElementById('companies-status');
+    if (!status) return;
+    status.textContent = message || '';
+    status.style.color = isError ? '#ef4444' : 'var(--text-secondary)';
+}
+
+function renderCompanies(companies) {
+    const tbody = document.getElementById('companies-table-body');
+    companyDirectory.clear();
+    tbody.replaceChildren();
+    if (!companies.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 5;
+        cell.style.textAlign = 'center';
+        cell.style.color = 'var(--text-muted)';
+        cell.textContent = 'No companies yet. Add a company and choose Bengaluru or Hyderabad.';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        return;
+    }
+    companies.forEach((company) => {
+        companyDirectory.set(company.id, company);
+        const row = document.createElement('tr');
+        const name = document.createElement('td');
+        const strong = document.createElement('strong');
+        strong.textContent = company.name;
+        name.appendChild(strong);
+        const contact = document.createElement('td');
+        [company.contact_person, company.contact_email, company.contact_phone].forEach((part) => {
+            if (!part) return;
+            const line = document.createElement('div');
+            line.textContent = part;
+            contact.appendChild(line);
+        });
+        const address = document.createElement('td');
+        address.textContent = company.address || '';
+        const cities = document.createElement('td');
+        cities.textContent = (company.branches || []).map((branch) => branch.city || branch.code).join(', ');
+        const actions = document.createElement('td');
+        const details = document.createElement('button');
+        details.type = 'button';
+        details.className = 'status-select';
+        details.style.marginRight = '0.25rem';
+        details.textContent = 'Details';
+        details.addEventListener('click', () => showCompanyDetails(company.id));
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'status-select';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => showEditCompanyModal(company));
+        actions.append(details, edit);
+        row.append(name, contact, address, cities, actions);
+        tbody.appendChild(row);
+    });
+}
+
 async function fetchCompanies() {
     if (!smtToken) return;
     const tbody = document.getElementById('companies-table-body');
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Syncing corporate accounts...</td></tr>`;
-
+    const addButton = document.getElementById('companies-add-button');
+    const isOwner = staffSession.role === 'od';
+    if (addButton) addButton.style.display = isOwner ? '' : 'none';
+    setCompanyStatus('Loading companies...');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Loading companies...</td></tr>';
     try {
-        const res = await fetch('/api/admin/companies', {
-            headers: { 'Authorization': `Bearer ${smtToken}` }
-        });
-        const companies = await res.json();
-        
-        tbody.innerHTML = '';
-        if (companies.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">No corporate clients registered. Click 'Add Corporate Client' to start.</td></tr>`;
+        const res = await fetch('/api/companies', { credentials: 'same-origin' });
+        const body = await res.json();
+        if (res.status === 403) {
+            setCompanyStatus(body.message || 'Only an owner can manage companies.', true);
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted);">Company management is limited to owners.</td></tr>';
             return;
         }
-
-        for (const company of companies) {
-            const tr = document.createElement('tr');
-            
-            // Build cell for listing assignments
-            const tdAssignments = document.createElement('td');
-            tdAssignments.id = `company-assignments-${company.id}`;
-            tdAssignments.innerHTML = `<span style="font-size:0.8rem; color:var(--text-muted);">Syncing roster...</span>`;
-            
-            tr.innerHTML = `
-                <td><strong style="color: var(--primary); font-size: 1rem;">${company.name}</strong></td>
-                <td>
-                    <div style="font-size: 0.85rem; font-weight: 500;">👤 ${company.contact_person}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);">✉️ ${company.contact_email}</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);">📞 ${company.contact_phone}</div>
-                </td>
-                <td style="font-size: 0.82rem; color: var(--text-secondary); max-width: 250px;">${company.address || 'N/A'}</td>
-            `;
-            
-            tr.appendChild(tdAssignments);
-            
-            // Actions
-            const tdActions = document.createElement('td');
-            tdActions.innerHTML = `
-                <button class="status-select" style="margin-right: 0.25rem;" onclick="assignCabToCompany(${company.id}, '${company.name.replace(/'/g, "\\'")}')">🔗 Assign</button>
-                <button class="status-select" style="margin-right: 0.25rem;" onclick='showEditCompanyModal(${JSON.stringify(company).replace(/'/g, "\\'")})'>Edit</button>
-                <button class="status-select" style="color: #ef4444;" onclick="deleteCompany(${company.id})">Del</button>
-            `;
-            tr.appendChild(tdActions);
-            
-            tbody.appendChild(tr);
-            
-            // Load this company's assignments
-            loadCompanyAssignments(company.id);
+        if (!res.ok || !body.success) {
+            setCompanyStatus(body.message || 'Companies could not be loaded.', true);
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Companies could not be loaded.</td></tr>';
+            return;
         }
+        setCompanyStatus('');
+        renderCompanies(body.data || []);
     } catch (err) {
         console.error(err);
-        tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error syncing corporate client database.</td></tr>`;
+        setCompanyStatus('Companies could not be loaded.', true);
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Companies could not be loaded.</td></tr>';
     }
 }
 
-async function loadCompanyAssignments(companyId) {
-    if (!smtToken) return;
-    const td = document.getElementById(`company-assignments-${companyId}`);
-    if (!td) return;
+function cityChoices(selected) {
+    const chosen = new Set(selected || []);
+    return ['BLR', 'HYD'].map((code) => {
+        const label = code === 'BLR' ? 'Bengaluru' : 'Hyderabad';
+        const checked = chosen.has(code) ? 'checked' : '';
+        return `<label class="check"><input type="checkbox" class="company-city" value="${code}" ${checked}> ${label}</label>`;
+    }).join('');
+}
 
-    try {
-        const res = await fetch(`/api/admin/companies/${companyId}/assignments`, {
-            headers: { 'Authorization': `Bearer ${smtToken}` }
-        });
-        const assignments = await res.json();
-        
-        td.innerHTML = '';
-        if (assignments.length === 0) {
-            td.innerHTML = `<span style="font-size:0.8rem; color:var(--text-muted); font-style:italic;">No cabs assigned.</span>`;
-            return;
-        }
-
-        const listDiv = document.createElement('div');
-        listDiv.className = 'corporate-assign-list';
-        
-        assignments.forEach(item => {
-            const row = document.createElement('div');
-            row.className = 'corporate-assign-item';
-            row.innerHTML = `
-                <div>
-                    <strong>🚖 ${item.cab_reg}</strong> (${item.cab_model})<br>
-                    <span style="font-size: 0.72rem; color: var(--text-secondary);">👷 Driver: ${item.driver_name} (${item.driver_phone})</span>
-                </div>
-                <button class="status-select" style="color: #ef4444; font-size: 0.75rem; padding: 0.1rem 0.35rem;" onclick="deleteAssignment(${item.assignment_id}, ${companyId})">Remove</button>
-            `;
-            listDiv.appendChild(row);
-        });
-        td.appendChild(listDiv);
-    } catch (err) {
-        td.innerHTML = `<span style="font-size:0.8rem; color:#ef4444;">Sync Error</span>`;
-    }
+function selectedCities() {
+    return Array.from(document.querySelectorAll('.company-city:checked')).map((box) => box.value);
 }
 
 function showAddCompanyModal() {
@@ -985,97 +997,1426 @@ function showAddCompanyModal() {
         <form id="company-form" onsubmit="saveCompany(event)">
             <input type="hidden" id="form-company-id" value="">
             <div class="form-group-custom">
-                <label>Corporate Client Name*</label>
-                <input type="text" id="company-name" class="form-control-custom" placeholder="e.g. Amazon Bangalore" required>
+                <label>Company name*</label>
+                <input type="text" id="company-name" class="form-control-custom" required>
             </div>
             <div class="form-group-custom">
-                <label>Key Contact Person</label>
-                <input type="text" id="company-contact" class="form-control-custom" placeholder="e.g. Priya Nair">
+                <label>Contact person</label>
+                <input type="text" id="company-contact" class="form-control-custom">
             </div>
             <div class="form-grid-2">
                 <div class="form-group-custom">
-                    <label>Contact Email</label>
-                    <input type="email" id="company-email" class="form-control-custom" placeholder="e.g. priya.nair@amazon.com">
+                    <label>Contact email</label>
+                    <input type="email" id="company-email" class="form-control-custom">
                 </div>
                 <div class="form-group-custom">
-                    <label>Contact Phone</label>
-                    <input type="text" id="company-phone" class="form-control-custom" placeholder="e.g. +91 804100...">
+                    <label>Contact phone</label>
+                    <input type="text" id="company-phone" class="form-control-custom">
                 </div>
             </div>
             <div class="form-group-custom">
-                <label>Office Delivery Address</label>
-                <textarea id="company-address" class="form-control-custom" placeholder="Full office workspace location..."></textarea>
+                <label>Address</label>
+                <textarea id="company-address" class="form-control-custom"></textarea>
             </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 1.5rem;">Save Corporate Client</button>
+            <div class="form-group-custom company-cities">
+                <label>Cities*</label>
+                <div style="display: flex; gap: 1rem;">${cityChoices([])}</div>
+            </div>
+            <p id="company-form-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Save company</button>
         </form>
     `;
-    showAdminModal("Add Corporate Client", html);
+    showAdminModal('Add company', html);
 }
 
 function showEditCompanyModal(company) {
     showAddCompanyModal();
-    document.getElementById('admin-modal-title').textContent = "Modify Corporate Client";
+    document.getElementById('admin-modal-title').textContent = 'Edit company';
     document.getElementById('form-company-id').value = company.id;
-    document.getElementById('company-name').value = company.name;
+    document.getElementById('company-name').value = company.name || '';
     document.getElementById('company-contact').value = company.contact_person || '';
     document.getElementById('company-email').value = company.contact_email || '';
     document.getElementById('company-phone').value = company.contact_phone || '';
     document.getElementById('company-address').value = company.address || '';
+    const cities = document.querySelector('.company-cities');
+    if (cities) cities.remove();
 }
 
-async function saveCompany(event) {
-    event.preventDefault();
-    if (!smtToken) return;
-
-    const companyId = document.getElementById('form-company-id').value;
-    const payload = {
+function companyPayload() {
+    return {
         name: document.getElementById('company-name').value.trim(),
         contact_person: document.getElementById('company-contact').value.trim(),
         contact_email: document.getElementById('company-email').value.trim(),
         contact_phone: document.getElementById('company-phone').value.trim(),
         address: document.getElementById('company-address').value.trim()
     };
+}
 
-    const url = companyId ? `/api/admin/companies/${companyId}` : '/api/admin/companies';
-    const method = companyId ? 'PUT' : 'POST';
-
+async function saveCompany(event) {
+    event.preventDefault();
+    const error = document.getElementById('company-form-error');
+    const companyId = document.getElementById('form-company-id').value;
+    const payload = companyPayload();
+    if (!payload.name) {
+        error.textContent = 'Company name is required.';
+        return;
+    }
+    if (!companyId) {
+        payload.branch_codes = selectedCities();
+        if (!payload.branch_codes.length) {
+            error.textContent = 'Select Bengaluru or Hyderabad.';
+            return;
+        }
+    }
+    error.textContent = 'Saving...';
     try {
-        const res = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${smtToken}`
-            },
+        const res = await fetch(companyId ? `/api/companies/${companyId}` : '/api/companies', {
+            method: companyId ? 'PATCH' : 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        const result = await res.json();
-        if (res.ok) {
-            closeAdminModal();
-            fetchCompanies();
-        } else {
-            alert(result.error || "Failed to save company.");
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'The company could not be saved.';
+            return;
         }
+        closeAdminModal();
+        fetchCompanies();
     } catch (err) {
-        console.error("Save Company Error:", err);
+        console.error(err);
+        error.textContent = 'The company could not be saved.';
     }
 }
 
-async function deleteCompany(companyId) {
-    if (!confirm("Are you sure you want to remove this corporate client? All active transit assignments will be dissolved.")) return;
-    if (!smtToken) return;
-
+async function showCompanyDetails(companyId) {
+    const holder = document.createElement('div');
+    holder.innerHTML = '<p>Loading company...</p>';
+    showAdminModal('Company details', '');
+    document.getElementById('admin-modal-body').replaceChildren(holder);
     try {
-        const res = await fetch(`/api/admin/companies/${companyId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${smtToken}` }
+        const res = await fetch(`/api/companies/${companyId}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            holder.textContent = body.message || 'Company details could not be loaded.';
+            return;
+        }
+        const company = body.data;
+        companyDirectory.set(company.id, company);
+        holder.replaceChildren();
+        const title = document.createElement('h3');
+        title.textContent = company.name;
+        const contact = document.createElement('p');
+        contact.textContent = [company.contact_person, company.contact_email, company.contact_phone, company.address]
+            .filter(Boolean)
+            .join(' · ') || 'No contact details yet.';
+        const note = document.createElement('p');
+        note.id = 'company-detail-error';
+        note.style.color = '#ef4444';
+        const cities = document.createElement('div');
+        cities.style.display = 'flex';
+        cities.style.gap = '1rem';
+        ['BLR', 'HYD'].forEach((code) => {
+            const label = document.createElement('label');
+            label.className = 'check';
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.checked = (company.branches || []).some((branch) => branch.code === code);
+            box.addEventListener('change', () => setCompanyCity(company.id, code, box));
+            label.append(box, document.createTextNode(code === 'BLR' ? ' Bengaluru' : ' Hyderabad'));
+            cities.appendChild(label);
         });
-        if (res.ok) {
-            fetchCompanies();
-        } else {
-            alert("Failed to delete client company.");
+        holder.append(title, contact, cities, note, clientSection(company.id), driverSection(company.id), vehicleSection(company.id));
+        loadCompanyClients(company.id);
+        loadCompanyDrivers(company.id);
+        loadCompanyVehicles(company.id);
+    } catch (err) {
+        console.error(err);
+        holder.textContent = 'Company details could not be loaded.';
+    }
+}
+
+async function setCompanyCity(companyId, code, box) {
+    const note = document.getElementById('company-detail-error');
+    if (note) note.textContent = 'Saving city...';
+    try {
+        const res = await fetch(`/api/companies/${companyId}/branches/${code}`, {
+            method: box.checked ? 'POST' : 'DELETE',
+            credentials: 'same-origin'
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            box.checked = !box.checked;
+            if (note) note.textContent = body.message || 'The city could not be updated.';
+            return;
+        }
+        if (note) note.textContent = '';
+        companyDirectory.set(body.data.id, body.data);
+        fetchCompanies();
+        if (document.getElementById('company-driver-list')) loadCompanyDrivers(body.data.id);
+        if (document.getElementById('company-vehicle-list')) loadCompanyVehicles(body.data.id);
+    } catch (err) {
+        box.checked = !box.checked;
+        if (note) note.textContent = 'The city could not be updated.';
+    }
+}
+
+function clientSection(companyId) {
+    const section = document.createElement('section');
+    const heading = document.createElement('h4');
+    heading.textContent = 'Clients';
+    const list = document.createElement('div');
+    list.id = 'company-client-list';
+    list.textContent = 'Loading clients...';
+    const create = document.createElement('form');
+    create.addEventListener('submit', (event) => createCompanyClient(event, companyId));
+    create.innerHTML = `
+        <div class="form-group-custom"><label>Full name*</label><input id="client-name" class="form-control-custom" required></div>
+        <div class="form-group-custom"><label>Email*</label><input id="client-email" type="email" class="form-control-custom" required></div>
+        <div class="form-group-custom"><label>Phone</label><input id="client-phone" class="form-control-custom"></div>
+        <button type="submit" class="btn btn-primary">Create client</button>
+    `;
+    const link = document.createElement('form');
+    link.addEventListener('submit', (event) => linkExistingClient(event, companyId));
+    link.innerHTML = `
+        <div class="form-group-custom"><label>Existing client email</label><input id="client-link-email" type="email" class="form-control-custom" required></div>
+        <button type="submit" class="btn btn-primary">Link client</button>
+    `;
+    const error = document.createElement('p');
+    error.id = 'company-client-error';
+    error.style.color = '#ef4444';
+    section.append(heading, list, create, link, error);
+    return section;
+}
+
+function renderCompanyClients(companyId, clients) {
+    const list = document.getElementById('company-client-list');
+    if (!list) return;
+    list.replaceChildren();
+    if (!clients.length) {
+        list.textContent = 'No clients linked yet.';
+        return;
+    }
+    clients.forEach((client) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.justifyContent = 'space-between';
+        row.style.gap = '0.75rem';
+        row.style.marginBottom = '0.4rem';
+        const label = document.createElement('span');
+        label.textContent = [client.full_name, client.email, client.phone].filter(Boolean).join(' · ');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'status-select';
+        button.textContent = 'Remove link';
+        button.addEventListener('click', () => removeCompanyClient(companyId, client.id));
+        row.append(label, button);
+        list.appendChild(row);
+    });
+}
+
+async function loadCompanyClients(companyId) {
+    const list = document.getElementById('company-client-list');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/clients`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            if (list) list.textContent = body.message || 'Clients could not be loaded.';
+            return;
+        }
+        renderCompanyClients(companyId, body.data || []);
+    } catch (err) {
+        console.error(err);
+        if (list) list.textContent = 'Clients could not be loaded.';
+    }
+}
+
+function setClientError(message) {
+    const error = document.getElementById('company-client-error');
+    if (error) error.textContent = message || '';
+}
+
+async function createCompanyClient(event, companyId) {
+    event.preventDefault();
+    setClientError('Saving client...');
+    try {
+        const created = await fetch('/api/clients', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                full_name: document.getElementById('client-name').value.trim(),
+                email: document.getElementById('client-email').value.trim(),
+                phone: document.getElementById('client-phone').value.trim()
+            })
+        });
+        const createdBody = await created.json();
+        if (!created.ok || !createdBody.success) {
+            setClientError(createdBody.message || 'The client could not be created.');
+            return;
+        }
+        const linked = await fetch(`/api/companies/${companyId}/clients`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: createdBody.data.id })
+        });
+        const linkedBody = await linked.json();
+        if (!linked.ok || !linkedBody.success) {
+            setClientError(linkedBody.message || 'The client was created but could not be linked.');
+            return;
+        }
+        event.target.reset();
+        setClientError('');
+        loadCompanyClients(companyId);
+    } catch (err) {
+        console.error(err);
+        setClientError('The client could not be created.');
+    }
+}
+
+async function linkExistingClient(event, companyId) {
+    event.preventDefault();
+    setClientError('Linking client...');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/clients`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: document.getElementById('client-link-email').value.trim() })
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setClientError(body.message || 'The client could not be linked.');
+            return;
+        }
+        event.target.reset();
+        setClientError('');
+        loadCompanyClients(companyId);
+    } catch (err) {
+        console.error(err);
+        setClientError('The client could not be linked.');
+    }
+}
+
+async function removeCompanyClient(companyId, clientId) {
+    setClientError('Removing link...');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/clients/${clientId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setClientError(body.message || 'The link could not be removed.');
+            return;
+        }
+        setClientError('');
+        loadCompanyClients(companyId);
+    } catch (err) {
+        console.error(err);
+        setClientError('The link could not be removed.');
+    }
+}
+
+function driverSection(companyId) {
+    const section = document.createElement('section');
+    const heading = document.createElement('h4');
+    heading.textContent = 'Drivers';
+    const list = document.createElement('div');
+    list.id = 'company-driver-list';
+    list.textContent = 'Loading drivers...';
+    const form = document.createElement('form');
+    form.addEventListener('submit', (event) => linkCompanyDriver(event, companyId));
+    const field = document.createElement('div');
+    field.className = 'form-group-custom';
+    const label = document.createElement('label');
+    label.textContent = 'Link an existing driver';
+    const choice = document.createElement('select');
+    choice.id = 'company-driver-choice';
+    choice.className = 'form-control-custom';
+    const error = document.createElement('p');
+    error.id = 'company-driver-error';
+    error.style.color = '#ef4444';
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.className = 'btn btn-primary';
+    button.textContent = 'Link driver';
+    field.append(label, choice);
+    form.append(field, error, button);
+    section.append(heading, list, form);
+    return section;
+}
+
+function setCompanyDriverError(message) {
+    const error = document.getElementById('company-driver-error');
+    if (error) error.textContent = message || '';
+}
+
+function companySharesDriverCity(company, driver) {
+    const cities = new Set((company.branches || []).map((branch) => branch.code));
+    return (driver.branches || []).some((branch) => cities.has(branch.code));
+}
+
+async function loadCompanyDrivers(companyId) {
+    const list = document.getElementById('company-driver-list');
+    const choice = document.getElementById('company-driver-choice');
+    const company = companyDirectory.get(companyId);
+    if (!list || !choice || !company) return;
+    list.textContent = 'Loading drivers...';
+    try {
+        const [linkedRes, directoryRes] = await Promise.all([
+            fetch(`/api/companies/${companyId}/drivers`, { credentials: 'same-origin' }),
+            fetch('/api/drivers?active=true', { credentials: 'same-origin' })
+        ]);
+        const linkedBody = await linkedRes.json();
+        const directoryBody = await directoryRes.json();
+        if (!linkedRes.ok || !linkedBody.success) {
+            list.textContent = linkedBody.message || 'Drivers could not be loaded.';
+            return;
+        }
+        renderCompanyDrivers(companyId, linkedBody.data || []);
+        choice.replaceChildren();
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Choose a driver';
+        choice.appendChild(placeholder);
+        const linkedIds = new Set((linkedBody.data || []).map((driver) => driver.id));
+        const eligible = (directoryBody.data || []).filter((driver) => (
+            driver.active && !linkedIds.has(driver.id) && companySharesDriverCity(company, driver)
+        ));
+        eligible.forEach((driver) => {
+            const option = document.createElement('option');
+            option.value = driver.id;
+            const city = driver.primary_branch ? (driver.primary_branch.city || driver.primary_branch.code) : '';
+            option.textContent = city ? `${driver.display_name} · ${city}` : driver.display_name;
+            choice.appendChild(option);
+        });
+        if (!eligible.length) {
+            const empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = 'No active drivers share a city with this company';
+            choice.appendChild(empty);
         }
     } catch (err) {
-        console.error("Delete Company Error:", err);
+        console.error(err);
+        list.textContent = 'Drivers could not be loaded.';
+    }
+}
+
+function renderCompanyDrivers(companyId, drivers) {
+    const list = document.getElementById('company-driver-list');
+    list.replaceChildren();
+    if (!drivers.length) {
+        list.textContent = 'No drivers linked to this company.';
+        return;
+    }
+    drivers.forEach((driver) => {
+        const row = document.createElement('p');
+        const city = driver.primary_branch ? (driver.primary_branch.city || driver.primary_branch.code) : '';
+        row.textContent = [
+            driver.display_name,
+            driver.phone,
+            city,
+            driver.active ? 'Active' : 'Inactive'
+        ].filter(Boolean).join(' · ');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'status-select';
+        remove.style.marginLeft = '0.5rem';
+        remove.textContent = 'Remove link';
+        remove.addEventListener('click', () => unlinkCompanyDriver(companyId, driver.id, driver.display_name));
+        row.appendChild(remove);
+        list.appendChild(row);
+    });
+}
+
+async function linkCompanyDriver(event, companyId) {
+    event.preventDefault();
+    const choice = document.getElementById('company-driver-choice');
+    if (!choice.value) {
+        setCompanyDriverError('Choose a driver from the directory.');
+        return;
+    }
+    setCompanyDriverError('Linking driver...');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/drivers`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ driver_id: choice.value })
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setCompanyDriverError(body.message || 'The driver could not be linked.');
+            return;
+        }
+        setCompanyDriverError('');
+        loadCompanyDrivers(companyId);
+        fetchCompanies();
+    } catch (err) {
+        console.error(err);
+        setCompanyDriverError('The driver could not be linked.');
+    }
+}
+
+async function unlinkCompanyDriver(companyId, driverId, driverName) {
+    const label = driverName || 'this driver';
+    if (!window.confirm(`Remove ${label} from this company? The driver and the company both stay in their directories.`)) return;
+    setCompanyDriverError('Removing link...');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/drivers/${driverId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setCompanyDriverError(body.message || 'The link could not be removed.');
+            return;
+        }
+        setCompanyDriverError('');
+        loadCompanyDrivers(companyId);
+        fetchCompanies();
+    } catch (err) {
+        console.error(err);
+        setCompanyDriverError('The link could not be removed.');
+    }
+}
+
+function vehicleSection(companyId) {
+    const section = document.createElement('section');
+    const heading = document.createElement('h4');
+    heading.textContent = 'Vehicles';
+    const list = document.createElement('div');
+    list.id = 'company-vehicle-list';
+    list.textContent = 'Loading vehicles...';
+    const form = document.createElement('form');
+    form.addEventListener('submit', (event) => linkCompanyVehicle(event, companyId));
+    const field = document.createElement('div');
+    field.className = 'form-group-custom';
+    const label = document.createElement('label');
+    label.textContent = 'Link an existing vehicle';
+    const choice = document.createElement('select');
+    choice.id = 'company-vehicle-choice';
+    choice.className = 'form-control-custom';
+    const error = document.createElement('p');
+    error.id = 'company-vehicle-error';
+    error.style.color = '#ef4444';
+    const button = document.createElement('button');
+    button.type = 'submit';
+    button.className = 'btn btn-primary';
+    button.textContent = 'Link vehicle';
+    field.append(label, choice);
+    form.append(field, error, button);
+    section.append(heading, list, form);
+    return section;
+}
+
+function setCompanyVehicleError(message) {
+    const error = document.getElementById('company-vehicle-error');
+    if (error) error.textContent = message || '';
+}
+
+async function loadCompanyVehicles(companyId) {
+    const list = document.getElementById('company-vehicle-list');
+    const choice = document.getElementById('company-vehicle-choice');
+    const company = companyDirectory.get(companyId);
+    if (!list || !choice || !company) return;
+    list.textContent = 'Loading vehicles...';
+    try {
+        const [linkedRes, directoryRes] = await Promise.all([
+            fetch(`/api/companies/${companyId}/vehicles`, { credentials: 'same-origin' }),
+            fetch('/api/vehicles?status=active', { credentials: 'same-origin' })
+        ]);
+        const linkedBody = await linkedRes.json();
+        const directoryBody = await directoryRes.json();
+        if (!linkedRes.ok || !linkedBody.success) {
+            list.textContent = linkedBody.message || 'Vehicles could not be loaded.';
+            return;
+        }
+        renderCompanyVehicles(companyId, linkedBody.data || []);
+        choice.replaceChildren();
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Choose a vehicle';
+        choice.appendChild(placeholder);
+        const cities = new Set((company.branches || []).map((branch) => branch.code));
+        const linkedIds = new Set((linkedBody.data || []).map((vehicle) => vehicle.id));
+        const eligible = (directoryBody.data || []).filter((vehicle) => (
+            vehicle.status === 'active'
+            && vehicle.branch
+            && cities.has(vehicle.branch.code)
+            && !linkedIds.has(vehicle.id)
+        ));
+        eligible.forEach((vehicle) => {
+            const option = document.createElement('option');
+            option.value = vehicle.id;
+            const city = vehicle.branch ? (vehicle.branch.city || vehicle.branch.code) : '';
+            option.textContent = city ? `${vehicle.registration_number} · ${city}` : vehicle.registration_number;
+            choice.appendChild(option);
+        });
+        if (!eligible.length) {
+            const empty = document.createElement('option');
+            empty.value = '';
+            empty.textContent = 'No active vehicles are garaged in this company\'s cities';
+            choice.appendChild(empty);
+        }
+    } catch (err) {
+        console.error(err);
+        list.textContent = 'Vehicles could not be loaded.';
+    }
+}
+
+function renderCompanyVehicles(companyId, vehicles) {
+    const list = document.getElementById('company-vehicle-list');
+    list.replaceChildren();
+    if (!vehicles.length) {
+        list.textContent = 'No vehicles linked to this company.';
+        return;
+    }
+    vehicles.forEach((vehicle) => {
+        const row = document.createElement('p');
+        const city = vehicle.branch ? (vehicle.branch.city || vehicle.branch.code) : '';
+        row.textContent = [
+            vehicle.registration_number,
+            vehicle.model,
+            city,
+            vehicle.status === 'active' ? 'Active' : 'Inactive'
+        ].filter(Boolean).join(' · ');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'status-select';
+        remove.style.marginLeft = '0.5rem';
+        remove.textContent = 'Remove link';
+        remove.addEventListener('click', () => unlinkCompanyVehicle(companyId, vehicle.id, vehicle.registration_number));
+        row.appendChild(remove);
+        list.appendChild(row);
+    });
+}
+
+async function linkCompanyVehicle(event, companyId) {
+    event.preventDefault();
+    const choice = document.getElementById('company-vehicle-choice');
+    if (!choice.value) {
+        setCompanyVehicleError('Choose a vehicle from the directory.');
+        return;
+    }
+    setCompanyVehicleError('Linking vehicle...');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/vehicles`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicle_id: choice.value })
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setCompanyVehicleError(body.message || 'The vehicle could not be linked.');
+            return;
+        }
+        setCompanyVehicleError('');
+        loadCompanyVehicles(companyId);
+        fetchCompanies();
+    } catch (err) {
+        console.error(err);
+        setCompanyVehicleError('The vehicle could not be linked.');
+    }
+}
+
+async function unlinkCompanyVehicle(companyId, vehicleId, registration) {
+    const label = registration || 'this vehicle';
+    if (!window.confirm(`Remove ${label} from this company? The vehicle and the company both stay in their directories.`)) return;
+    setCompanyVehicleError('Removing link...');
+    try {
+        const res = await fetch(`/api/companies/${companyId}/vehicles/${vehicleId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setCompanyVehicleError(body.message || 'The link could not be removed.');
+            return;
+        }
+        setCompanyVehicleError('');
+        loadCompanyVehicles(companyId);
+        fetchCompanies();
+    } catch (err) {
+        console.error(err);
+        setCompanyVehicleError('The link could not be removed.');
+    }
+}
+
+
+// --- POSTGRESQL DRIVER DIRECTORY ---
+function setPgDriverStatus(message, isError) {
+    const status = document.getElementById('pg-drivers-status');
+    if (!status) return;
+    status.textContent = message || '';
+    status.style.color = isError ? '#ef4444' : 'var(--text-secondary)';
+}
+
+function pgDriverBranchLabel(driver) {
+    const branch = driver.primary_branch;
+    if (!branch) return '';
+    return branch.city || branch.name || branch.code || '';
+}
+
+function pgVerificationLabel(status) {
+    if (status === 'verified') return 'Verified';
+    if (status === 'rejected') return 'Rejected';
+    return 'Unverified';
+}
+
+function pgDriverActionButton(label, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'status-select';
+    button.style.marginRight = '0.25rem';
+    button.textContent = label;
+    button.addEventListener('click', onClick);
+    return button;
+}
+
+function renderPgDrivers(drivers) {
+    const tbody = document.getElementById('pg-drivers-table-body');
+    tbody.replaceChildren();
+    if (!drivers.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 7;
+        cell.style.textAlign = 'center';
+        cell.style.color = 'var(--text-muted)';
+        cell.textContent = 'No drivers in this directory yet.';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        return;
+    }
+    drivers.forEach((driver) => {
+        const row = document.createElement('tr');
+        const name = document.createElement('td');
+        name.textContent = driver.display_name || '';
+        const phone = document.createElement('td');
+        phone.textContent = driver.phone || '';
+        const licence = document.createElement('td');
+        licence.textContent = driver.license_number || '';
+        const branch = document.createElement('td');
+        branch.textContent = pgDriverBranchLabel(driver);
+        const verification = document.createElement('td');
+        verification.textContent = pgVerificationLabel(driver.verification_status);
+        const active = document.createElement('td');
+        active.textContent = driver.active ? 'Active' : 'Inactive';
+        const actions = document.createElement('td');
+        actions.append(
+            pgDriverActionButton('Details', () => showPgDriverDetails(driver.id)),
+            pgDriverActionButton('Edit', () => showEditPgDriverModal(driver))
+        );
+        if (driver.verification_status === 'unverified') {
+            actions.append(
+                pgDriverActionButton('Approve', () => reviewPgDriver(driver, 'verified')),
+                pgDriverActionButton('Reject', () => reviewPgDriver(driver, 'rejected'))
+            );
+        } else if (driver.verification_status === 'rejected') {
+            actions.append(pgDriverActionButton('Resubmit', () => resubmitPgDriver(driver)));
+        } else if (driver.verification_status === 'verified') {
+            actions.append(pgDriverActionButton(
+                driver.active ? 'Suspend' : 'Restore',
+                () => changePgDriverActive(driver, !driver.active)
+            ));
+        }
+        row.append(name, phone, licence, branch, verification, active, actions);
+        tbody.appendChild(row);
+    });
+}
+
+async function fetchPgDrivers() {
+    if (!smtToken) return;
+    const tbody = document.getElementById('pg-drivers-table-body');
+    const addButton = document.getElementById('pg-drivers-add-button');
+    const isOwner = staffSession.role === 'od';
+    if (addButton) addButton.style.display = isOwner ? '' : 'none';
+    setPgDriverStatus('Loading drivers...');
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Loading drivers...</td></tr>';
+    const params = new URLSearchParams();
+    const name = document.getElementById('pg-driver-search').value.trim();
+    const branch = document.getElementById('pg-driver-branch').value;
+    const active = document.getElementById('pg-driver-active').value;
+    if (name) params.set('name', name);
+    if (branch) params.set('branch', branch);
+    if (active) params.set('active', active);
+    const query = params.toString();
+    try {
+        const res = await fetch(`/api/drivers${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (res.status === 403) {
+            setPgDriverStatus(body.message || 'Only an owner can manage drivers.', true);
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Driver management is limited to owners.</td></tr>';
+            return;
+        }
+        if (!res.ok || !body.success) {
+            setPgDriverStatus(body.message || 'Drivers could not be loaded.', true);
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #ef4444;">Drivers could not be loaded.</td></tr>';
+            return;
+        }
+        setPgDriverStatus('');
+        renderPgDrivers(body.data || []);
+    } catch (err) {
+        console.error(err);
+        setPgDriverStatus('Drivers could not be loaded.', true);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #ef4444;">Drivers could not be loaded.</td></tr>';
+    }
+}
+
+function showAddPgDriverModal() {
+    const html = `
+        <form id="pg-driver-form" onsubmit="savePgDriver(event)">
+            <input type="hidden" id="pg-driver-id" value="">
+            <div class="form-group-custom">
+                <label>Driver name*</label>
+                <input type="text" id="pg-driver-name" class="form-control-custom" required>
+            </div>
+            <div class="form-group-custom">
+                <label>Phone number</label>
+                <input type="text" id="pg-driver-phone" class="form-control-custom">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Licence number</label>
+                    <input type="text" id="pg-driver-licence" class="form-control-custom">
+                </div>
+                <div class="form-group-custom">
+                    <label>Licence expiry</label>
+                    <input type="date" id="pg-driver-expiry" class="form-control-custom">
+                </div>
+            </div>
+            <div class="form-group-custom" id="pg-driver-branch-field">
+                <label>Primary branch*</label>
+                <select id="pg-driver-city" class="form-control-custom" required>
+                    <option value="">Choose a city</option>
+                    <option value="BLR">Bengaluru</option>
+                    <option value="HYD">Hyderabad</option>
+                </select>
+            </div>
+            <p id="pg-driver-form-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Save driver</button>
+        </form>
+    `;
+    showAdminModal('Add PostgreSQL driver', html);
+}
+
+function showEditPgDriverModal(driver) {
+    showAddPgDriverModal();
+    document.getElementById('admin-modal-title').textContent = 'Edit PostgreSQL driver';
+    document.getElementById('pg-driver-id').value = driver.id;
+    document.getElementById('pg-driver-name').value = driver.display_name || '';
+    document.getElementById('pg-driver-phone').value = driver.phone || '';
+    document.getElementById('pg-driver-licence').value = driver.license_number || '';
+    document.getElementById('pg-driver-expiry').value = driver.license_expiry || '';
+    const branchField = document.getElementById('pg-driver-branch-field');
+    branchField.replaceChildren();
+    const note = document.createElement('p');
+    note.style.color = 'var(--text-secondary)';
+    note.textContent = `Primary branch stays ${pgDriverBranchLabel(driver) || 'as assigned'}. Branch changes are not available here.`;
+    branchField.appendChild(note);
+}
+
+async function savePgDriver(event) {
+    event.preventDefault();
+    const error = document.getElementById('pg-driver-form-error');
+    const driverId = document.getElementById('pg-driver-id').value;
+    const payload = {
+        display_name: document.getElementById('pg-driver-name').value.trim(),
+        phone: document.getElementById('pg-driver-phone').value.trim(),
+        license_number: document.getElementById('pg-driver-licence').value.trim(),
+        license_expiry: document.getElementById('pg-driver-expiry').value
+    };
+    if (!driverId) {
+        payload.primary_branch_code = document.getElementById('pg-driver-city').value;
+    }
+    error.textContent = 'Saving driver...';
+    try {
+        const res = await fetch(driverId ? `/api/drivers/${driverId}` : '/api/drivers', {
+            method: driverId ? 'PATCH' : 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'The driver could not be saved.';
+            return;
+        }
+        closeAdminModal();
+        fetchPgDrivers();
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'The driver could not be saved.';
+    }
+}
+
+async function showPgDriverDetails(driverId) {
+    showAdminModal('PostgreSQL driver', '<p>Loading driver...</p>');
+    try {
+        const res = await fetch(`/api/drivers/${driverId}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        const holder = document.createElement('div');
+        if (!res.ok || !body.success) {
+            holder.textContent = body.message || 'The driver could not be loaded.';
+            document.getElementById('admin-modal-body').replaceChildren(holder);
+            return;
+        }
+        const driver = body.data;
+        const title = document.createElement('h3');
+        title.textContent = driver.display_name || '';
+        const lines = document.createElement('p');
+        lines.textContent = [
+            driver.phone,
+            driver.license_number,
+            driver.license_expiry ? `Licence expires ${driver.license_expiry}` : '',
+            pgVerificationLabel(driver.verification_status),
+            driver.active ? 'Active' : 'Inactive'
+        ].filter(Boolean).join(' · ');
+        const primary = document.createElement('p');
+        primary.textContent = `Primary branch: ${pgDriverBranchLabel(driver) || 'Not recorded'}`;
+        const extra = document.createElement('p');
+        const others = (driver.branches || []).filter((branch) => !branch.primary);
+        extra.textContent = others.length
+            ? `Additional branches: ${others.map((branch) => branch.city || branch.code).join(', ')}`
+            : 'Additional branches: none';
+        const reviews = document.createElement('div');
+        const reviewTitle = document.createElement('h4');
+        reviewTitle.textContent = 'Verification history';
+        reviews.appendChild(reviewTitle);
+        const reviewItems = driver.verification_events || [];
+        if (!reviewItems.length) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No verification history yet.';
+            reviews.appendChild(empty);
+        } else {
+            reviewItems.forEach((event) => {
+                const item = document.createElement('p');
+                item.textContent = `${event.event_name}: ${event.reason} (${event.from_status} to ${event.to_status})`;
+                reviews.appendChild(item);
+            });
+        }
+        const changes = document.createElement('div');
+        const changeTitle = document.createElement('h4');
+        changeTitle.textContent = 'Suspension history';
+        changes.appendChild(changeTitle);
+        const changeItems = driver.active_changes || [];
+        if (!changeItems.length) {
+            const empty = document.createElement('p');
+            empty.textContent = 'No suspension or restoration yet.';
+            changes.appendChild(empty);
+        } else {
+            changeItems.forEach((change) => {
+                const item = document.createElement('p');
+                const before = change.active_before ? 'active' : 'inactive';
+                const after = change.active_after ? 'active' : 'inactive';
+                item.textContent = `${before} to ${after}: ${change.reason}`;
+                changes.appendChild(item);
+            });
+        }
+        holder.append(title, lines, primary, extra, reviews, changes);
+        document.getElementById('admin-modal-title').textContent = 'PostgreSQL driver';
+        document.getElementById('admin-modal-body').replaceChildren(holder);
+    } catch (err) {
+        console.error(err);
+        document.getElementById('admin-modal-body').textContent = 'The driver could not be loaded.';
+    }
+}
+
+async function postPgDriverAction(path, payload, pending) {
+    setPgDriverStatus(pending);
+    try {
+        const res = await fetch(path, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setPgDriverStatus(body.message || 'The driver could not be updated.', true);
+            return;
+        }
+        setPgDriverStatus('');
+        fetchPgDrivers();
+    } catch (err) {
+        console.error(err);
+        setPgDriverStatus('The driver could not be updated.', true);
+    }
+}
+
+async function reviewPgDriver(driver, decision) {
+    const verb = decision === 'verified' ? 'Approve' : 'Reject';
+    const reason = window.prompt(`${verb} ${driver.display_name || 'this driver'}. Enter the reason.`);
+    if (reason === null) return;
+    if (!reason.trim()) {
+        setPgDriverStatus('A review reason is required.', true);
+        return;
+    }
+    await postPgDriverAction(
+        `/api/drivers/${driver.id}/reviews`,
+        { decision, reason: reason.trim() },
+        `${verb} driver...`
+    );
+}
+
+async function resubmitPgDriver(driver) {
+    const reason = window.prompt(`Resubmit ${driver.display_name || 'this driver'}. Enter the reason.`);
+    if (reason === null) return;
+    if (!reason.trim()) {
+        setPgDriverStatus('A resubmission reason is required.', true);
+        return;
+    }
+    await postPgDriverAction(
+        `/api/drivers/${driver.id}/resubmissions`,
+        { reason: reason.trim() },
+        'Resubmit driver...'
+    );
+}
+
+async function changePgDriverActive(driver, next) {
+    const verb = next ? 'Restore' : 'Suspend';
+    const reason = window.prompt(`${verb} ${driver.display_name || 'this driver'}. Enter the reason.`);
+    if (reason === null) return;
+    if (!reason.trim()) {
+        setPgDriverStatus('A reason is required to suspend or restore a driver.', true);
+        return;
+    }
+    await postPgDriverAction(
+        `/api/drivers/${driver.id}/active`,
+        { active: next, reason: reason.trim() },
+        `${verb} driver...`
+    );
+}
+
+// --- POSTGRESQL VEHICLE DIRECTORY ---
+function setPgVehicleStatus(message, isError) {
+    const status = document.getElementById('pg-vehicles-status');
+    if (!status) return;
+    status.textContent = message || '';
+    status.style.color = isError ? '#ef4444' : 'var(--text-secondary)';
+}
+
+function pgVehicleBranchLabel(vehicle) {
+    const branch = vehicle.branch;
+    if (!branch) return '';
+    return branch.city || branch.name || branch.code || '';
+}
+
+function pgVehicleFuelLabel(vehicle) {
+    const fuel = vehicle.fuel_type || '';
+    if (vehicle.is_ev && fuel.toLowerCase().indexOf('electric') === -1) {
+        return fuel ? fuel + ' · Electric' : 'Electric';
+    }
+    return fuel;
+}
+
+function renderPgVehicles(vehicles) {
+    const tbody = document.getElementById('pg-vehicles-table-body');
+    tbody.replaceChildren();
+    if (!vehicles.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 8;
+        cell.style.textAlign = 'center';
+        cell.style.color = 'var(--text-muted)';
+        cell.textContent = 'No vehicles in this directory yet.';
+        row.appendChild(cell);
+        tbody.appendChild(row);
+        return;
+    }
+    vehicles.forEach((vehicle) => {
+        const row = document.createElement('tr');
+        const registration = document.createElement('td');
+        registration.textContent = vehicle.registration_number || '';
+        const model = document.createElement('td');
+        model.textContent = vehicle.model || '';
+        const fuel = document.createElement('td');
+        fuel.textContent = pgVehicleFuelLabel(vehicle);
+        const branch = document.createElement('td');
+        branch.textContent = pgVehicleBranchLabel(vehicle);
+        const driver = document.createElement('td');
+        driver.textContent = vehicle.usual_driver ? vehicle.usual_driver.display_name : '';
+        const status = document.createElement('td');
+        status.textContent = vehicle.status === 'active' ? 'Active' : 'Inactive';
+        const documents = document.createElement('td');
+        documents.textContent = String(vehicle.document_count || 0);
+        const actions = document.createElement('td');
+        const details = document.createElement('button');
+        details.type = 'button';
+        details.className = 'status-select';
+        details.style.marginRight = '0.25rem';
+        details.textContent = 'Details';
+        details.addEventListener('click', () => showPgVehicleDetails(vehicle.id));
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'status-select';
+        edit.style.marginRight = '0.25rem';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => showEditPgVehicleModal(vehicle));
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'status-select';
+        toggle.textContent = vehicle.status === 'active' ? 'Deactivate' : 'Activate';
+        toggle.addEventListener('click', () => togglePgVehicle(vehicle));
+        actions.append(details, edit, toggle);
+        row.append(registration, model, fuel, branch, driver, status, documents, actions);
+        tbody.appendChild(row);
+    });
+}
+
+async function fetchPgVehicles() {
+    if (!smtToken) return;
+    const tbody = document.getElementById('pg-vehicles-table-body');
+    const addButton = document.getElementById('pg-vehicles-add-button');
+    const isOwner = staffSession.role === 'od';
+    if (addButton) addButton.style.display = isOwner ? '' : 'none';
+    setPgVehicleStatus('Loading vehicles...');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading vehicles...</td></tr>';
+    const params = new URLSearchParams();
+    const registration = document.getElementById('pg-vehicle-search').value.trim();
+    const branch = document.getElementById('pg-vehicle-branch').value;
+    const status = document.getElementById('pg-vehicle-status').value;
+    if (registration) params.set('registration', registration);
+    if (branch) params.set('branch', branch);
+    if (status) params.set('status', status);
+    const query = params.toString();
+    try {
+        const res = await fetch(`/api/vehicles${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (res.status === 403) {
+            setPgVehicleStatus(body.message || 'Only an owner can manage vehicles.', true);
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Vehicle management is limited to owners.</td></tr>';
+            return;
+        }
+        if (!res.ok || !body.success) {
+            setPgVehicleStatus(body.message || 'Vehicles could not be loaded.', true);
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Vehicles could not be loaded.</td></tr>';
+            return;
+        }
+        setPgVehicleStatus('');
+        renderPgVehicles(body.data || []);
+    } catch (err) {
+        console.error(err);
+        setPgVehicleStatus('Vehicles could not be loaded.', true);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Vehicles could not be loaded.</td></tr>';
+    }
+}
+
+function pgVehicleFormHtml() {
+    return `
+        <form id="pg-vehicle-form" onsubmit="savePgVehicle(event)">
+            <input type="hidden" id="pg-vehicle-id" value="">
+            <div class="form-group-custom">
+                <label>Registration number*</label>
+                <input type="text" id="pg-vehicle-registration" class="form-control-custom" required>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Make / model</label>
+                    <input type="text" id="pg-vehicle-model" class="form-control-custom">
+                </div>
+                <div class="form-group-custom">
+                    <label>Capacity</label>
+                    <input type="number" id="pg-vehicle-capacity" class="form-control-custom" min="1" max="80">
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Fuel</label>
+                    <input type="text" id="pg-vehicle-fuel" class="form-control-custom">
+                </div>
+                <div class="form-group-custom">
+                    <label>Electric</label>
+                    <input type="checkbox" id="pg-vehicle-ev">
+                </div>
+            </div>
+            <div class="form-group-custom">
+                <label>Branch*</label>
+                <select id="pg-vehicle-city" class="form-control-custom" required>
+                    <option value="">Choose a city</option>
+                    <option value="BLR">Bengaluru</option>
+                    <option value="HYD">Hyderabad</option>
+                </select>
+            </div>
+            <div class="form-group-custom">
+                <label>Usual driver</label>
+                <select id="pg-vehicle-driver" class="form-control-custom">
+                    <option value="">No usual driver</option>
+                </select>
+            </div>
+            <p id="pg-vehicle-form-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Save vehicle</button>
+        </form>
+    `;
+}
+
+async function fillPgVehicleDrivers(selectedId, selectedName) {
+    const select = document.getElementById('pg-vehicle-driver');
+    if (!select) return;
+    try {
+        const res = await fetch('/api/drivers', { credentials: 'same-origin' });
+        const body = await res.json();
+        select.replaceChildren();
+        const none = document.createElement('option');
+        none.value = '';
+        none.textContent = 'No usual driver';
+        select.appendChild(none);
+        (body.data || []).forEach((driver) => {
+            const option = document.createElement('option');
+            option.value = driver.id;
+            option.textContent = driver.display_name + (driver.active ? '' : ' (inactive)');
+            select.appendChild(option);
+        });
+        if (selectedId && !select.querySelector(`option[value="${selectedId}"]`)) {
+            const current = document.createElement('option');
+            current.value = selectedId;
+            current.textContent = selectedName || 'Current driver';
+            select.appendChild(current);
+        }
+        select.value = selectedId || '';
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function showAddPgVehicleModal() {
+    showAdminModal('Add PostgreSQL vehicle', pgVehicleFormHtml());
+    fillPgVehicleDrivers('', '');
+}
+
+function showEditPgVehicleModal(vehicle) {
+    showAdminModal('Edit PostgreSQL vehicle', pgVehicleFormHtml());
+    document.getElementById('pg-vehicle-id').value = vehicle.id;
+    document.getElementById('pg-vehicle-registration').value = vehicle.registration_number || '';
+    document.getElementById('pg-vehicle-model').value = vehicle.model || '';
+    document.getElementById('pg-vehicle-capacity').value = vehicle.capacity == null ? '' : vehicle.capacity;
+    document.getElementById('pg-vehicle-fuel').value = vehicle.fuel_type || '';
+    document.getElementById('pg-vehicle-ev').checked = !!vehicle.is_ev;
+    document.getElementById('pg-vehicle-city').value = vehicle.branch ? vehicle.branch.code : '';
+    const usual = vehicle.usual_driver;
+    fillPgVehicleDrivers(usual ? usual.id : '', usual ? usual.display_name : '');
+}
+
+async function savePgVehicle(event) {
+    event.preventDefault();
+    const error = document.getElementById('pg-vehicle-form-error');
+    const vehicleId = document.getElementById('pg-vehicle-id').value;
+    const capacityText = document.getElementById('pg-vehicle-capacity').value.trim();
+    let capacity = null;
+    if (capacityText) {
+        capacity = Number(capacityText);
+        if (!Number.isInteger(capacity)) {
+            error.textContent = 'Capacity must be a whole number from 1 to 80.';
+            return;
+        }
+    }
+    const payload = {
+        registration_number: document.getElementById('pg-vehicle-registration').value.trim(),
+        model: document.getElementById('pg-vehicle-model').value.trim(),
+        capacity: capacity,
+        fuel_type: document.getElementById('pg-vehicle-fuel').value.trim(),
+        is_ev: document.getElementById('pg-vehicle-ev').checked,
+        branch_code: document.getElementById('pg-vehicle-city').value,
+        usual_driver_id: document.getElementById('pg-vehicle-driver').value || null
+    };
+    error.textContent = 'Saving vehicle...';
+    try {
+        const res = await fetch(vehicleId ? `/api/vehicles/${vehicleId}` : '/api/vehicles', {
+            method: vehicleId ? 'PATCH' : 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'The vehicle could not be saved.';
+            return;
+        }
+        closeAdminModal();
+        fetchPgVehicles();
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'The vehicle could not be saved.';
+    }
+}
+
+async function togglePgVehicle(vehicle) {
+    const next = vehicle.status === 'active' ? 'inactive' : 'active';
+    const question = next === 'inactive'
+        ? 'Deactivate this vehicle? The record stays in the PostgreSQL directory and is not deleted.'
+        : 'Activate this vehicle? The record stays in the PostgreSQL directory.';
+    if (!window.confirm(question)) return;
+    setPgVehicleStatus(next === 'inactive' ? 'Deactivating vehicle...' : 'Activating vehicle...');
+    try {
+        const res = await fetch(`/api/vehicles/${vehicle.id}`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: next })
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setPgVehicleStatus(body.message || 'The vehicle status could not be changed.', true);
+            return;
+        }
+        setPgVehicleStatus('');
+        fetchPgVehicles();
+    } catch (err) {
+        console.error(err);
+        setPgVehicleStatus('The vehicle status could not be changed.', true);
+    }
+}
+
+function renderPgVehicleDetails(vehicle) {
+    const holder = document.createElement('div');
+    const title = document.createElement('h3');
+    title.textContent = vehicle.registration_number || '';
+    const lines = document.createElement('p');
+    lines.textContent = [
+        vehicle.model,
+        vehicle.capacity ? `${vehicle.capacity} seats` : '',
+        pgVehicleFuelLabel(vehicle),
+        vehicle.status === 'active' ? 'Active' : 'Inactive'
+    ].filter(Boolean).join(' · ');
+    const branch = document.createElement('p');
+    branch.textContent = `Branch: ${pgVehicleBranchLabel(vehicle) || 'Not recorded'}`;
+    const driver = document.createElement('p');
+    driver.textContent = `Usual driver: ${vehicle.usual_driver ? vehicle.usual_driver.display_name : 'None'}`;
+    const note = document.createElement('p');
+    note.style.color = 'var(--text-secondary)';
+    note.textContent = 'Document records store a type, number, and expiry. This directory does not upload files.';
+    const list = document.createElement('div');
+    (vehicle.documents || []).forEach((documentRow) => {
+        const item = document.createElement('p');
+        item.textContent = [
+            documentRow.doc_type,
+            documentRow.doc_number,
+            documentRow.expiry_date ? `expires ${documentRow.expiry_date}` : 'no expiry'
+        ].join(' · ');
+        const edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'status-select';
+        edit.style.marginLeft = '0.5rem';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', () => {
+            document.getElementById('pg-document-id').value = documentRow.id;
+            document.getElementById('pg-document-type').value = documentRow.doc_type || '';
+            document.getElementById('pg-document-number').value = documentRow.doc_number || '';
+            document.getElementById('pg-document-expiry').value = documentRow.expiry_date || '';
+        });
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'status-select';
+        remove.style.marginLeft = '0.25rem';
+        remove.textContent = 'Remove';
+        remove.addEventListener('click', () => deletePgVehicleDocument(vehicle.id, documentRow.id));
+        item.append(edit, remove);
+        list.appendChild(item);
+    });
+    if (!(vehicle.documents || []).length) {
+        const empty = document.createElement('p');
+        empty.textContent = 'No documents recorded.';
+        list.appendChild(empty);
+    }
+    const form = document.createElement('form');
+    form.id = 'pg-document-form';
+    form.addEventListener('submit', (event) => savePgVehicleDocument(event, vehicle.id));
+    form.innerHTML = `
+        <input type="hidden" id="pg-document-id" value="">
+        <div class="form-grid-2">
+            <div class="form-group-custom">
+                <label>Document type*</label>
+                <input type="text" id="pg-document-type" class="form-control-custom" required>
+            </div>
+            <div class="form-group-custom">
+                <label>Document number*</label>
+                <input type="text" id="pg-document-number" class="form-control-custom" required>
+            </div>
+        </div>
+        <div class="form-group-custom">
+            <label>Expiry</label>
+            <input type="date" id="pg-document-expiry" class="form-control-custom">
+        </div>
+        <p id="pg-document-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+        <button type="submit" class="btn btn-primary">Save document</button>
+    `;
+    holder.append(title, lines, branch, driver, note, list, form);
+    document.getElementById('admin-modal-body').replaceChildren(holder);
+}
+
+async function showPgVehicleDetails(vehicleId) {
+    showAdminModal('PostgreSQL vehicle', '<p>Loading vehicle...</p>');
+    try {
+        const res = await fetch(`/api/vehicles/${vehicleId}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            const holder = document.createElement('p');
+            holder.textContent = body.message || 'The vehicle could not be loaded.';
+            document.getElementById('admin-modal-body').replaceChildren(holder);
+            return;
+        }
+        renderPgVehicleDetails(body.data);
+    } catch (err) {
+        console.error(err);
+        const holder = document.createElement('p');
+        holder.textContent = 'The vehicle could not be loaded.';
+        document.getElementById('admin-modal-body').replaceChildren(holder);
+    }
+}
+
+async function savePgVehicleDocument(event, vehicleId) {
+    event.preventDefault();
+    const error = document.getElementById('pg-document-error');
+    const documentId = document.getElementById('pg-document-id').value;
+    const payload = {
+        doc_type: document.getElementById('pg-document-type').value.trim(),
+        doc_number: document.getElementById('pg-document-number').value.trim(),
+        expiry_date: document.getElementById('pg-document-expiry').value
+    };
+    error.textContent = 'Saving document...';
+    try {
+        const res = await fetch(
+            documentId ? `/api/vehicles/${vehicleId}/documents/${documentId}` : `/api/vehicles/${vehicleId}/documents`,
+            {
+                method: documentId ? 'PATCH' : 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }
+        );
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'The document could not be saved.';
+            return;
+        }
+        renderPgVehicleDetails(body.data);
+        fetchPgVehicles();
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'The document could not be saved.';
+    }
+}
+
+async function deletePgVehicleDocument(vehicleId, documentId) {
+    if (!window.confirm('Remove this document record? The vehicle stays in the directory.')) return;
+    try {
+        const res = await fetch(`/api/vehicles/${vehicleId}/documents/${documentId}`, {
+            method: 'DELETE',
+            credentials: 'same-origin'
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            const error = document.getElementById('pg-document-error');
+            if (error) error.textContent = body.message || 'The document could not be removed.';
+            return;
+        }
+        renderPgVehicleDetails(body.data);
+        fetchPgVehicles();
+    } catch (err) {
+        console.error(err);
     }
 }
 

@@ -55,9 +55,18 @@ export const AuthProvider = ({ children }) => {
     return () => { cancelled = true }
   }, [token])
 
-  const logout = () => {
+  const logout = async () => {
+    localStorage.removeItem('token')
     setToken(null)
     setUser(null)
+    try {
+      await fetch('/api/admin/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+      })
+    } catch {
+      // The browser token is already gone. Cookie clearing is retried by leaving the page.
+    }
   }
 
   const value = { user, token, bootstrapping, logout, isAuthenticated: !!token }

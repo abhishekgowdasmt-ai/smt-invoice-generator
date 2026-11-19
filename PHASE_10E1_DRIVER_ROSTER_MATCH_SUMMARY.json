@@ -1,0 +1,616 @@
+{
+  "json_drivers": 1577,
+  "postgres_drivers": 13,
+  "unique_category_counts": {
+    "no match": 1459
+  },
+  "candidate_count": 0,
+  "candidates": [],
+  "postgres_roster": [
+    {
+      "id": "81d3f0f3-59fa-4d23-ab6a-64acd233e310",
+      "name": "Phase 10B 15a43080",
+      "phone": "",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "f68393f4-459d-40f0-a44a-dbc91a161732",
+      "name": "Phase 10B 15a43080",
+      "phone": "0804444444",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "06dce246-c1f4-41b2-a860-e7bb9eb2d7ed",
+      "name": "Phase 10B 2b8a7823",
+      "phone": "",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "77a11b08-c4c2-46d4-903f-12fa947aa522",
+      "name": "Phase 10B 2b8a7823",
+      "phone": "0804444444",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "b848d96c-2321-4f01-b067-35ce372f5d53",
+      "name": "Phase 10C driver 1d43a66b",
+      "phone": "",
+      "licence_present": false,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "4f766803-0cda-49c8-be40-83231ca3ffba",
+      "name": "Phase 10C driver c0f0f138",
+      "phone": "",
+      "licence_present": false,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "240ed8b8-a467-4049-b5b9-60741a006b76",
+      "name": "Phase 10D1 driver 3aed0056",
+      "phone": "0807777777",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "2dd0798c-4d10-4958-b287-d57a959c5417",
+      "name": "Phase 10D1 driver ab989d07",
+      "phone": "0807777777",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "46e15893-f0b1-40f2-a29f-4673e7588171",
+      "name": "Phase 10D1 driver f6515aa4",
+      "phone": "0807777777",
+      "licence_present": true,
+      "active": true,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "e462afdf-2c32-4940-85bb-fb32fec1988d",
+      "name": "Phase 10D1 inactive 3aed0056",
+      "phone": "",
+      "licence_present": false,
+      "active": false,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "4824a0b9-3207-4c55-9ad4-283de59de6b3",
+      "name": "Phase 10D1 inactive ab989d07",
+      "phone": "",
+      "licence_present": false,
+      "active": false,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "bf967d6d-9db3-4dd2-9984-a1daaa327cc6",
+      "name": "Phase 10D1 inactive f6515aa4",
+      "phone": "",
+      "licence_present": false,
+      "active": false,
+      "primary_city": "Bengaluru",
+      "primary_code": "BLR",
+      "memberships": [
+        "BLR"
+      ],
+      "branch_gap": false,
+      "matched": false
+    },
+    {
+      "id": "5725b368-9540-4624-8c46-a7949afad650",
+      "name": "Portal Driver 10B",
+      "phone": "0806666666",
+      "licence_present": true,
+      "active": false,
+      "primary_city": "Hyderabad",
+      "primary_code": "HYD",
+      "memberships": [
+        "HYD"
+      ],
+      "branch_gap": false,
+      "matched": false
+    }
+  ],
+  "duplicate_json_name_groups": 102,
+  "duplicate_json_phone_groups": 246,
+  "duplicate_pg_name_groups": 2,
+  "duplicate_pg_phone_groups": 2,
+  "json_drivers_missing_phone": 30,
+  "json_drivers_missing_name": 22,
+  "json_drivers_with_plate": 1558,
+  "json_blank_vehicle_text": 0,
+  "shared_json_plate_groups": 194,
+  "shared_json_plates_top": [
+    {
+      "plate_key": "KA04AA0205",
+      "drivers": 6
+    },
+    {
+      "plate_key": "KA42B1540",
+      "drivers": 6
+    },
+    {
+      "plate_key": "KA16AA9521",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA03AN4584",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA06D9671",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA51AE0396",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA51AH7152",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA04AE5380",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA01AQ5590",
+      "drivers": 5
+    },
+    {
+      "plate_key": "KA02AF2966",
+      "drivers": 4
+    },
+    {
+      "plate_key": "KA05AR0858",
+      "drivers": 4
+    },
+    {
+      "plate_key": "KA51D0204",
+      "drivers": 4
+    },
+    {
+      "plate_key": "KA01AU2545",
+      "drivers": 4
+    },
+    {
+      "plate_key": "KA03AK4189",
+      "drivers": 4
+    },
+    {
+      "plate_key": "KA05AH9303",
+      "drivers": 4
+    }
+  ],
+  "plate_spelling_variants": [
+    {
+      "plate_key": "KA04AA0205",
+      "raw_values": [
+        "KA04AA 0205",
+        "KA04AA0205"
+      ]
+    },
+    {
+      "plate_key": "KA51D0204",
+      "raw_values": [
+        "KA51 D 0204",
+        "KA51D 0204"
+      ]
+    },
+    {
+      "plate_key": "KA06D9671",
+      "raw_values": [
+        "KA 06 D 9671",
+        "KA06D9671"
+      ]
+    },
+    {
+      "plate_key": "KA53C0029",
+      "raw_values": [
+        ":KA 53 C 0029",
+        "KA 53 C 0029"
+      ]
+    },
+    {
+      "plate_key": "KA51AM3503",
+      "raw_values": [
+        "KA 51 AM 3503",
+        "KA51AM3503"
+      ]
+    },
+    {
+      "plate_key": "KA18D3221",
+      "raw_values": [
+        "KA 18 D 3221",
+        "KA18D3221"
+      ]
+    },
+    {
+      "plate_key": "KA17AA8895",
+      "raw_values": [
+        "KA 17 AA 8895",
+        "KA17AA8895"
+      ]
+    },
+    {
+      "plate_key": "KA04AB7500",
+      "raw_values": [
+        "KA04 AB 7500",
+        "KA04 AB7500"
+      ]
+    },
+    {
+      "plate_key": "KA03AK4189",
+      "raw_values": [
+        "KA03AK4189",
+        "ka03ak4189"
+      ]
+    },
+    {
+      "plate_key": "KA05AH9303",
+      "raw_values": [
+        "KA 05 AH 9303",
+        "KA05AH9303"
+      ]
+    },
+    {
+      "plate_key": "KA27C6928",
+      "raw_values": [
+        "KA27 C6928",
+        "KA27C6928"
+      ]
+    },
+    {
+      "plate_key": "KA01AC2916",
+      "raw_values": [
+        "KA 01 AC 2916",
+        "KA01AC2916"
+      ]
+    },
+    {
+      "plate_key": "KA51AJ3251",
+      "raw_values": [
+        "KA 51 AJ 3251",
+        "KA51AJ3251"
+      ]
+    },
+    {
+      "plate_key": "KA04AE5333",
+      "raw_values": [
+        "KA 04 AE 5333",
+        "KA04AE5333"
+      ]
+    },
+    {
+      "plate_key": "KA16C6622",
+      "raw_values": [
+        "KA 16 C 6622",
+        "KA 16 C6622"
+      ]
+    },
+    {
+      "plate_key": "KA01AH5986",
+      "raw_values": [
+        "KA.01.AH.5986",
+        "KA.01AH5986"
+      ]
+    },
+    {
+      "plate_key": "KA41D6542",
+      "raw_values": [
+        "KA 41 D 6542",
+        "KA41D6542"
+      ]
+    },
+    {
+      "plate_key": "KA03AN3407",
+      "raw_values": [
+        "KA 03 AN 3407",
+        "KA03 AN 3407"
+      ]
+    },
+    {
+      "plate_key": "KA03AP2867",
+      "raw_values": [
+        "KA 03 AP 2867",
+        "KA03AP2867"
+      ]
+    },
+    {
+      "plate_key": "KA04D8034",
+      "raw_values": [
+        "KA 04 D 8034",
+        "KA04D8034"
+      ]
+    },
+    {
+      "plate_key": "KA02AL3620",
+      "raw_values": [
+        "KA 02 AL 3620",
+        "KA02 AL3620"
+      ]
+    },
+    {
+      "plate_key": "KA03AK1294",
+      "raw_values": [
+        "KA 03 AK 1294",
+        "KA03AK1294"
+      ]
+    },
+    {
+      "plate_key": "KA04AE1818",
+      "raw_values": [
+        ": KA04AE1818",
+        "KA04AE1818"
+      ]
+    },
+    {
+      "plate_key": "KA01AP0600",
+      "raw_values": [
+        "KA 01 AP 0600",
+        "KA01AP0600"
+      ]
+    },
+    {
+      "plate_key": "KA25AB3114",
+      "raw_values": [
+        "KA 25 AB 3114",
+        "KA 25AB3114"
+      ]
+    },
+    {
+      "plate_key": "KA04AA8892",
+      "raw_values": [
+        "KA 04 AA 8892",
+        "KA 04AA8892"
+      ]
+    },
+    {
+      "plate_key": "KA01AQ6002",
+      "raw_values": [
+        "KA01 AQ 6002",
+        "KA01 Aq 6002"
+      ]
+    },
+    {
+      "plate_key": "KA51AK6251",
+      "raw_values": [
+        "KA 51 AK6251",
+        "KA 51AK6251"
+      ]
+    },
+    {
+      "plate_key": "KA41D5333",
+      "raw_values": [
+        "KA 41D5333",
+        "KA41D5333"
+      ]
+    },
+    {
+      "plate_key": "KA04AD8089",
+      "raw_values": [
+        "KA04 AD 8089",
+        "KA04 ad 8089"
+      ]
+    },
+    {
+      "plate_key": "KA01AP6554",
+      "raw_values": [
+        "KA01AP 6554",
+        "KA01AP6554"
+      ]
+    },
+    {
+      "plate_key": "KA08A2030",
+      "raw_values": [
+        "KA 08 A 2030",
+        "KA-08-A-2030"
+      ]
+    },
+    {
+      "plate_key": "KA03AN6644",
+      "raw_values": [
+        "KA 03 AN6644",
+        "KA03AN6644"
+      ]
+    },
+    {
+      "plate_key": "KA11B2550",
+      "raw_values": [
+        ":Ka11 B2550",
+        "KA11 B2550"
+      ]
+    },
+    {
+      "plate_key": "KA02AJ9143",
+      "raw_values": [
+        "KA 02 AJ 9143",
+        "KA02AJ9143"
+      ]
+    },
+    {
+      "plate_key": "KA12B7509",
+      "raw_values": [
+        ": KA12B7509",
+        "KA-12-B-7509",
+        "KA12B7509"
+      ]
+    },
+    {
+      "plate_key": "KA40B4387",
+      "raw_values": [
+        "KA 40 B 4387",
+        "KA40B4387"
+      ]
+    },
+    {
+      "plate_key": "KA672260",
+      "raw_values": [
+        "KA 67 2260",
+        "KA672260"
+      ]
+    },
+    {
+      "plate_key": "KA01AG4840",
+      "raw_values": [
+        "KA 01 AG 4840",
+        "KA01AG4840"
+      ]
+    },
+    {
+      "plate_key": "KA03AQ3716",
+      "raw_values": [
+        "KA 03 AQ 3716",
+        "KA03AQ3716"
+      ]
+    },
+    {
+      "plate_key": "KA10CC0F0F138",
+      "raw_values": [
+        "KA-10C-C0F0F138",
+        "KA10CC0F0F138"
+      ]
+    }
+  ],
+  "postgres_plates_seen_on_json": [],
+  "postgres_vehicles": 7,
+  "bookings": 7719,
+  "assignments": 1,
+  "bookings_with_source_name": 7719,
+  "distinct_source_names": 1397,
+  "bookings_with_source_vehicle": 7707,
+  "distinct_source_plates": 1935,
+  "bookings_with_assigned_driver": 1,
+  "distinct_assigned_driver_ids": 1,
+  "assigned_ids_found_in_roster": 1,
+  "assigned_ids_missing_from_roster": 0,
+  "assigned_bookings_whose_source_name_matches_driver": 0,
+  "assigned_bookings_whose_plate_matches_driver_vehicle": 0,
+  "booking_key_sample": [],
+  "booking_branchish_top": [],
+  "json_home_area_filled": 0,
+  "postgres_booking_counts": {
+    "rows": 0,
+    "source_name": 0,
+    "source_vehicle_no": 0,
+    "branch_id": 0,
+    "branch_inferred": 0
+  },
+  "postgres_booking_branches": [],
+  "postgres_assignment_rows": 0,
+  "company_driver_rows": 5,
+  "branch_gaps": [],
+  "assignment_ref_drivers": 1,
+  "top_assignment_refs": [
+    [
+      "drv-17fcf809f2c2",
+      2
+    ]
+  ],
+  "files_unchanged": true,
+  "csv_rows": 1590,
+  "read_correction": {
+    "json_driver_rows": 1577,
+    "distinct_json_driver_ids": 1459,
+    "duplicate_json_driver_id_groups": 118,
+    "duplicate_id_pairs_with_different_names": 118,
+    "duplicate_id_pairs_with_different_phones": 3,
+    "duplicate_id_pairs_with_different_plates": 22,
+    "duplicate_id_pairs_identical": 0,
+    "raw_casefold_duplicate_name_groups": 50,
+    "raw_whatsapp_duplicate_groups": 184,
+    "blank_whatsapp": 30,
+    "blank_names": 22,
+    "json_plate_spelling_groups": 40,
+    "postgres_registration_spelling_conflict": [
+      "KA-10C-C0F0F138",
+      "KA10CC0F0F138"
+    ],
+    "cross_system_plate_matches": 0,
+    "match_rows_for_json": 1577,
+    "all_json_rows_category": "no match",
+    "postgres_rows_without_json_candidate": 13,
+    "booking_has_no_branch_or_city_field": true,
+    "postgres_bookings": 0,
+    "postgres_booking_assignments": 0
+  }
+}

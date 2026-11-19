@@ -83,6 +83,8 @@
                     <div class="admin-nav-menu">
                         <button type="button" id="btn-tab-inquiries" onclick="switchTab('inquiries')">Enquiries and Quotes</button>
                         <button type="button" id="btn-tab-drivers" onclick="switchTab('drivers')">Drivers Directory</button>
+                        <button type="button" id="btn-tab-pg-drivers" onclick="switchTab('pg-drivers')">PostgreSQL Drivers</button>
+                        <button type="button" id="btn-tab-pg-vehicles" onclick="switchTab('pg-vehicles')">PostgreSQL Vehicles</button>
                         <button type="button" id="btn-tab-companies" onclick="switchTab('companies')">Corporate Clients</button>
                         <button type="button" id="btn-tab-ev" onclick="switchTab('ev')">EV Fleets</button>
                         <button type="button" id="btn-tab-cabs" onclick="switchTab('cabs')">Cabs &amp; Documents</button>
@@ -186,6 +188,18 @@
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 19a7 7 0 0 1 14 0"/></svg></span>
                         <h3>Drivers Directory</h3>
                         <p>Staff roster, licences, and cab associations.</p>
+                        <span class="dash-open">Open →</span>
+                    </button>
+                    <button type="button" class="dash-card tone-green" onclick="switchTab('pg-drivers')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3"/><path d="M5 19a7 7 0 0 1 14 0"/></svg></span>
+                        <h3>PostgreSQL Driver Directory</h3>
+                        <p>Owner directory for Bengaluru and Hyderabad. Separate from the RAC roster.</p>
+                        <span class="dash-open">Open →</span>
+                    </button>
+                    <button type="button" class="dash-card tone-blue" onclick="switchTab('pg-vehicles')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M4 13h16l-2-6H6z"/><path d="M6 17h.01M18 17h.01M4 13v4h16v-4"/></svg></span>
+                        <h3>PostgreSQL Vehicle Directory</h3>
+                        <p>Owner vehicle register for Bengaluru and Hyderabad. Separate from SQLite cabs and the EV fleet.</p>
                         <span class="dash-open">Open →</span>
                     </button>
                     <button type="button" class="dash-card tone-green" onclick="switchTab('companies')">
@@ -445,21 +459,127 @@
                 </div>
             </div>
 
+            <!-- Tab: PostgreSQL Driver Directory -->
+            <div class="admin-tab-content" id="tab-pg-drivers" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">PostgreSQL Driver Directory</h2>
+                        <p style="color: var(--text-secondary);">Owner directory in the local PostgreSQL database. This does not change the RAC roster or the SQLite driver demo.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" id="pg-drivers-add-button" onclick="showAddPgDriverModal()">Add driver</button>
+                    </div>
+                </header>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                    <input id="pg-driver-search" class="form-control-custom" placeholder="Search driver name" style="max-width: 16rem;" oninput="fetchPgDrivers()">
+                    <select id="pg-driver-branch" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDrivers()">
+                        <option value="">All cities</option>
+                        <option value="BLR">Bengaluru</option>
+                        <option value="HYD">Hyderabad</option>
+                    </select>
+                    <select id="pg-driver-active" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDrivers()">
+                        <option value="">All statuses</option>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
+                <p id="pg-drivers-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading drivers...</p>
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Drivers</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="pg-drivers-table">
+                            <thead>
+                                <tr>
+                                    <th>Driver name</th>
+                                    <th>Phone</th>
+                                    <th>Licence number</th>
+                                    <th>Primary branch</th>
+                                    <th>Verification</th>
+                                    <th>Active</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pg-drivers-table-body">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: var(--text-muted);">Loading drivers...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: PostgreSQL Vehicle Directory -->
+            <div class="admin-tab-content" id="tab-pg-vehicles" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">PostgreSQL Vehicle Directory</h2>
+                        <p style="color: var(--text-secondary);">Owner directory in the local PostgreSQL database. This does not change the SQLite cab registry, the EV fleet, or the RAC roster.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary" id="pg-vehicles-add-button" onclick="showAddPgVehicleModal()">Add vehicle</button>
+                    </div>
+                </header>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                    <input id="pg-vehicle-search" class="form-control-custom" placeholder="Search registration" style="max-width: 16rem;" oninput="fetchPgVehicles()">
+                    <select id="pg-vehicle-branch" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgVehicles()">
+                        <option value="">All cities</option>
+                        <option value="BLR">Bengaluru</option>
+                        <option value="HYD">Hyderabad</option>
+                    </select>
+                    <select id="pg-vehicle-status" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgVehicles()">
+                        <option value="">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <p id="pg-vehicles-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading vehicles...</p>
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Vehicles</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="pg-vehicles-table">
+                            <thead>
+                                <tr>
+                                    <th>Registration</th>
+                                    <th>Make / model</th>
+                                    <th>Fuel</th>
+                                    <th>Branch</th>
+                                    <th>Usual driver</th>
+                                    <th>Status</th>
+                                    <th>Documents</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pg-vehicles-table-body">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: var(--text-muted);">Loading vehicles...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
             <!-- Tab: Corporate Clients -->
             <div class="admin-tab-content" id="tab-companies" style="display:none;">
                 <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center;">
                     <div>
                         <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Corporate Clients</h2>
-                        <p style="color: var(--text-secondary);">Manage company accounts and assign dedicated cabs and drivers.</p>
+                        <p style="color: var(--text-secondary);">Company directory for Bengaluru and Hyderabad.</p>
                     </div>
                     <div>
-                        <button class="btn btn-primary" onclick="showAddCompanyModal()">➕ Add Corporate Client</button>
+                        <button class="btn btn-primary" id="companies-add-button" onclick="showAddCompanyModal()">Add company</button>
                     </div>
                 </header>
+                <p id="companies-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading companies...</p>
 
                 <div class="dashboard-table-container">
                     <div class="dashboard-table-header">
-                        <h3 style="font-size: 1.25rem;">Corporate Accounts & Assignments</h3>
+                        <h3 style="font-size: 1.25rem;">Companies</h3>
                     </div>
                     <div style="overflow-x: auto;">
                         <table id="companies-table">
@@ -468,13 +588,13 @@
                                     <th>Client Name</th>
                                     <th>Contact Details</th>
                                     <th>Office Address</th>
-                                    <th>Assigned Cabs & Drivers</th>
+                                    <th>Cities</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="companies-table-body">
                                 <tr>
-                                    <td colspan="5" style="text-align: center; color: var(--text-muted);">Loading corporate client registry...</td>
+                                    <td colspan="5" style="text-align: center; color: var(--text-muted);">Loading companies...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -723,6 +843,6 @@
     </div>
 
     <!-- Script file containing admin logic and auth headers -->
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}?v=revision8"></script>
 </body>
 </html>

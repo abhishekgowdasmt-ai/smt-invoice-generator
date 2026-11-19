@@ -7,7 +7,7 @@ PIN `5999` is removed. Staff open `/admin` and click **Continue with Google**.
 ## What we built
 
 1. **Public website** — quotes, fleet, contact. No Google login.
-2. **Staff portal** (`/admin`) — inquiries, cabs, RAC, invoices, trips. Four Gmails only.
+2. **Staff portal** (`/admin`) — inquiries, cabs, RAC, invoices, trips. Three Gmails only.
 3. **OD workspace** (`/admin/workspace`) — Bank of Baroda overdraft ledger (copied from repo `abhishekgowdasmt-ai/private-workspace` into folder `od_workspace/`). Two Gmails only.
 
 ## Who can sign in
@@ -18,14 +18,13 @@ Google Cloud test users and SMT allowlists must match.
 |---|---|---|
 | `abhishekgowdasmt@gmail.com` | yes | yes |
 | `shreemaruthitravels5999@gmail.com` | yes | yes |
-| `veeruashwini01@gmail.com` | yes | no |
 | `bhaskarbhaskarreddy9005@gmail.com` | yes | no |
 
 Anyone else who uses Google is rejected (`login_error=not_allowed`).
 
 Allowlists in code (`backend/staff_auth.py`) and env:
 
-- `STAFF_EMAILS` — all four above
+- `STAFF_EMAILS` — the three staff Gmails above
 - `OD_EMAILS` — Abhishek + company Gmail
 - Extra staff later: `STAFF_EXTRA_EMAILS`
 

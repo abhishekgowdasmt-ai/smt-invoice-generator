@@ -1,0 +1,237 @@
+json_driver_id,json_name,json_phone,vehicle_number,names_differ,phones_differ,plates_differ,required_human_decision
+drv-hist-0001,Upendra M T,,KA-16-AA-9521,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0001,-Upendra M T,,KA-16-AA-9521,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0002,Venkatesh R,+919844692137,KA02AE7991,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0002,-Venkatesh R,+919844692137,KA02AE7991,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0003,Divakar,+917702325873,KA 51 AL 0225,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0003,. Divakar,+917702325873,KA 51 AL 0225,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0004,Manikandan,+919880080575,KA03AN4584,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0004,.Manikandan,+919880080575,KA03AN4584,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0005,Ramesh Reddy,+919901744272,KA04AA 0205,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0005,.Ramesh.Reddy,+919901744272,KA04AA 0205,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0007,Ajas Pasha,+919972050252,KA02 AF2966,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0007,: Ajas Pasha,+919972050252,KA02 AF2966,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0008,Raja K,+919606535573,KA05AR0858,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0008,: Raja K,+919606535573,KA05AR0858,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0009,Santosh Sk,+918861694525,KA04 AB7279,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0009,: Santosh Sk,+918861694525,KA04 AB7279,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0010,Sharath Kb,+916362071853,KA03AH3119,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0010,: Sharath Kb,+916362071853,KA03AH3119,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0011,Vinod M,,KA01AN8446,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0011,: Vinod M,,KA01AN8446,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0012,Arun Kumar,+917022099917,KA05AF5643,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0012,:Arun Kumar,+917022099917,KA05AF5643,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0013,Ashok Jk,+919113971102,KA05AQ1311,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0013,:Ashok Jk,+919113971102,KA05AQ1311,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0014,Dinesh G,+919008768840,KA02 AF2393,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0014,:Dinesh G,+919008768840,KA02 AF2393,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0015,Guru Kr,+917349045331,KA51D 0204,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0015,:Guru Kr,+917349045331,KA51D 0204,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0016,Harish Kumar,+919916804123,KA04AE7716,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0016,:Harish Kumar,+919916804123,KA04AE7716,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0017,Karana K,+919663884003,KA01AU2545,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0017,:Karana. K,+919663884003,KA01AU2545,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0018,Naveen Kumar,+917338410538,KA02AF1271,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0018,:Naveen Kumar,+917338410538,KA02AF1271,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0019,Prathap Gr,+917899695069,KA06D9671,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0019,:Prathap Gr,+917899695069,KA06D9671,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0020,Raju,+919686592230,KA03AC8325,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0020,:Raju,+919686592230,KA03AC8325,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0021,Ravi B,+919108005708,KA42B1540,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0021,:Ravi. B,+919108005708,KA42B1540,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0022,Varun S S,+919611634081,KA 53 C 0029,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0022,:Varun S S,+919611634081,:KA 53 C 0029,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0042,Aditya B,+918722970404,KA 03 AD 0273,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0042,Aditya.B,+918722970404,KA 03 AD 0273,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0061,Akshay K P,+919591098632,KA02AM9189,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0061,Akshay K.P,+919591098632,KA02AM9189,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0075,Ananda Ka,+917892057303,KA 02 AE 9639,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0075,Ananda. Ka,+917892057303,KA 02 AE 9639,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0086,Anil Kumar,+918197519192,KA01AR3439,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0086,Anil Kumar.,+918197519192,KA01AR3439,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0109,Arun T,+919972779685,KA53AB2345,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0109,Arun.T,+919972779685,KA53AB2345,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0125,Ashwath,+918073373252,KA03AK4189,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0125,Ashwath.,+918073373252,ka03ak4189,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0138,B Vasu,+919916465585,KA 05 AH 9303,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0138,B.Vasu,+919916465585,KA 05 AH 9303,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0163,Beeru A G,+919008730914,KA 33 B 9731,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0163,Beeru. A.G,+919008730914,KA 33 B 9731,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0181,Bhyrava C,+918197709665,KA51AE0396,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0181,Bhyrava .C,+918197709665,KA51AE0396,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0194,Chandan M P,+918660250336,KA 41 C 2706,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0194,Chandan. M P,+918660250336,KA 41 C 2706,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0250,Dhanapal B,+919742294094,KA02AG0445,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0250,Dhanapal.B,+919742294094,KA02AG0445,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0271,Dyavakrishna S,+919448043315,KA03AU8727,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0271,Dyavakrishna. S,+919448043315,KA03AU8727,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0282,Farhan Pasha,+917892860493,KA 02 AH 3233,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0282,Farhan Pasha.,+917892860493,KA 02 AH 3233,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0285,G Palanikumar,+919786052016,KA03AB3709,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0285,G.Palanikumar,+919786052016,KA03AB3709,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0308,Girish G S,+919535889042,KA02AG2649,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0308,Girish . G S,+919535889042,KA02AG2649,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0320,Gopal E,+919731729107,KA51AA7856,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0320,Gopal. E,+919731729107,KA51AA7856,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0348,Harikrishna S,+919483209794,KA05 AR 1461,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0348,Harikrishna. S,+919483209794,KA05 AR 1461,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0358,Harisha S,+917022719958,KA05AR6539,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0358,Harisha.S,+917022719958,KA05AR6539,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0402,Jagannatha K H,+918197298700,KA51AH7152,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0402,Jagannatha.K.H,+918197298700,KA51AH7152,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0434,K Nishanth,+918978902862,KA04AE7862,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0434,K.Nishanth,+918978902862,KA04AE7862,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0442,Karana K,+919663884003,KA01AU2545,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0442,Karana. K,+919663884003,KA01AU2545,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0500,Kumar C,+919916472398,KA45A4700,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0500,Kumar..C,+919916472398,KA45A4700,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0506,Keerthi Ll,+919886072435,KA04AE5380,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0506,K𝗲𝗲𝗿𝘁𝗵𝗶 𝗟𝗟,+919886072435,𝗞𝗔𝟬𝟰𝗔𝗘𝟱𝟯𝟴𝟬,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0508,L Muthuraj,+919845577622,KA04AD6693,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0508,L.Muthuraj,+919845577622,KA04AD6693,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0534,M Manikandan,+919880080575,KA03AN4584,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0534,M.Manikandan,+919880080575,KA03AN4584,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0537,Madan N H,+917899676196,KA17AA8895,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0537,Madan N.H,+917899676196,KA17AA8895,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0548,Madhu K,+919483017841,KA04 AB7500,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0548,Madhu.K,+919483017841,KA04 AB7500,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0553,Mahadeva P,+918105570274,KA 50 B 7161,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0553,Mahadeva .P,+918105570274,KA 50 B 7161,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0560,Mahadevaswamy,+919886074202,KA 05 AQ 2475,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0560,Mahadevaswamy.,+919886074202,𝑲𝑨 05 AQ 2475,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0562,Mahanthesh Cr,+919535185335,KA03AM2172,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0562,Mahanthesh.Cr.,+919535185335,KA03AM2172,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0573,Mahesh B,+916363679270,KKA52B9326,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0573,Mahesh. B,+916363679270,KKA52B9326,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0574,Mahesh K,+919743539962,KA05AL8146,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0574,Mahesh. K,+919743539962,KA05AL8146,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0597,Manjappa M S,+919916668933,KA 03 AP 2867,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0597,Manjappa M.S,+919916668933,KA 03 AP 2867,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0653,Mohan C R,+918217690855,KA01AQ4265,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0653,Mohan C.R,+918217690855,KA01AQ4265,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0661,Mohan S,+918217612709,KA51AL0699,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0661,Mohan.S,+918217612709,KA51AL0699,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0702,Nagaraj S K,+919108868642,KA04AE1818,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0702,Nagaraj.S.K,+919108868642,: KA04AE1818,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0721,Fazil,+918088799831,KA19AF6681,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0721,Name:Fazil,+918088799831,KA19AF6681,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0724,Nanda Bs,+919845588421,KA04AE0026,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0724,Nanda. Bs,+919845588421,KA04AE0026,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0741,Narendra Babu,+919986237896,KA05AN2476,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0741,"Narendra Babu,",+919986237896,KA05AN2476,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0750,Naveen G,,KA 03 AM 8361,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0750,Naveen .G,,KA 03 AM 8361,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0783,P Karthik,+916309332789,AP39WM2909,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0783,P.Karthik,+916309332789,AP39WM2909,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0835,Prakash N,+919113504615,KA.10.B.1056,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0835,Prakash.N,+919113504615,KA.10.B.1056,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0839,Pramod Tr,+919964881100,KA-06-AC-2511,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0839,Pramod.Tr,+919964881100,KA-06-AC-2511,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0848,Prashanth L,+919980693359,KA01 AQ 6002,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0848,Prashanth.L,+919980693359,KA01 Aq 6002,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0904,Rajavelu P,+918660555319,KA05AG0960,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0904,Rajavelu.P,+918660555319,KA05AG0960,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0918,Raju S,+918095302833,KA 01 AQ 7332,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0918,Raju.S,+918095302833,KA 01 AQ 7332,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0942,Ramesh Reddy,+919901744272,KA04AA 0205,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0942,Ramesh.Reddy,+919901744272,KA04AA 0205,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0947,Ramu R,+919108195022,KA05AL9731,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0947,Ramu. R,+919108195022,KA05AL9731,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0955,Range Gwoda Nr,+919663198977,KA04AD8377,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0955,Range Gwoda. Nr,+919663198977,KA04AD8377,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0957,Ranjith K,+919606667234,KA-04-AE-9891,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0957,Ranjith.K,+919606667234,KA-04-AE-9891,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0977,Ravi B,+919108005708,KA42B1540,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0977,Ravi. B,+919108005708,KA42B1540,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0983,Ravikumar M,+917337809863,KA04AD9780,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-0983,Ravikumar. M,+917337809863,KA04AD9780,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1006,S Mohan Babu,+919663161544,KA 04 AA 5933,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1006,S.Mohan Babu,+919663161544,KA 04 AA 5933,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1011,Sadakhath Ali,+919108559497,KA04 AD 8089,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1011,Sadakhath.Ali,+919108559497,KA04 ad 8089,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1018,Sadyojatha N,+919738512112,KA01 AQ 5590,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1018,"Sadyojatha,N",+919738512112,KA01 AQ 5590,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1019,Sadyojatha N ( Sathya ),+919738512112,KA01 AQ 5590,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1019,"Sadyojatha,N ( Sathya )",+919738512112,KA01 AQ 5590,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1035,Samson P,+919738767622,KA53B7334,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1035,Samson.P,+919738767622,KA53B7334,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1068,Sasi Kumar K,+919148504906,KA06AA0669,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1068,Sasi Kumar. K,+919148504906,KA06AA0669,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1114,Sharan S,+917619231926,KA03AP1863,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1114,Sharan.S,+917619231926,KA03AP1863,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1120,Sharath D C,+919741265583,KA05AP1778,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1120,Sharath.D.C,+919741265583,KA05AP1778,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1121,Sharath K,+919902439920,KA11 B2550,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1121,Sharath.K,+919902439920,:Ka11 B2550,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1135,Shekhar A K,+918747826550,KA02AE0558,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1135,Shekhar A. K,+918747826550,KA02AE0558,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1145,Shiva Kumar,+919538264446,KA 02 AJ 9143,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1145,Shiva Kumar.,+919538264446,KA 02 AJ 9143,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1156,Shivanand P,+918867897002,KA05AM8002,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1156,"Shivanand, P",+918867897002,KA05AM8002,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1158,Shivappa B,+917676383578,KA04AE9773,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1158,Shivappa.B,+917676383578,KA04AE9773,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1187,Shrinivasa V,+919663718766,KA11C6035,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1187,Shrinivasa. V,+919663718766,KA11C6035,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1196,Siddartha K,+918495998592,KA12B7509,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1196,Siddartha.K,+918495998592,: KA12B7509,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1224,Srinath K,+919900939917,KA51AF6187,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1224,Srinath . K,+919900939917,KA51AF6187,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1235,Srinivas Hc,+917619692590,KA03AL6413,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1235,Srinivas.Hc,+917619692590,KA03AL6413,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1270,Sunil Kumar K,+917899808798,KA52B9306,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1270,Sunil Kumar.K,+917899808798,KA52B9306,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1286,Syed Ghouse,+919980064786,KA05AF1990,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1286,Syed Ghouse.,+919980064786,KA05AF1990,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1306,Tippanna C,+917019250821,KA05AH7670,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1306,Tippanna.C,+917019250821,KA05AH7670,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1325,V Pavan,+918749046492,KA53C3271,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1325,V.Pavan,+918749046492,KA53C3271,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1351,Venkatesh N,+918618262859,KA03AQ0496,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1351,Venkatesh.N,+918618262859,KA03AQ0496,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1436,Atheeq,+919980248011,KA 05 AJ 7560,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1436,𝐀𝐓𝐇𝐄𝐄𝐐,+919980248011,𝐊𝐀 𝟎𝟓 𝐀𝐉 𝟕560,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1437,Ashoka Heggade,+919008880875,KA 41 AA 2022,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1437,𝐀𝐬𝐡𝐨𝐤𝐚 𝐇𝐞𝐠𝐠𝐚𝐝𝐞,+919008880875,𝐊𝐀 𝟒𝟏 𝐀𝐀 𝟐𝟎𝟐𝟐,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1438,Dileep,+919449243614,KA64 0932,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1438,𝐃𝐈𝐋𝐄𝐄𝐏,+919449243614,KA64 0932,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1439,Kumar B,+919886688122,KA-53-D-0857,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1439,𝐊𝐔𝐌𝐀𝐑 𝐁,+919886688122,𝐊𝐀-53-𝐃-0857,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1440,Seetharam,+918951008425,KA-08-A-2030,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1440,𝐒𝐄𝐄𝐓𝐇𝐀𝐑𝐀𝐌,+918951008425,𝐊𝐀-𝟎𝟖-𝐀-𝟐𝟎𝟑𝟎,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1441,Shiva Kumar,+919148833819,KA05AM7995,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1441,𝐒𝐇𝐈𝐕𝐀 𝐊𝐔𝐌𝐀𝐑,+919148833819,𝐊𝐀𝟎𝟓𝐀𝐌𝟕𝟗𝟗𝟓,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1442,Shrinivas,+918884448683,KA 39 A 3620,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1442,𝐒𝐡𝐫𝐢𝐧𝐢𝐯𝐚𝐬,+918884448683,𝐊𝐀 𝟑𝟗 𝐀 𝟑𝟔𝟐𝟎,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1443,Siddarth N S,+919342414343,KA11C7496,yes,yes,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1443,𝐒𝐢𝐝𝐝𝐚𝐫𝐭𝐡 𝐍 𝐒,+91𝟗𝟑𝟒𝟐𝟒𝟏𝟒𝟑𝟒𝟑,KA11C7496,yes,yes,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1444,Yogesh,+919353370990,KA04AB9931,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1444,𝐘𝐎𝐆𝐄𝐒𝐇,+919353370990,KA04AB9931,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1445,Keerthi Ll,+919886072435,KA04AE5380,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1445,𝗞𝗲𝗲𝗿𝘁𝗵𝗶 Ll,+919886072435,𝗞𝗔𝟬𝟰𝗔𝗘𝟱𝟯𝟴𝟬,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1446,Keerthi Ll,+919886072435,KA04AE5380,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1446,𝗞𝗲𝗲𝗿𝘁𝗵𝗶 𝗟𝗟,+919886072435,𝗞𝗔𝟬𝟰𝗔𝗘𝟱𝟯𝟴𝟬,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1447,Mahendra,+919663085830,KA 03 AE 0636,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1447,𝗠𝗔𝗛𝗘𝗡𝗗𝗥𝗔,+919663085830,𝗞𝗔 𝟬𝟯 𝗔𝗘 𝟬𝟲𝟯𝟲,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1448,Maruthi P,+918904360821,KA01AL1807,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1448,𝗠𝗔𝗥𝗨𝗧𝗛𝗜. 𝗣,+918904360821,𝗞𝗔𝟬𝟭𝗔𝗟𝟭𝟴𝟬𝟳,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1449,Momin,+917892827178,KA 04 D 8034,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1449,𝗠𝗢𝗠𝗜𝗡,+917892827178,𝗞𝗔 𝟬𝟰 𝗗 𝟴𝟬𝟯𝟰,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1450,Onkar,+917892007431,KA18D1414,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1450,𝗢𝗡𝗞𝗔𝗥,+917892007431,𝗞𝗔𝟭𝟴𝗗𝟭𝟰𝟭𝟰,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1451,Shivaas,+919902975599,KA04AE8042,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1451,𝗦𝗵𝗶𝘃𝗮𝗮𝘀,+919902975599,𝗞𝗔𝟬𝟰𝗔𝗘𝟴𝟬𝟰𝟮,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1452,Shivaraj,+919902975599,AK04AE8042,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1452,𝗦𝗵𝗶𝘃𝗮𝗿𝗮𝗷,+919902975599,AK04AE8042,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1453,Vishwanath,+918971813177,KA53C3815,yes,yes,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1453,𝗩𝗶𝘀𝗵𝘄𝗮𝗻𝗮𝘁𝗵,+91𝟴𝟵𝟳𝟭𝟴𝟭𝟯𝟭𝟳𝟳,KA53C3815,yes,yes,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1454,Yuvaraj,+917996729558,KA 66 3833,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1454,𝗬𝘂𝘃𝗮𝗿𝗮𝗷,+917996729558,𝗞𝗔 66 3833,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1455,Somashekar,+919611368185,KA436945,yes,yes,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1455,𝘀𝗼𝗺𝗮𝘀𝗵𝗲𝗸𝗮𝗿,+91𝟵𝟲𝟭𝟭𝟯𝟲𝟴𝟭𝟴𝟱,𝗞𝗔𝟰𝟯𝟲𝟵𝟰𝟱,yes,yes,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1456,Raghavareddy,+918073371426,KA02AG1339,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1456,𝙍𝘼𝙂𝙃𝘼𝙑𝘼𝙍𝙀𝘿𝘿𝙔,+918073371426,𝗞𝗔𝟬𝟮𝗔𝗚𝟭𝟯𝟯𝟵,yes,no,yes,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1457,Pruthvi Gowda,+919164414062,KA13AA3819,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1457,𝙿𝚁𝚄𝚃𝙷𝚅𝙸 𝙶𝙾𝚆𝙳𝙰,+919164414062,KA13AA3819,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1458,Soma,+919606626475,KA03AG1689,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
+drv-hist-1458,𝚜𝚘𝚖𝚊,+919606626475,KA03AG1689,yes,no,no,Two roster rows share this driver ID and the names differ. Do not merge them and do not map either row to PostgreSQL from this ID.
