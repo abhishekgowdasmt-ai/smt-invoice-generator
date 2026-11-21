@@ -1,0 +1,16 @@
+Apply migration 008 to the disposable test database only.
+
+Complete and cancel-from-started fail until smt_definer can SELECT
+driver_branches, company_drivers, and company_vehicles (assignment_guard
+re-entry from bookings_write_event_and_close). This does not change RLS,
+triggers, or owner/staff privileges.
+
+In PowerShell (you will be prompted for the local postgres password):
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -v ON_ERROR_STOP=1 -f "C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\008_definer_assignment_guard_selects.sql"
+
+Verify:
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -c "SELECT has_table_privilege('smt_definer','driver_branches','SELECT') AS driver_branches, has_table_privilege('smt_definer','company_drivers','SELECT') AS company_drivers, has_table_privilege('smt_definer','company_vehicles','SELECT') AS company_vehicles"
+
+Do not apply 008 to smt_dev or production unless separately approved.

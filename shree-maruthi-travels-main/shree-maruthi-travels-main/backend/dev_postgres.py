@@ -2844,7 +2844,20 @@ def _booking_database_error(exc):
     constraint = getattr(diag, "constraint_name", None) or ""
     sqlstate = getattr(diag, "sqlstate", None) or ""
     if sqlstate == "42501":
-        return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+        primary = (getattr(diag, "message_primary", None) or "").lower()
+        # Match real branch-policy denials only. Do not treat table names such as
+        # driver_branches as branch authorization failures.
+        if (
+            "staff_can_branch" in primary
+            or primary.startswith("you cannot use this branch")
+            or "permission denied for function staff_can_branch" in primary
+        ):
+            return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+        return {
+            "ok": False,
+            "error": "unavailable",
+            "message": "The local duty register rejected this change.",
+        }
     if constraint == "booking_company_branch_fk":
         return {"ok": False, "error": "invalid", "message": "That company is not available in this city."}
     if constraint == "bookings_branch_id_fkey":

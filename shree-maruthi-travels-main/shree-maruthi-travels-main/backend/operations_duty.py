@@ -144,10 +144,41 @@ def assignment_triggers_ready(cur=None):
         return False
 
 
+_DEFINER_SELECT_REQUIRED = (
+    "Local duty close needs migration 008 on this database "
+    "(smt_definer SELECT on driver_branches, company_drivers, company_vehicles)."
+)
+
+
+def _definer_assignment_selects_ready(cur):
+    """True when smt_definer can re-enter assignment_guard on booking close."""
+    cur.execute(
+        """
+        SELECT has_table_privilege('smt_definer', 'driver_branches', 'SELECT')
+           AND has_table_privilege('smt_definer', 'company_drivers', 'SELECT')
+           AND has_table_privilege('smt_definer', 'company_vehicles', 'SELECT')
+           AND has_column_privilege('smt_definer', 'vehicles', 'id', 'SELECT')
+           AND has_column_privilege('smt_definer', 'vehicles', 'branch_id', 'SELECT')
+           AND has_column_privilege('smt_definer', 'vehicles', 'status', 'SELECT')
+           AND has_column_privilege('smt_definer', 'vehicles', 'status', 'UPDATE')
+        """
+    )
+    return bool(cur.fetchone()[0])
+
+
 def _triggers_or_unavailable(cur):
     if assignment_triggers_ready(cur):
         return None
     return {"ok": False, "error": "unavailable", "message": _TRIGGER_REQUIRED}
+
+
+def _definer_close_or_unavailable(cur):
+    blocked = _triggers_or_unavailable(cur)
+    if blocked:
+        return blocked
+    if _definer_assignment_selects_ready(cur):
+        return None
+    return {"ok": False, "error": "unavailable", "message": _DEFINER_SELECT_REQUIRED}
 
 
 def _duty_error(exc):
@@ -604,6 +635,7 @@ def reassign_booking(user_id, booking_id, payload):
                 """,
                 (user_id, previous["id"], list(_OPEN_STATUSES)),
             )
+            previous_after = _select_assignment(cur, previous["id"])
             assignment_id = str(uuid.uuid4())
             cur.execute(
                 """
@@ -636,7 +668,7 @@ def reassign_booking(user_id, booking_id, payload):
             "ok": True,
             "booking": booking_out,
             "assignment": assignment,
-            "previous_assignment": previous,
+            "previous_assignment": previous_after or previous,
             "notify_list": [
                 _notify_release(
                     booking_out or booking,
@@ -776,7 +808,29 @@ def cancel_booking(user_id, booking_id, payload=None):
             if not cur.fetchone()[0]:
                 cur.execute("RELEASE SAVEPOINT duty_write")
                 return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+            # Started cancel still updates the open assignment as smt_definer.
+            if booking["status"] == "started":
+                missing = _definer_close_or_unavailable(cur)
+                if missing:
+                    cur.execute("RELEASE SAVEPOINT duty_write")
+                    return missing
             previous = _select_open_assignment(cur, booking_id)
+            # For assigned/accepted bookings, close the open assignment as the
+            # caller first so the cancel path does not rely on smt_definer
+            # re-entering assignment_guard. Started bookings keep the open
+            # assignment until bookings_write_event_and_close runs.
+            if previous is not None and booking["status"] in ("assigned", "accepted"):
+                cur.execute(
+                    """
+                    UPDATE booking_assignments
+                    SET status = 'superseded',
+                        rejection_reason = 'Booking cancelled',
+                        decided_at = now(),
+                        decided_by = %s::uuid
+                    WHERE id = %s::uuid AND status = ANY(%s)
+                    """,
+                    (user_id, previous["id"], list(_OPEN_STATUSES)),
+                )
             cur.execute(
                 """
                 UPDATE bookings
@@ -1054,6 +1108,15 @@ def complete_trip(user_id, booking_id):
                     "ok": False,
                     "error": "conflict",
                     "message": "An active trip session is required to complete the trip.",
+                }
+            # Closing the session updates the assignment as smt_definer; that
+            # path needs the 008 SELECT grants before assignment_guard can run.
+            if not _definer_assignment_selects_ready(cur):
+                cur.execute("RELEASE SAVEPOINT duty_write")
+                return {
+                    "ok": False,
+                    "error": "unavailable",
+                    "message": _DEFINER_SELECT_REQUIRED,
                 }
             cur.execute(
                 """

@@ -111,7 +111,7 @@ class OperationDutyTests(unittest.TestCase):
             "branch_codes": ["BLR"],
         })
         cls.company_id = (created.get_json().get("data") or {}).get("id")
-        cls.assertEqual(created.status_code, 201, created.get_json())
+        assert created.status_code == 201, created.get_json()
         cls.driver_a = cls._make_driver("Alpha", "9000000001")
         cls.driver_b = cls._make_driver("Beta", "9000000002")
         vehicle = cls.owner.post("/api/vehicles", json={
@@ -121,12 +121,12 @@ class OperationDutyTests(unittest.TestCase):
             "status": "active",
         })
         cls.vehicle_id = (vehicle.get_json().get("data") or {}).get("id")
-        cls.assertEqual(vehicle.status_code, 201, vehicle.get_json())
+        assert vehicle.status_code == 201, vehicle.get_json()
         linked_vehicle = cls.owner.post(
             "/api/companies/%s/vehicles" % cls.company_id,
             json={"vehicle_id": cls.vehicle_id},
         )
-        cls.assertEqual(linked_vehicle.status_code in (200, 201), True, linked_vehicle.get_json())
+        assert linked_vehicle.status_code in (200, 201), linked_vehicle.get_json()
 
     @classmethod
     def _make_driver(cls, label, phone):
@@ -323,7 +323,17 @@ class OperationDutyTests(unittest.TestCase):
             "/api/operations/bookings/%s/assign" % booking["id"],
             json={"driver_id": self.driver_a, "send_message": False},
         )
-        self.assertEqual(denied.status_code, 403, denied.get_json())
+        body = denied.get_json()
+        # RLS hides the booking, so staff without a grant see not-found, not 403.
+        self.assertEqual(denied.status_code, 404, body)
+        self.assertEqual(body["message"], "Booking was not found.")
+        self.assertEqual(set(body), {"success", "message"})
+        rendered = denied.get_data(as_text=True)
+        self.assertNotIn(booking["id"], rendered)
+        self.assertNotIn(self.branch["BLR"], rendered)
+        source = booking.get("source_booking_id")
+        if source:
+            self.assertNotIn(source, rendered)
 
         def grant(cur):
             cur.execute(
