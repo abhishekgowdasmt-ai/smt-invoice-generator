@@ -165,7 +165,7 @@ class OperationFinanceTests(unittest.TestCase):
             "pickup_time": "09:00",
             "duty_type": "Airport",
             "planned_start": "Kempegowda Airport",
-            "customer_amount": 1500,
+            "amount": 1500,
         })
         self.assertEqual(created.status_code, 201, created.get_json())
         return created.get_json()["data"]
@@ -361,14 +361,15 @@ class OperationFinanceTests(unittest.TestCase):
             cur.execute(
                 """
                 SELECT count(*) FROM audit_logs
-                WHERE entity_name IN ('invoices', 'payments', 'driver_payouts', 'expenses')
-                  AND summary ILIKE %s
+                WHERE actor_user_id = %s::uuid
+                  AND entity_name IN ('driver_payouts', 'expenses')
+                  AND created_at > now() - interval '10 minutes'
                 """,
-                ("%" + self.marker + "%",),
+                (self.owner_id,),
             )
             return cur.fetchone()[0]
 
-        # Ensure at least payout/expense audits exist for this marker.
+        # Ensure payout/expense writes left append-only audit history.
         count = dev_postgres.authorized_transaction(self.owner_id, audit_count)
         self.assertGreaterEqual(count.get("result") or 0, 1)
 

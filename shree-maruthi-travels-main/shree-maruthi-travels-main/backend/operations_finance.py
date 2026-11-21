@@ -139,13 +139,49 @@ def _text(value, *, required=False, limit=500):
     return text
 
 
+def _branch_directory():
+    """Branch codes/ids via smt_app directory. Owner/staff roles cannot SELECT branches."""
+    maps = pg._branch_maps()
+    if maps is None:
+        return None
+    _by_code, by_id = maps
+    return by_id
+
+
+def _branch_code_for(branch_id, directory=None):
+    directory = directory if directory is not None else _branch_directory()
+    if directory is None:
+        return None
+    row = directory.get(str(branch_id))
+    if row is None:
+        return None
+    return row.get("code")
+
+
 def _finance_error(exc):
     diag = getattr(exc, "diag", None)
     constraint = getattr(diag, "constraint_name", None) or ""
     primary = getattr(diag, "message_primary", None) or ""
     sqlstate = getattr(exc, "sqlstate", None) or getattr(diag, "sqlstate", None) or ""
     if sqlstate == "42501":
-        return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+        primary_l = primary.lower()
+        # Match real branch-policy denials only. Table names such as branches
+        # or driver_branches must not become authorization messages.
+        if (
+            "staff_can_branch" in primary_l
+            or primary_l.startswith("you cannot use this branch")
+            or "permission denied for function staff_can_branch" in primary_l
+        ):
+            return {"ok": False, "error": "forbidden", "message": "You cannot use this branch."}
+        print(
+            "[WARN] Finance privilege error: %s"
+            % ((primary or "permission denied")[:160],)
+        )
+        return {
+            "ok": False,
+            "error": "unavailable",
+            "message": "The local finance register rejected this change.",
+        }
     if constraint in ("invoices_number_uq",):
         return {
             "ok": False,
@@ -206,10 +242,28 @@ def _can_branch(cur, branch_id):
     return bool(cur.fetchone()[0])
 
 
+def _as_date(value):
+    if value in (None, "", False):
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            return None
+    return None
+
+
 def _invoice_status(row):
     voided_at = row.get("voided_at")
     issued_at = row.get("issued_at")
-    due_date = row.get("due_date")
+    due_date = _as_date(row.get("due_date"))
     total = Decimal(str(row.get("total_amount") or 0))
     paid = Decimal(str(row.get("paid_amount") or 0))
     outstanding = Decimal(str(row.get("outstanding_amount") or 0))
@@ -221,24 +275,24 @@ def _invoice_status(row):
         return "paid"
     if paid > 0 and outstanding > 0:
         return "partially_paid"
-    if due_date and outstanding > 0 and due_date < date.today():
+    if due_date is not None and outstanding > 0 and due_date < date.today():
         return "overdue"
     return "issued"
 
 
-def _select_invoice(cur, invoice_id):
+def _select_invoice(cur, invoice_id, branch_directory=None):
+    if branch_directory is None:
+        branch_directory = _branch_directory()
     cur.execute(
         """
         SELECT i.id::text, i.branch_id::text, i.company_id::text, i.currency,
                i.invoice_number, i.period_start, i.period_end, i.issued_at,
                i.due_date, i.voided_at, i.void_reason, i.notes, i.created_at,
                c.name AS company_name,
-               b.code AS branch_code,
                COALESCE(bal.total_amount, 0), COALESCE(bal.paid_amount, 0),
                COALESCE(bal.outstanding_amount, 0)
         FROM invoices i
         JOIN companies c ON c.id = i.company_id
-        JOIN branches b ON b.id = i.branch_id
         LEFT JOIN invoice_balances bal ON bal.invoice_id = i.id
         WHERE i.id = %s::uuid
         """,
@@ -262,10 +316,10 @@ def _select_invoice(cur, invoice_id):
         "notes": row[11],
         "created_at": pg._booking_value(row[12]),
         "company_name": row[13],
-        "branch_code": row[14],
-        "total_amount": str(row[15]),
-        "paid_amount": str(row[16]),
-        "outstanding_amount": str(row[17]),
+        "branch_code": _branch_code_for(row[1], branch_directory),
+        "total_amount": str(row[14]),
+        "paid_amount": str(row[15]),
+        "outstanding_amount": str(row[16]),
     }
     shape["status"] = _invoice_status(shape)
     return shape
@@ -331,8 +385,8 @@ def _select_payments(cur, invoice_id):
     return rows
 
 
-def _invoice_detail(cur, invoice_id):
-    invoice = _select_invoice(cur, invoice_id)
+def _invoice_detail(cur, invoice_id, branch_directory=None):
+    invoice = _select_invoice(cur, invoice_id, branch_directory=branch_directory)
     if invoice is None:
         return None
     return {
@@ -374,6 +428,8 @@ def bank_details(user_id):
 
 
 def list_invoices(user_id, branch_id=None, company_id=None, status=None, search=None):
+    branch_directory = _branch_directory()
+
     def work(cur):
         blocked = _schema_or_unavailable(cur)
         if blocked:
@@ -407,7 +463,7 @@ def list_invoices(user_id, branch_id=None, company_id=None, status=None, search=
         )
         invoices = []
         for (invoice_id,) in cur.fetchall():
-            item = _select_invoice(cur, invoice_id)
+            item = _select_invoice(cur, invoice_id, branch_directory=branch_directory)
             if item is None:
                 continue
             if status and item["status"] != status:
@@ -422,12 +478,13 @@ def get_invoice(user_id, invoice_id):
     invoice_id = pg._parse_uuid(invoice_id)
     if invoice_id is None:
         return {"ok": False, "error": "not_found", "message": "Invoice was not found."}
+    branch_directory = _branch_directory()
 
     def work(cur):
         blocked = _schema_or_unavailable(cur)
         if blocked:
             return blocked
-        detail = _invoice_detail(cur, invoice_id)
+        detail = _invoice_detail(cur, invoice_id, branch_directory=branch_directory)
         if detail is None:
             return {"ok": False, "error": "not_found", "message": "Invoice was not found."}
         return {"ok": True, **detail}
@@ -461,6 +518,19 @@ def create_invoice(user_id, payload):
     if not isinstance(lines, list):
         return {"ok": False, "error": "invalid", "message": "Invoice lines are not valid."}
     issue_now = bool(payload.get("issue"))
+    # Branch codes are read as smt_app. Owner/staff cannot SELECT branches.
+    branch_directory = _branch_directory()
+    if branch_directory is None:
+        return {
+            "ok": False,
+            "error": "unavailable",
+            "message": "Financial tables need migration 009 on this database."
+            if not finance_schema_ready()
+            else "Branch directory is not available.",
+        }
+    branch_code = _branch_code_for(branch_id, branch_directory)
+    if not branch_code:
+        return {"ok": False, "error": "invalid", "message": "Branch is not valid."}
 
     def work(cur):
         import psycopg
@@ -487,9 +557,7 @@ def create_invoice(user_id, payload):
                     "error": "invalid",
                     "message": "That company is not available in this city.",
                 }
-            cur.execute("SELECT code FROM branches WHERE id = %s::uuid", (branch_id,))
-            branch_row = cur.fetchone()
-            invoice_number = number or _next_invoice_number(cur, branch_row[0] if branch_row else "XX")
+            invoice_number = number or _next_invoice_number(cur, branch_code)
             invoice_id = str(uuid.uuid4())
             issued_at = datetime.utcnow() if issue_now else None
             cur.execute(
@@ -529,7 +597,7 @@ def create_invoice(user_id, payload):
                 invoice_id,
                 "Created invoice %s" % invoice_number,
             )
-            detail = _invoice_detail(cur, invoice_id)
+            detail = _invoice_detail(cur, invoice_id, branch_directory=branch_directory)
         except psycopg.Error as exc:
             cur.execute("ROLLBACK TO SAVEPOINT finance_write")
             return _finance_error(exc)
@@ -1430,14 +1498,15 @@ def create_expense(user_id, payload):
     return pg._actor_work(user_id, work)
 
 
-def _select_expense(cur, expense_id):
+def _select_expense(cur, expense_id, branch_directory=None):
+    if branch_directory is None:
+        branch_directory = _branch_directory()
     cur.execute(
         """
         SELECT e.id::text, e.branch_id::text, e.company_id::text, e.category, e.description,
                e.currency, e.amount, e.expense_date, e.document_ref, e.status, e.created_at,
-               b.code AS branch_code, c.name AS company_name
+               c.name AS company_name
         FROM expenses e
-        JOIN branches b ON b.id = e.branch_id
         LEFT JOIN companies c ON c.id = e.company_id
         WHERE e.id = %s::uuid
         """,
@@ -1458,8 +1527,8 @@ def _select_expense(cur, expense_id):
         "document_ref": row[8],
         "status": row[9],
         "created_at": pg._booking_value(row[10]),
-        "branch_code": row[11],
-        "company_name": row[12],
+        "branch_code": _branch_code_for(row[1], branch_directory),
+        "company_name": row[11],
     }
 
 
@@ -1721,30 +1790,40 @@ def finance_dashboard(user_id, branch_id=None, date_from=None, date_to=None):
             expense_params,
         )
         expenses_total = cur.fetchone()[0]
+        # Aggregate by branch_id only. Branch codes come from the smt_app directory.
         cur.execute(
             """
-            SELECT b.code, b.id::text,
+            SELECT i.branch_id::text,
                    COALESCE(SUM(bal.total_amount) FILTER (WHERE i.voided_at IS NULL), 0),
                    COALESCE(SUM(bal.paid_amount) FILTER (WHERE i.voided_at IS NULL), 0),
                    COALESCE(SUM(bal.outstanding_amount) FILTER (WHERE i.voided_at IS NULL), 0)
-            FROM branches b
-            LEFT JOIN invoices i ON i.branch_id = b.id
+            FROM invoices i
             LEFT JOIN invoice_balances bal ON bal.invoice_id = i.id
-            WHERE b.active
-            GROUP BY b.code, b.id
-            ORDER BY b.code
+            GROUP BY i.branch_id
             """
         )
-        by_branch = [
-            {
-                "branch_code": row[0],
-                "branch_id": row[1],
-                "invoiced": str(row[2]),
-                "collected": str(row[3]),
-                "outstanding": str(row[4]),
-            }
-            for row in cur.fetchall()
-        ]
+        totals_by_branch = {
+            row[0]: (row[1], row[2], row[3]) for row in cur.fetchall()
+        }
+        directory = _branch_directory() or {}
+        by_branch = []
+        for branch_id_key, meta in sorted(
+            directory.items(), key=lambda item: item[1].get("code") or ""
+        ):
+            if not meta.get("is_active"):
+                continue
+            invoiced, collected, outstanding_amt = totals_by_branch.get(
+                branch_id_key, (0, 0, 0)
+            )
+            by_branch.append(
+                {
+                    "branch_code": meta.get("code"),
+                    "branch_id": branch_id_key,
+                    "invoiced": str(invoiced),
+                    "collected": str(collected),
+                    "outstanding": str(outstanding_amt),
+                }
+            )
         cur.execute(
             """
             SELECT c.id::text, c.name,

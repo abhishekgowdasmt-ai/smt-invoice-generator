@@ -609,7 +609,9 @@ def api_finance_invoice_payment(invoice_id):
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify({'success': False, 'message': 'Payment details are not valid.'}), 400
-    return _finance_response(operations_finance.record_payment(user_id, invoice_id, payload), created=True)
+    result = operations_finance.record_payment(user_id, invoice_id, payload)
+    created = bool(result and result.get('ok') and not result.get('idempotent'))
+    return _finance_response(result, created=created)
 
 
 @app.route('/api/finance/payments/<payment_id>/reverse', methods=['POST'])
