@@ -28,10 +28,12 @@ except ImportError:
 from rac_api import rac_bp
 import staff_auth
 import driver_auth
+import client_auth
 import dev_postgres
 import operations_duty
 import operations_finance
 import operations_driver_app
+import operations_client_portal
 
 dev_postgres.check_development_database()
 
@@ -43,7 +45,9 @@ db_path = os.path.join(base_dir, 'database.db')
 invoices_dir = os.path.join(site_root, 'tools', 'invoices')
 trips_dir = os.path.join(site_root, 'tools', 'trips')
 rac_dist_dir = os.path.join(site_root, 'rac', 'frontend', 'dist')
+client_portal_dir = os.path.abspath(os.path.join(base_dir, '..', '..', '..', 'client_portal'))
 STAFF_COOKIE = staff_auth.STAFF_COOKIE
+CLIENT_COOKIE = client_auth.CLIENT_COOKIE
 RAC_FRONTEND_URL = os.environ.get('RAC_FRONTEND_URL', 'http://127.0.0.1:5173')
 
 app = Flask(
@@ -222,6 +226,68 @@ def _driver_api_response(result, created=False):
     if error == 'invalid':
         return jsonify({'success': False, 'message': message}), 400
     return jsonify({'success': False, 'message': message}), 400
+
+
+def _client_actor():
+    if dev_postgres.local_development_dsn() is None:
+        return None, (jsonify({'success': False, 'message': 'Client portal is not available'}), 503)
+    session = client_auth.read_token(request.cookies.get(CLIENT_COOKIE))
+    if not session:
+        return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
+    return session['user_id'], None
+
+
+def _client_api_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Client portal is not available'}), 503
+    if result.get('ok'):
+        payload = {'success': True}
+        for key, value in result.items():
+            if key == 'ok':
+                continue
+            payload[key] = value
+        return jsonify(payload), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Client request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message}), 404
+    if error == 'forbidden':
+        return jsonify({'success': False, 'message': message}), 403
+    if error == 'conflict':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'disabled':
+        return jsonify({'success': False, 'message': message, 'code': 'disabled'}), 403
+    if error == 'unauthorized':
+        return jsonify({'success': False, 'message': message}), 401
+    if error == 'unavailable':
+        return jsonify({'success': False, 'message': message}), 503
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': message}), 400
+
+
+def _set_client_cookie(resp, token):
+    resp.set_cookie(
+        CLIENT_COOKIE,
+        token,
+        path='/',
+        httponly=True,
+        samesite='Lax',
+        secure=_cookie_secure(),
+        max_age=60 * 60 * 12,
+    )
+    return resp
+
+
+def _clear_client_cookie(resp):
+    resp.delete_cookie(
+        CLIENT_COOKIE,
+        path='/',
+        httponly=True,
+        samesite='Lax',
+        secure=_cookie_secure(),
+    )
+    return resp
 
 
 def _operations_response(result, created=False):
@@ -624,6 +690,162 @@ def api_driver_profile():
     return _driver_api_response(operations_driver_app.session_profile(user_id))
 
 
+# --- Client web portal APIs (httpOnly cookie; company isolation via RLS) ---
+
+@app.route('/api/client/login', methods=['POST'])
+def api_client_login():
+    payload = request.get_json(silent=True) or {}
+    result = operations_client_portal.authenticate_client(
+        payload.get('email'), payload.get('password')
+    )
+    if result is None:
+        return jsonify({'success': False, 'message': 'Client portal is not available'}), 503
+    if not result.get('ok'):
+        return _client_api_response(result)
+    resp = make_response(jsonify({
+        'success': True,
+        'user': result['user'],
+        'company': result['company'],
+    }))
+    return _set_client_cookie(resp, result['token'])
+
+
+@app.route('/api/client/logout', methods=['POST'])
+def api_client_logout():
+    resp = make_response(jsonify({'success': True, 'message': 'Signed out.'}))
+    return _clear_client_cookie(resp)
+
+
+@app.route('/api/client/session', methods=['GET'])
+def api_client_session():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_client_portal.session_profile(user_id))
+
+
+@app.route('/api/client/dashboard', methods=['GET'])
+def api_client_dashboard():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_client_portal.dashboard(user_id))
+
+
+@app.route('/api/client/bookings', methods=['GET', 'POST'])
+def api_client_bookings():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _client_api_response(operations_client_portal.list_bookings(
+            user_id,
+            status=request.args.get('status'),
+            search=request.args.get('search'),
+        ))
+    payload = request.get_json(silent=True) or {}
+    return _client_api_response(
+        operations_client_portal.create_booking_request(user_id, payload),
+        created=True,
+    )
+
+
+@app.route('/api/client/bookings/<booking_id>', methods=['GET', 'PATCH'])
+def api_client_booking_detail(booking_id):
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _client_api_response(operations_client_portal.get_booking(user_id, booking_id))
+    payload = request.get_json(silent=True) or {}
+    return _client_api_response(
+        operations_client_portal.update_booking_request(user_id, booking_id, payload)
+    )
+
+
+@app.route('/api/client/bookings/<booking_id>/cancel', methods=['POST'])
+def api_client_booking_cancel(booking_id):
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(
+        operations_client_portal.cancel_booking_request(user_id, booking_id)
+    )
+
+
+@app.route('/api/client/trips', methods=['GET'])
+def api_client_trips():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(
+        operations_client_portal.list_trips(user_id, request.args.get('filter'))
+    )
+
+
+@app.route('/api/client/invoices', methods=['GET'])
+def api_client_invoices():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_client_portal.list_invoices(user_id))
+
+
+@app.route('/api/client/invoices/<invoice_id>', methods=['GET'])
+def api_client_invoice_detail(invoice_id):
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_client_portal.get_invoice(user_id, invoice_id))
+
+
+@app.route('/api/client/payments', methods=['GET'])
+def api_client_payments():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_client_portal.list_payments(user_id))
+
+
+@app.route('/api/client/profile', methods=['GET', 'PATCH'])
+def api_client_profile():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _client_api_response(operations_client_portal.session_profile(user_id))
+    payload = request.get_json(silent=True) or {}
+    return _client_api_response(operations_client_portal.update_profile(user_id, payload))
+
+
+@app.route('/api/client/support', methods=['GET'])
+def api_client_support():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_client_portal.support_info())
+
+
+@app.route('/client/')
+@app.route('/client/<path:asset_path>')
+def client_portal(asset_path='index.html'):
+    if not os.path.isdir(client_portal_dir):
+        return jsonify({'success': False, 'message': 'Client portal is not installed'}), 404
+    safe = asset_path.replace('\\', '/').lstrip('/')
+    if '..' in safe.split('/'):
+        return jsonify({'success': False, 'message': 'Not found'}), 404
+    if safe == '' or safe.endswith('/'):
+        safe = 'index.html'
+    full = os.path.normpath(os.path.join(client_portal_dir, safe))
+    if not full.startswith(os.path.normpath(client_portal_dir)):
+        return jsonify({'success': False, 'message': 'Not found'}), 404
+    if not os.path.isfile(full):
+        # SPA fallback
+        full = os.path.join(client_portal_dir, 'index.html')
+    directory, filename = os.path.split(full)
+    return send_from_directory(directory, filename)
+
+
 def _finance_response(result, created=False):
     if result is None:
         return jsonify({'success': False, 'message': 'Financial register is not available'}), 503
@@ -970,6 +1192,30 @@ def api_clients():
     if not isinstance(payload, dict):
         return jsonify({'success': False, 'message': 'Client details are not valid'}), 400
     return _company_response(dev_postgres.create_client(user_id, payload), created=True)
+
+
+@app.route('/api/clients/<client_id>/login-account', methods=['POST'])
+def api_client_login_account(client_id):
+    """Owner provisions email+password login for a linked client user."""
+    user_id, denied = _company_owner('Only an owner can provision client logins')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    result = operations_client_portal.provision_client_login(
+        user_id, client_id, payload.get('password')
+    )
+    if result is None:
+        return jsonify({'success': False, 'message': 'Client login is not available'}), 503
+    if not result.get('ok'):
+        return _client_api_response(result)
+    return jsonify({
+        'success': True,
+        'data': {
+            'user_id': result['user_id'],
+            'company_id': result.get('company_id'),
+            'created': result.get('created'),
+        },
+    }), 201
 
 
 @app.route('/api/companies/<company_id>/clients', methods=['GET', 'POST'])

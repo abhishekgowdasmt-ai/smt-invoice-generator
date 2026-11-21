@@ -1,0 +1,22 @@
+Apply 011_client_portal.sql to a disposable local database whose name ends with _test
+(for example smt_revision8_test) before running client portal tests.
+
+Do not apply to smt_dev or production without explicit approval.
+
+In pgAdmin Query Tool (connected as a superuser to the target _test database):
+
+1. Open 011_client_portal.sql
+2. Execute the script
+3. Confirm COMMIT succeeded
+
+Also apply 010_driver_app.sql first if that migration is not yet present
+(password_hash owner grants are required for client login provisioning).
+
+Backend .env (do not commit secrets):
+
+  CLIENT_TOKEN=<random >=32 chars>
+  # Optional local fallback: STAFF_TOKEN with a different signing salt
+
+Portal URL (Flask):
+
+  http://127.0.0.1:5000/client/
