@@ -69,6 +69,8 @@ PostgreSQL operational work lives under **Duties**, **Finance**, **Drivers**, **
 | Endpoint | Used by |
 |----------|---------|
 | `GET /api/operations/dashboard` | Home operations board |
+| `GET /api/reports/<name>` (+ `export=csv`) | Reports tab (see `REPORTING_AND_NOTIFICATIONS.md`) |
+| `GET/POST /api/operations/notifications` | Supervisor alerts (migration 016) |
 | `GET/POST /api/operations/bookings` | Duty board / create |
 | `…/assign|reassign|unassign|cancel|start|complete` | Duty actions |
 | `PATCH /api/operations/assignments/<id>/vehicle` | Change vehicle |

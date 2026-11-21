@@ -73,7 +73,7 @@ function revealWorkspace(me) {
     document.getElementById('admin-login-overlay').classList.add('hidden');
     document.getElementById('admin-workspace').style.display = 'flex';
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'reports', 'companies', 'ev', 'tracking', 'settings', 'help'];
     switchTab(allowed.includes(hash) ? hash : 'home');
 }
 
@@ -170,6 +170,8 @@ function switchTab(tabId) {
         fetchPgDuties();
     } else if (tabId === 'pg-finance') {
         fetchPgFinance();
+    } else if (tabId === 'reports') {
+        fetchStaffNotifications();
     } else if (tabId === 'companies') {
         fetchCompanies();
     } else if (tabId === 'ev') {
@@ -182,7 +184,7 @@ function switchTab(tabId) {
 window.addEventListener('hashchange', () => {
     if (!smtToken) return;
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'reports', 'companies', 'ev', 'tracking', 'settings', 'help'];
     if (!allowed.includes(hash)) return;
     const current = document.querySelector('.admin-tab-content.active');
     if (current && current.id === `tab-${hash}`) return;
@@ -4582,4 +4584,130 @@ async function loadPgCompanySettlement() {
         console.error(err);
         bodyEl.textContent = 'Settlement could not be loaded.';
     }
+}
+
+// --- Reports + supervisor notifications (Master Prompt 7) ---
+function reportQueryParams() {
+    const params = new URLSearchParams();
+    const from = (document.getElementById('report-from') || {}).value || '';
+    const to = (document.getElementById('report-to') || {}).value || '';
+    const branch = (document.getElementById('report-branch') || {}).value || '';
+    const companyId = (document.getElementById('report-company-id') || {}).value || '';
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (branch) params.set('branch', branch);
+    if (companyId.trim()) params.set('company_id', companyId.trim());
+    return params;
+}
+
+async function fetchStaffNotifications() {
+    const list = document.getElementById('staff-notif-list');
+    const unread = document.getElementById('staff-notif-unread');
+    if (!list) return;
+    list.textContent = 'Loading alerts�';
+    try {
+        const res = await fetch('/api/operations/notifications', { credentials: 'same-origin' });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            list.textContent = body.message || 'Alerts need migration 016 or are unavailable.';
+            if (unread) unread.textContent = '�';
+            return;
+        }
+        const rows = (body.data && body.data.notifications) || [];
+        const count = (body.data && body.data.unread_count) || 0;
+        if (unread) unread.textContent = count + ' unread';
+        if (!rows.length) {
+            list.textContent = 'No supervisor alerts yet.';
+            return;
+        }
+        list.innerHTML = rows.slice(0, 20).map((n) => `
+            <div style="display:flex; justify-content:space-between; gap:0.75rem; padding:0.4rem 0; border-bottom:1px solid #eef2f7;">
+                <div>
+                    <strong>${escapeHtmlDuty(n.title)}</strong>
+                    <div style="color:var(--text-secondary); font-size:0.85rem;">${escapeHtmlDuty(n.body)}</div>
+                    <div style="color:var(--text-muted); font-size:0.75rem;">${escapeHtmlDuty(n.created_at || '')} � ${escapeHtmlDuty(n.kind || '')}</div>
+                </div>
+                ${n.read_at ? '' : `<button type="button" class="btn btn-secondary" onclick="markStaffNotificationRead('${n.id}')">Mark read</button>`}
+            </div>`).join('');
+    } catch (err) {
+        console.error(err);
+        list.textContent = 'Alerts could not be loaded.';
+    }
+}
+
+async function markStaffNotificationRead(id) {
+    await fetch(`/api/operations/notifications/${id}/read`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+    fetchStaffNotifications();
+}
+
+function renderReportSummary(summary) {
+    const el = document.getElementById('report-summary');
+    if (!el) return;
+    if (!summary || typeof summary !== 'object') {
+        el.innerHTML = '';
+        return;
+    }
+    el.innerHTML = Object.keys(summary).map((key) => `
+        <div class="ops-kpi is-static">
+            <span class="ops-kpi-label">${escapeHtmlDuty(key.replace(/_/g, ' '))}</span>
+            <strong class="ops-kpi-value">${escapeHtmlDuty(summary[key])}</strong>
+        </div>`).join('');
+}
+
+function renderReportTable(reportName, data) {
+    const head = document.getElementById('report-table-head');
+    const body = document.getElementById('report-table-body');
+    if (!head || !body) return;
+    let rows = data.rows || [];
+    let columns = [];
+    if (reportName === 'branch-company') {
+        rows = []
+            .concat((data.by_branch || []).map((r) => ({ section: 'branch', name: r.branch_code, bookings: r.bookings, completed: r.completed, cancelled: r.cancelled })))
+            .concat((data.by_company || []).map((r) => ({ section: 'company', name: r.company_name, bookings: r.bookings, completed: r.completed, cancelled: '' })));
+    }
+    if (reportName === 'financial-summary') {
+        rows = Object.keys(data.summary || {}).map((k) => ({ metric: k, value: data.summary[k] }));
+    }
+    if (!rows.length) {
+        head.innerHTML = '<tr><th>Result</th></tr>';
+        body.innerHTML = '<tr><td style="text-align:center; color: var(--text-muted);">No rows for these filters.</td></tr>';
+        return;
+    }
+    columns = Object.keys(rows[0]);
+    head.innerHTML = '<tr>' + columns.map((c) => `<th>${escapeHtmlDuty(c)}</th>`).join('') + '</tr>';
+    body.innerHTML = rows.slice(0, 200).map((row) =>
+        '<tr>' + columns.map((c) => `<td>${escapeHtmlDuty(row[c])}</td>`).join('') + '</tr>'
+    ).join('');
+}
+
+async function runSupervisorReport() {
+    const status = document.getElementById('report-status');
+    const name = (document.getElementById('report-name') || {}).value || 'bookings';
+    if (status) status.textContent = 'Loading report�';
+    try {
+        const params = reportQueryParams();
+        const res = await fetch(`/api/reports/${encodeURIComponent(name)}?${params.toString()}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            if (status) status.textContent = body.message || 'Report could not be loaded.';
+            return;
+        }
+        const data = body.data || {};
+        renderReportSummary(data.summary || {});
+        renderReportTable(name, data);
+        if (status) status.textContent = `Loaded ${name} report.`;
+    } catch (err) {
+        console.error(err);
+        if (status) status.textContent = 'Report could not be loaded.';
+    }
+}
+
+function exportSupervisorReportCsv() {
+    const name = (document.getElementById('report-name') || {}).value || 'bookings';
+    const params = reportQueryParams();
+    params.set('export', 'csv');
+    window.location.href = `/api/reports/${encodeURIComponent(name)}?${params.toString()}`;
 }

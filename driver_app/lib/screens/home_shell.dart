@@ -1,6 +1,8 @@
 import 'package:material_ui/material_ui.dart';
+import 'package:provider/provider.dart';
 
 import '../config/app_config.dart';
+import '../state/driver_controller.dart';
 import 'dashboard_screen.dart';
 import 'duties_screen.dart';
 import 'notifications_screen.dart';
@@ -20,7 +22,16 @@ class _HomeShellState extends State<HomeShell> {
   static const titles = ['Dashboard', 'Duties', 'Alerts', 'Payouts', 'Profile'];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DriverController>().refreshNotifications();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final unread = context.watch<DriverController>().notifications.where((n) => n.isUnread).length;
     final pages = const [
       DashboardScreen(),
       DutiesScreen(),
@@ -42,12 +53,19 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: index,
         onTap: (value) => setState(() => index = value),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), label: 'Duties'),
-          BottomNavigationBarItem(icon: Icon(Icons.notifications_outlined), label: 'Alerts'),
-          BottomNavigationBarItem(icon: Icon(Icons.payments_outlined), label: 'Payouts'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
+        items: [
+          const BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), label: 'Home'),
+          const BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), label: 'Duties'),
+          BottomNavigationBarItem(
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text('$unread'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            label: 'Alerts',
+          ),
+          const BottomNavigationBarItem(icon: Icon(Icons.payments_outlined), label: 'Payouts'),
+          const BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'Profile'),
         ],
       ),
     );

@@ -103,6 +103,10 @@
                     <svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h3"/></svg>
                     Invoice generation
                 </a>
+                <button type="button" class="portal-side-link" id="btn-tab-reports" onclick="switchTab('reports')">
+                    <svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 17V9M12 17V7M16 17v-4"/></svg>
+                    Reports
+                </button>
                 <div class="portal-side-sep"></div>
                 <button type="button" class="portal-side-link" id="btn-tab-settings" onclick="switchTab('settings')">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9c.3.7.9 1.2 1.7 1.4H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.4 1.6z"/></svg>
@@ -774,6 +778,81 @@
                     <div id="pg-finance-settlement-body" style="padding:1rem; color: var(--text-muted);">Choose a company to view settlement and billable bookings.</div>
                 </div>
                 <div id="pg-finance-detail" style="margin-top:1.5rem; display:none;"></div>
+            </div>
+
+            <!-- Tab: Reports -->
+            <div class="admin-tab-content" id="tab-reports" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 1.5rem 0; display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; align-items:flex-end;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">Reports</h2>
+                        <p style="color: var(--text-secondary);">Operations and finance reports from the PostgreSQL register. Figures come from backend aggregates, not hardcoded samples.</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary" onclick="fetchStaffNotifications()">Refresh alerts</button>
+                </header>
+                <div class="dashboard-table-container" style="margin-bottom:1.25rem;">
+                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                        <h3 style="font-size:1.25rem;">Supervisor alerts</h3>
+                        <span id="staff-notif-unread" style="color:var(--text-secondary);">—</span>
+                    </div>
+                    <div id="staff-notif-list" style="padding:1rem; color:var(--text-muted);">Loading alerts…</div>
+                </div>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem; align-items:end;">
+                    <div>
+                        <label for="report-from" class="ops-board-label">From</label>
+                        <input id="report-from" type="date" class="form-control-custom" style="max-width:11rem;">
+                    </div>
+                    <div>
+                        <label for="report-to" class="ops-board-label">To</label>
+                        <input id="report-to" type="date" class="form-control-custom" style="max-width:11rem;">
+                    </div>
+                    <div>
+                        <label for="report-branch" class="ops-board-label">Branch</label>
+                        <select id="report-branch" class="form-control-custom" style="max-width:11rem;">
+                            <option value="">All cities</option>
+                            <option value="BLR">Bengaluru</option>
+                            <option value="HYD">Hyderabad</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="report-company-id" class="ops-board-label">Company ID</label>
+                        <input id="report-company-id" type="text" class="form-control-custom" style="max-width:16rem;" placeholder="Required for settlement">
+                    </div>
+                    <div>
+                        <label for="report-name" class="ops-board-label">Report</label>
+                        <select id="report-name" class="form-control-custom" style="max-width:16rem;">
+                            <optgroup label="Operations">
+                                <option value="bookings">Booking report</option>
+                                <option value="trips">Trip report</option>
+                                <option value="drivers">Driver performance</option>
+                                <option value="vehicles">Vehicle utilization</option>
+                                <option value="branch-company">Branch &amp; company</option>
+                            </optgroup>
+                            <optgroup label="Finance">
+                                <option value="invoices">Invoice report</option>
+                                <option value="payments">Payment report</option>
+                                <option value="payouts">Driver payout report</option>
+                                <option value="expenses">Expense report</option>
+                                <option value="company-settlement">Company settlement</option>
+                                <option value="financial-summary">Financial summary</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="runSupervisorReport()">Run report</button>
+                    <button type="button" class="btn btn-secondary" onclick="exportSupervisorReportCsv()">Export CSV</button>
+                </div>
+                <p id="report-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Choose a report and date range.</p>
+                <div id="report-summary" class="ops-kpi-grid" style="margin-bottom:1rem;"></div>
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header"><h3 style="font-size:1.25rem;">Results</h3></div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead id="report-table-head"><tr><th>Run a report to load columns</th></tr></thead>
+                            <tbody id="report-table-body">
+                                <tr><td style="text-align:center; color: var(--text-muted);">No report loaded.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- Tab: Corporate Clients -->

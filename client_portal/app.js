@@ -143,12 +143,15 @@
   }
 
   function shell(content) {
+    const unread = state.data.notifications?.unread_count || 0;
+    const notifLabel = unread > 0 ? `Alerts (${unread})` : "Alerts";
     const items = [
       ["dashboard", "Dashboard"],
       ["bookings", "Bookings"],
       ["trips", "Trips"],
       ["invoices", "Invoices"],
       ["payments", "Payments"],
+      ["notifications", notifLabel],
       ["profile", "Account"],
       ["support", "Support"],
     ];
@@ -186,6 +189,7 @@
       trips: "Trip history",
       invoices: "Invoices",
       payments: "Payments",
+      notifications: "Alerts",
       profile: "Account",
       support: "Support",
       booking_new: "New booking request",
@@ -209,6 +213,7 @@
       else if (state.view === "invoices") content = renderInvoices();
       else if (state.view === "invoice_detail") content = renderInvoiceDetail();
       else if (state.view === "payments") content = renderPayments();
+      else if (state.view === "notifications") content = renderNotifications();
       else if (state.view === "profile") content = renderProfile();
       else if (state.view === "support") content = renderSupport();
     }
@@ -256,6 +261,12 @@
         state.data.invoice = await api("/api/client/invoices/" + state.data.invoiceId);
       } else if (state.view === "payments") {
         state.data.payments = await api("/api/client/payments");
+      } else if (state.view === "notifications") {
+        try {
+          state.data.notifications = await api("/api/client/notifications");
+        } catch (error) {
+          state.data.notifications = { notifications: [], unread_count: 0, unavailable: true, message: error.message };
+        }
       } else if (state.view === "profile") {
         state.data.session = await api("/api/client/session");
       } else if (state.view === "support") {
@@ -549,6 +560,35 @@
       </div>`;
   }
 
+  function renderNotifications() {
+    const payload = state.data.notifications || {};
+    if (payload.unavailable) {
+      return `<div class="card"><div class="empty">${escapeHtml(payload.message || "Alerts need migration 016 or are temporarily unavailable.")}</div></div>`;
+    }
+    const rows = payload.notifications || [];
+    const unread = payload.unread_count || 0;
+    return `
+      <div class="actions" style="margin-top:0">
+        <button class="btn secondary" data-action="refresh-notifications">Refresh</button>
+        <span style="color:var(--muted)">${unread} unread</span>
+      </div>
+      <div class="card">
+        ${rows.length ? rows.map((n) => `
+          <div style="display:flex;justify-content:space-between;gap:1rem;padding:.75rem 0;border-bottom:1px solid #e8edf3">
+            <div>
+              <strong>${escapeHtml(n.title)}</strong>
+              <div style="color:var(--muted);font-size:.92rem">${escapeHtml(n.body)}</div>
+              <div style="color:var(--muted);font-size:.8rem">${escapeHtml(n.created_at || "")} · ${escapeHtml(n.kind || "")}</div>
+            </div>
+            <div class="actions" style="margin:0;flex-direction:column;align-items:flex-end">
+              ${n.booking_id ? `<button class="btn secondary" data-booking="${escapeHtml(n.booking_id)}">Open booking</button>` : ""}
+              ${n.invoice_id ? `<button class="btn secondary" data-invoice="${escapeHtml(n.invoice_id)}">Open invoice</button>` : ""}
+              ${!n.read_at ? `<button class="btn" data-action="mark-notif-read" data-id="${escapeHtml(n.id)}">Mark read</button>` : `<span class="chip ok">Read</span>`}
+            </div>
+          </div>`).join("") : `<div class="empty">No alerts yet. Booking and invoice updates appear here after migration 016.</div>`}
+      </div>`;
+  }
+
   function renderProfile() {
     const u = state.data.session?.user || state.user || {};
     const c = state.data.session?.company || state.company || {};
@@ -599,6 +639,17 @@
           setView("trips");
         }
         if (action === "print-invoice") window.print();
+        if (action === "refresh-notifications") setView("notifications");
+        if (action === "mark-notif-read") {
+          const id = el.getAttribute("data-id");
+          if (!id) return;
+          api("/api/client/notifications/" + id + "/read", { method: "POST", body: {} })
+            .then(() => setView("notifications"))
+            .catch((error) => {
+              state.error = error.message;
+              render();
+            });
+        }
         if (action === "cancel-booking") {
           const id = el.getAttribute("data-id");
           if (!id || !confirm("Cancel this booking request?")) return;

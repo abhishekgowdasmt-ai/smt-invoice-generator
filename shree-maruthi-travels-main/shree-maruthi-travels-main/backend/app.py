@@ -34,6 +34,8 @@ import operations_duty
 import operations_finance
 import operations_driver_app
 import operations_client_portal
+import operations_reports
+import operations_notifications
 import shared_api_contracts
 
 dev_postgres.check_development_database()
@@ -350,6 +352,116 @@ def api_operations_dashboard():
     return jsonify({'success': True, 'data': result.get('data') or {}})
 
 
+def _report_filters_from_request():
+    branch = (request.args.get('branch') or '').strip()
+    branch_id = None
+    if branch:
+        branch_id = dev_postgres._parse_uuid(branch)
+        if branch_id is None:
+            maps = dev_postgres._branch_maps()
+            if maps is None:
+                return None
+            by_code, _ = maps
+            found = by_code.get(branch.upper())
+            if found is None:
+                return {'error': 'invalid', 'message': 'Branch filter is not valid.'}
+            branch_id = found['id']
+    return {
+        'date_from': request.args.get('from') or request.args.get('date_from'),
+        'date_to': request.args.get('to') or request.args.get('date_to'),
+        'branch_id': branch_id,
+        'company_id': request.args.get('company_id'),
+        'driver_id': request.args.get('driver_id'),
+        'vehicle_id': request.args.get('vehicle_id'),
+        'status': (request.args.get('status') or '').strip().lower() or None,
+        'origin': (request.args.get('origin') or '').strip().lower() or None,
+        'invoice_status': (request.args.get('invoice_status') or '').strip().lower() or None,
+        'include_reversed': request.args.get('include_reversed'),
+        'payout_status': (request.args.get('payout_status') or '').strip().lower() or None,
+        'category': request.args.get('category'),
+        'expense_status': (request.args.get('expense_status') or '').strip().lower() or None,
+    }
+
+
+def _report_response(result):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Reports are not available'}), 503
+    if result.get('ok') and result.get('content_type', '').startswith('text/csv'):
+        resp = Response(result['body'], mimetype=result['content_type'])
+        resp.headers['Content-Disposition'] = 'attachment; filename="%s"' % result['filename']
+        return resp
+    if result.get('ok'):
+        payload = {k: v for k, v in result.items() if k != 'ok'}
+        return jsonify({'success': True, 'data': payload})
+    return (
+        jsonify(shared_api_contracts.error_payload(
+            result.get('message') or 'Report could not be loaded',
+            result.get('error'),
+        )),
+        shared_api_contracts.http_status_for_error(result.get('error')),
+    )
+
+
+@app.route('/api/reports/<report_name>', methods=['GET'])
+def api_reports(report_name):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    filters = _report_filters_from_request()
+    if filters is None:
+        return jsonify({'success': False, 'message': 'Reports are not available'}), 503
+    if filters.get('error'):
+        return jsonify({'success': False, 'message': filters['message']}), 400
+    export = (request.args.get('export') or '').strip().lower()
+    if export == 'csv':
+        return _report_response(operations_reports.export_report_csv(user_id, report_name, **filters))
+    return _report_response(operations_reports.run_report(user_id, report_name, **filters))
+
+
+@app.route('/api/operations/notifications', methods=['GET'])
+def api_staff_notifications():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    result = operations_notifications.list_staff_notifications(user_id)
+    if result is None:
+        return jsonify({'success': False, 'message': 'Notifications are not available'}), 503
+    if not result.get('ok'):
+        return (
+            jsonify(shared_api_contracts.error_payload(
+                result.get('message') or 'Notifications are not available',
+                result.get('error'),
+            )),
+            shared_api_contracts.http_status_for_error(result.get('error')),
+        )
+    return jsonify({
+        'success': True,
+        'data': {
+            'notifications': result.get('notifications') or [],
+            'unread_count': result.get('unread_count') or 0,
+        },
+    })
+
+
+@app.route('/api/operations/notifications/<notification_id>/read', methods=['POST'])
+def api_staff_notification_read(notification_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    result = operations_notifications.mark_staff_notification_read(user_id, notification_id)
+    if result is None:
+        return jsonify({'success': False, 'message': 'Notifications are not available'}), 503
+    if not result.get('ok'):
+        return (
+            jsonify(shared_api_contracts.error_payload(
+                result.get('message') or 'Notification was not found',
+                result.get('error'),
+            )),
+            shared_api_contracts.http_status_for_error(result.get('error')),
+        )
+    return jsonify({'success': True, 'data': {'id': result.get('id')}})
+
+
 @app.route('/api/operations/bookings', methods=['GET', 'POST'])
 def api_operation_bookings():
     user_id, denied = _operations_actor()
@@ -423,6 +535,21 @@ def _operations_duty_response(user_id, result):
                     'error': 'WhatsApp delivery failed after the duty change was saved.',
                 })
         payload['whatsapp'] = deliveries[0] if len(deliveries) == 1 else deliveries
+    try:
+        booking = result.get('booking') or {}
+        assignment = result.get('assignment') or {}
+        status = booking.get('status') or assignment.get('status')
+        if status in ('assigned', 'accepted', 'started', 'completed', 'cancelled'):
+            operations_notifications.emit_assignment_client_update(user_id, booking, status)
+        if assignment.get('status') == 'rejected':
+            operations_notifications.emit_driver_reject_staff(
+                user_id,
+                booking,
+                assignment.get('driver_id'),
+                assignment.get('rejection_reason'),
+            )
+    except Exception:
+        pass
     return jsonify(payload), 200
 
 
@@ -742,6 +869,24 @@ def api_client_dashboard():
     return _client_api_response(operations_client_portal.dashboard(user_id))
 
 
+@app.route('/api/client/notifications', methods=['GET'])
+def api_client_notifications():
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(operations_notifications.list_client_notifications(user_id))
+
+
+@app.route('/api/client/notifications/<notification_id>/read', methods=['POST'])
+def api_client_notification_read(notification_id):
+    user_id, denied = _client_actor()
+    if denied:
+        return denied
+    return _client_api_response(
+        operations_notifications.mark_client_notification_read(user_id, notification_id)
+    )
+
+
 @app.route('/api/client/bookings', methods=['GET', 'POST'])
 def api_client_bookings():
     user_id, denied = _client_actor()
@@ -754,10 +899,13 @@ def api_client_bookings():
             search=request.args.get('search'),
         ))
     payload = request.get_json(silent=True) or {}
-    return _client_api_response(
-        operations_client_portal.create_booking_request(user_id, payload),
-        created=True,
-    )
+    result = operations_client_portal.create_booking_request(user_id, payload)
+    if result and result.get('ok') and result.get('booking'):
+        try:
+            operations_notifications.emit_after_client_booking(user_id, result['booking'])
+        except Exception:
+            pass
+    return _client_api_response(result, created=True)
 
 
 @app.route('/api/client/bookings/<booking_id>', methods=['GET', 'PATCH'])
@@ -983,7 +1131,13 @@ def api_finance_invoice_issue(invoice_id):
     if denied:
         return denied
     payload = request.get_json(silent=True) or {}
-    return _finance_response(operations_finance.issue_invoice(user_id, invoice_id, payload))
+    result = operations_finance.issue_invoice(user_id, invoice_id, payload)
+    if result and result.get('ok') and result.get('invoice'):
+        try:
+            operations_notifications.emit_invoice_issued_client(user_id, result['invoice'])
+        except Exception:
+            pass
+    return _finance_response(result)
 
 
 @app.route('/api/finance/invoices/<invoice_id>/void', methods=['POST'])
@@ -1005,6 +1159,16 @@ def api_finance_invoice_payment(invoice_id):
         return jsonify({'success': False, 'message': 'Payment details are not valid.'}), 400
     result = operations_finance.record_payment(user_id, invoice_id, payload)
     created = bool(result and result.get('ok') and not result.get('idempotent'))
+    if result and result.get('ok') and result.get('invoice') and result.get('payment'):
+        try:
+            operations_notifications.emit_payment_client(
+                user_id,
+                result['invoice'],
+                result['payment'].get('id'),
+                reversed_flag=False,
+            )
+        except Exception:
+            pass
     return _finance_response(result, created=created)
 
 
@@ -1014,7 +1178,18 @@ def api_finance_payment_reverse(payment_id):
     if denied:
         return denied
     payload = request.get_json(silent=True) or {}
-    return _finance_response(operations_finance.reverse_payment(user_id, payment_id, payload))
+    result = operations_finance.reverse_payment(user_id, payment_id, payload)
+    if result and result.get('ok') and result.get('invoice'):
+        try:
+            operations_notifications.emit_payment_client(
+                user_id,
+                result['invoice'],
+                payment_id,
+                reversed_flag=True,
+            )
+        except Exception:
+            pass
+    return _finance_response(result)
 
 
 @app.route('/api/finance/payouts', methods=['GET', 'POST'])

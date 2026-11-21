@@ -69,6 +69,10 @@ Supervisor website polish (Master Prompt 6) is documented in
 (`GET /api/operations/dashboard`) that aggregates existing booking/driver/vehicle
 counts under RLS.
 
+Advanced reporting and notifications (Master Prompt 7) are documented in
+`REPORTING_AND_NOTIFICATIONS.md` (`GET /api/reports/*`, CSV exports, and
+client/staff notification APIs that require prepared migration 016).
+
 **Supervisor-specific:** `/api/operations/*`, `/api/finance/*`, master-data CRUD,
 login provisioning for drivers/clients.
 

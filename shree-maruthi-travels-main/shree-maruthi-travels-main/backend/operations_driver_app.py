@@ -885,7 +885,13 @@ def list_notifications(user_id):
             }
             for r in cur.fetchall()
         ]
-        return {"ok": True, "notifications": items, "live": True}
+        unread_count = sum(1 for item in items if not item["read_at"])
+        return {
+            "ok": True,
+            "notifications": items,
+            "unread_count": unread_count,
+            "live": True,
+        }
 
     return _driver_work(user_id, work)
 
