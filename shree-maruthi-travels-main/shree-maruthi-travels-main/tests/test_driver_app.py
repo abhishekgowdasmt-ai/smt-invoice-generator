@@ -115,8 +115,9 @@ class DriverAppTests(unittest.TestCase):
         })
         cls.company_id = (created.get_json().get("data") or {}).get("id")
         assert created.status_code == 201, created.get_json()
-        phone_a = "81" + cls.marker[:8]
-        phone_b = "82" + cls.marker[:8]
+        digits = str(int(cls.marker[:8], 16) % 10**8).zfill(8)
+        phone_a = "81" + digits
+        phone_b = "82" + digits
         cls.password = "DriverPass!" + cls.marker[:4]
         cls.driver_a_id = cls._make_driver("A", phone_a)
         cls.driver_b_id = cls._make_driver("B", phone_b)

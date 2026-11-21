@@ -154,7 +154,9 @@ function switchTab(tabId) {
         history.replaceState(null, '', tabId === 'home' ? '/admin' : `/admin#${tabId}`);
     }
 
-    if (tabId === 'inquiries') {
+    if (tabId === 'home') {
+        fetchOpsHomeBoard();
+    } else if (tabId === 'inquiries') {
         fetchDashboardData();
     } else if (tabId === 'cabs') {
         fetchCabs();
@@ -334,6 +336,16 @@ function showAdminModal(title, htmlContent) {
 function closeAdminModal() {
     document.getElementById('admin-modal-overlay').style.display = 'none';
     document.getElementById('admin-modal-body').innerHTML = '';
+    document.querySelectorAll('body > .modal-overlay').forEach((node) => node.remove());
+}
+
+// Aliases used by PostgreSQL duties/finance helpers.
+function openModal(title, htmlContent) {
+    showAdminModal(title, htmlContent);
+}
+
+function closeModal() {
+    closeAdminModal();
 }
 
 // --- CABS MANAGEMENT ---
@@ -1201,22 +1213,71 @@ function renderCompanyClients(companyId, clients) {
         list.textContent = 'No clients linked yet.';
         return;
     }
+    const isOwner = staffSession.role === 'od';
     clients.forEach((client) => {
         const row = document.createElement('div');
         row.style.display = 'flex';
         row.style.justifyContent = 'space-between';
         row.style.gap = '0.75rem';
         row.style.marginBottom = '0.4rem';
+        row.style.flexWrap = 'wrap';
         const label = document.createElement('span');
         label.textContent = [client.full_name, client.email, client.phone].filter(Boolean).join(' · ');
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.gap = '0.35rem';
+        if (isOwner) {
+            const provision = document.createElement('button');
+            provision.type = 'button';
+            provision.className = 'status-select';
+            provision.textContent = 'Provision login';
+            provision.addEventListener('click', () => provisionClientLogin(client.id, client.full_name || client.email));
+            actions.appendChild(provision);
+        }
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'status-select';
         button.textContent = 'Remove link';
         button.addEventListener('click', () => removeCompanyClient(companyId, client.id));
-        row.append(label, button);
+        actions.appendChild(button);
+        row.append(label, actions);
         list.appendChild(row);
     });
+}
+
+async function provisionClientLogin(clientId, label) {
+    if (staffSession.role !== 'od') {
+        setClientError('Only an owner can provision client portal logins.');
+        return;
+    }
+    const password = window.prompt(
+        `Set a portal password for ${label || 'this client'} (min 8 characters).`
+    );
+    if (password === null) return;
+    if (!password || password.length < 8) {
+        setClientError('Password must be at least 8 characters.');
+        return;
+    }
+    setClientError('Provisioning client login...');
+    try {
+        const res = await fetch(`/api/clients/${clientId}/login-account`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setClientError(body.message || 'Client login could not be provisioned.');
+            return;
+        }
+        setClientError(body.data && body.data.created === false
+            ? 'Client login password updated.'
+            : 'Client portal login provisioned.');
+    } catch (err) {
+        console.error(err);
+        setClientError('Client login could not be provisioned.');
+    }
 }
 
 async function loadCompanyClients(companyId) {
@@ -2066,14 +2127,65 @@ function renderPgDriverDetails(driver) {
         <p id="pg-driver-document-error" style="color: #ef4444; min-height: 1.2rem;"></p>
         <button type="submit" class="btn btn-primary">Save document</button>
     `;
+    const loginActions = document.createElement('div');
+    loginActions.style.margin = '0.75rem 0';
+    if (staffSession.role === 'od') {
+        const provision = document.createElement('button');
+        provision.type = 'button';
+        provision.className = 'btn btn-secondary';
+        provision.textContent = 'Provision driver app login';
+        provision.addEventListener('click', () => provisionDriverLogin(driver.id, driver.display_name || driver.phone));
+        loginActions.appendChild(provision);
+        const note = document.createElement('p');
+        note.style.color = 'var(--text-secondary)';
+        note.style.marginTop = '0.35rem';
+        note.textContent = 'App login is separate from operational active status and verification.';
+        loginActions.appendChild(note);
+    }
+
     holder.append(
-        title, lines, primary, extra,
+        title, lines, primary, extra, loginActions,
         warningTitle, warningList,
         reviews, changes,
         documentTitle, documentNote, documentList, form
     );
     document.getElementById('admin-modal-title').textContent = 'PostgreSQL driver';
     document.getElementById('admin-modal-body').replaceChildren(holder);
+}
+
+async function provisionDriverLogin(driverId, label) {
+    if (staffSession.role !== 'od') {
+        setPgDriverStatus('Only an owner can provision driver logins.', true);
+        return;
+    }
+    const password = window.prompt(
+        `Set a driver app password for ${label || 'this driver'} (min 8 characters).`
+    );
+    if (password === null) return;
+    if (!password || password.length < 8) {
+        setPgDriverStatus('Password must be at least 8 characters.', true);
+        return;
+    }
+    setPgDriverStatus('Provisioning driver login...');
+    try {
+        const res = await fetch(`/api/drivers/${driverId}/login-account`, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setPgDriverStatus(body.message || 'Driver login could not be provisioned.', true);
+            return;
+        }
+        setPgDriverStatus(body.data && body.data.created === false
+            ? 'Driver app password updated.'
+            : 'Driver app login provisioned.');
+    } catch (err) {
+        console.error(err);
+        setPgDriverStatus('Driver login could not be provisioned.', true);
+    }
 }
 
 async function showPgDriverDetails(driverId) {
@@ -3266,15 +3378,129 @@ async function clearSimulationTrips() {
     }
 }
 
+// --- Supervisor home operations board ---
+function opsHomeMoney(value) {
+    const n = Number(value || 0);
+    return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function opsHomeTile(label, value, tabId, filters) {
+    const safeLabel = escapeHtmlDuty(label);
+    const safeValue = escapeHtmlDuty(String(value == null ? '—' : value));
+    const attrs = tabId
+        ? ` type="button" class="ops-kpi" onclick="openOpsHomeLink('${tabId}', ${JSON.stringify(filters || {})})"`
+        : ' class="ops-kpi is-static"';
+    const tag = tabId ? 'button' : 'div';
+    return `<${tag}${attrs}><span class="ops-kpi-label">${safeLabel}</span><strong class="ops-kpi-value">${safeValue}</strong></${tag}>`;
+}
+
+function openOpsHomeLink(tabId, filters) {
+    if (tabId === 'pg-duties') {
+        const origin = document.getElementById('pg-duty-origin');
+        const status = document.getElementById('pg-duty-status');
+        const dateEl = document.getElementById('pg-duty-date');
+        if (origin) origin.value = (filters && filters.origin) || '';
+        if (status) status.value = (filters && filters.status) || '';
+        if (dateEl) {
+            dateEl.value = (filters && filters.trip_date === 'today')
+                ? new Date().toISOString().slice(0, 10)
+                : ((filters && filters.trip_date) || '');
+        }
+    } else if (tabId === 'pg-drivers') {
+        const verification = document.getElementById('pg-driver-verification');
+        const active = document.getElementById('pg-driver-active');
+        if (verification && filters && filters.verification_status) {
+            verification.value = filters.verification_status;
+        }
+        if (active && filters && filters.active != null) {
+            active.value = String(filters.active);
+        }
+    } else if (tabId === 'pg-finance') {
+        // Finance tab loads its own dashboard.
+    }
+    switchTab(tabId);
+}
+
+async function fetchOpsHomeBoard() {
+    const status = document.getElementById('ops-home-status');
+    const grid = document.getElementById('ops-home-kpis');
+    if (!grid) return;
+    if (status) status.textContent = 'Loading operational counts…';
+    grid.innerHTML = '<div class="ops-kpi is-static"><span class="ops-kpi-label">Status</span><strong class="ops-kpi-value">Loading…</strong></div>';
+    const branch = (document.getElementById('ops-home-branch') || {}).value || '';
+    const opsQuery = branch ? `?branch=${encodeURIComponent(branch)}` : '';
+    const financeQuery = branch ? `?branch=${encodeURIComponent(branch)}` : '';
+    try {
+        const [opsRes, financeRes] = await Promise.all([
+            fetch(`/api/operations/dashboard${opsQuery}`, { credentials: 'same-origin' }),
+            fetch(`/api/finance/dashboard${financeQuery}`, { credentials: 'same-origin' }),
+        ]);
+        const opsBody = await opsRes.json();
+        const financeBody = await financeRes.json();
+        if (!opsRes.ok || !opsBody.success) {
+            if (status) status.textContent = opsBody.message || 'Operations board is not available.';
+            grid.innerHTML = `<div class="ops-kpi is-static"><span class="ops-kpi-label">Error</span><strong class="ops-kpi-value">${escapeHtmlDuty(opsBody.message || 'Unavailable')}</strong></div>`;
+            return;
+        }
+        const ops = opsBody.data || {};
+        const finance = (financeRes.ok && financeBody.success && financeBody.data) || {};
+        const today = new Date().toISOString().slice(0, 10);
+        grid.innerHTML = [
+            opsHomeTile("Today's bookings", ops.bookings_today, 'pg-duties', { trip_date: 'today' }),
+            opsHomeTile('Upcoming', ops.upcoming_bookings, 'pg-duties', {}),
+            opsHomeTile('Unassigned', ops.unassigned_bookings, 'pg-duties', { status: 'unassigned' }),
+            opsHomeTile('Assigned', ops.assigned_duties, 'pg-duties', { status: 'assigned' }),
+            opsHomeTile('Accepted', ops.accepted_duties, 'pg-duties', { status: 'accepted' }),
+            opsHomeTile('In progress', ops.trips_in_progress, 'pg-duties', { status: 'started' }),
+            opsHomeTile('Completed today', ops.completed_today, 'pg-duties', { status: 'completed', trip_date: today }),
+            opsHomeTile('Cancelled today', ops.cancelled_today, 'pg-duties', { status: 'cancelled', trip_date: today }),
+            opsHomeTile('Client requests', ops.client_requests_open, 'pg-duties', { origin: 'client_request', status: 'unassigned' }),
+            opsHomeTile('Active drivers', ops.active_drivers, 'pg-drivers', { active: true }),
+            opsHomeTile('Pending verification', ops.pending_driver_verification, 'pg-drivers', { verification_status: 'unverified' }),
+            opsHomeTile('Active vehicles', ops.active_vehicles, 'pg-vehicles', {}),
+            opsHomeTile('Outstanding invoices', `₹ ${opsHomeMoney(finance.outstanding_receivables)}`, 'pg-finance', {}),
+            opsHomeTile('Overdue invoices', finance.overdue_invoice_count || 0, 'pg-finance', {}),
+            opsHomeTile('Pending payouts', `₹ ${opsHomeMoney(finance.pending_driver_payouts)}`, 'pg-finance', {}),
+            opsHomeTile('Expenses', `₹ ${opsHomeMoney(finance.expenses)}`, 'pg-finance', {}),
+        ].join('');
+        if (status) {
+            status.textContent = financeRes.ok && financeBody.success
+                ? 'Counts respect your branch access. Click a tile to open the matching register.'
+                : 'Duty counts loaded. Finance summary is not available for this session.';
+        }
+    } catch (err) {
+        console.error(err);
+        if (status) status.textContent = 'Operations board could not be loaded.';
+        grid.innerHTML = '<div class="ops-kpi is-static"><span class="ops-kpi-label">Error</span><strong class="ops-kpi-value">Unavailable</strong></div>';
+    }
+}
+
 // --- PostgreSQL Duties ---
 let pgDutyBranchMap = null;
 let pgDutySelectedId = null;
+let pgDutyAssignBusy = false;
 
 function setPgDutyStatus(message, isError) {
     const el = document.getElementById('pg-duties-status');
     if (!el) return;
     el.textContent = message || '';
     el.style.color = isError ? '#ef4444' : 'var(--text-secondary)';
+}
+
+function filterPgDutiesClientRequests() {
+    const origin = document.getElementById('pg-duty-origin');
+    const status = document.getElementById('pg-duty-status');
+    if (origin) origin.value = 'client_request';
+    if (status && !status.value) status.value = 'unassigned';
+    fetchPgDuties('Showing client booking requests.');
+}
+
+function originBadge(origin) {
+    const value = String(origin || '').toLowerCase();
+    if (value === 'client_request') return '<span class="origin-badge origin-client">Client request</span>';
+    if (value === 'rac') return '<span class="origin-badge origin-rac">RAC</span>';
+    if (value === 'retail') return '<span class="origin-badge origin-retail">Retail</span>';
+    return escapeHtmlDuty(origin || '—');
 }
 
 async function loadPgDutyBranches() {
@@ -3301,17 +3527,19 @@ async function fetchPgDuties(doneMessage) {
     const tbody = document.getElementById('pg-duties-table-body');
     if (!tbody) return;
     setPgDutyStatus('Loading duties...');
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading duties...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Loading duties...</td></tr>';
     try {
         await loadPgDutyBranches();
         const params = new URLSearchParams();
         const search = document.getElementById('pg-duty-search').value.trim();
         const branch = document.getElementById('pg-duty-branch').value;
         const status = document.getElementById('pg-duty-status').value;
+        const origin = (document.getElementById('pg-duty-origin') || {}).value || '';
         const tripDate = document.getElementById('pg-duty-date').value;
         if (search) params.set('search', search);
         if (branch) params.set('branch', branch);
         if (status) params.set('status', status);
+        if (origin) params.set('origin', origin);
         if (tripDate) params.set('trip_date', tripDate);
         const query = params.toString();
         const res = await fetch(`/api/operations/bookings${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
@@ -3322,12 +3550,12 @@ async function fetchPgDuties(doneMessage) {
         }
         if (!res.ok || !body.success) {
             setPgDutyStatus(body.message || 'Duties could not be loaded.', true);
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Duties could not be loaded.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #ef4444;">Duties could not be loaded.</td></tr>';
             return;
         }
         const rows = body.data || [];
         if (!rows.length) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No bookings match these filters.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">No bookings match these filters.</td></tr>';
             setPgDutyStatus(typeof doneMessage === 'string' ? doneMessage : 'No bookings found.');
             return;
         }
@@ -3340,6 +3568,7 @@ async function fetchPgDuties(doneMessage) {
                 <td>${escapeHtmlDuty(row.source_booking_id || '—')}</td>
                 <td>${escapeHtmlDuty(row.employee_name || '')}</td>
                 <td>${escapeHtmlDuty(branchLabel)}</td>
+                <td>${originBadge(row.origin)}</td>
                 <td>${escapeHtmlDuty(row.status || '')}</td>
                 <td>${escapeHtmlDuty(row.duty_type || '')}</td>
                 <td>${escapeHtmlDuty(row.pickup_time || row.planned_start || '')}</td>
@@ -3351,16 +3580,28 @@ async function fetchPgDuties(doneMessage) {
     } catch (err) {
         console.error(err);
         setPgDutyStatus('Duties could not be loaded.', true);
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Duties could not be loaded.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #ef4444;">Duties could not be loaded.</td></tr>';
     }
 }
 
-function showCreatePgDutyModal() {
+async function showCreatePgDutyModal() {
+    let companyOptions = '<option value="">No company (retail / internal)</option>';
+    try {
+        const companiesRes = await fetch('/api/companies', { credentials: 'same-origin' });
+        const companiesBody = await companiesRes.json();
+        if (companiesRes.ok && companiesBody.success) {
+            companyOptions += (companiesBody.data || []).map((c) =>
+                `<option value="${escapeHtmlDuty(c.id)}">${escapeHtmlDuty(c.name)}</option>`
+            ).join('');
+        }
+    } catch (err) {
+        console.error(err);
+    }
     const html = `
         <form id="pg-duty-form" onsubmit="savePgDuty(event)">
             <div class="form-grid-2">
                 <div class="form-group-custom">
-                    <label>Branch*</label>
+                    <label for="pg-duty-form-branch">Branch*</label>
                     <select id="pg-duty-form-branch" class="form-control-custom" required>
                         <option value="">Choose a city</option>
                         <option value="BLR">Bengaluru</option>
@@ -3368,40 +3609,44 @@ function showCreatePgDutyModal() {
                     </select>
                 </div>
                 <div class="form-group-custom">
-                    <label>Trip date*</label>
+                    <label for="pg-duty-form-date">Trip date*</label>
                     <input type="date" id="pg-duty-form-date" class="form-control-custom" required>
                 </div>
             </div>
+            <div class="form-group-custom">
+                <label for="pg-duty-form-company">Company</label>
+                <select id="pg-duty-form-company" class="form-control-custom">${companyOptions}</select>
+            </div>
             <div class="form-grid-2">
                 <div class="form-group-custom">
-                    <label>Source booking ID</label>
+                    <label for="pg-duty-form-source">Source booking ID</label>
                     <input type="text" id="pg-duty-form-source" class="form-control-custom">
                 </div>
                 <div class="form-group-custom">
-                    <label>Pickup time</label>
+                    <label for="pg-duty-form-pickup">Pickup time</label>
                     <input type="time" id="pg-duty-form-pickup" class="form-control-custom">
                 </div>
             </div>
             <div class="form-group-custom">
-                <label>Passenger / employee</label>
+                <label for="pg-duty-form-employee">Passenger / employee</label>
                 <input type="text" id="pg-duty-form-employee" class="form-control-custom">
             </div>
             <div class="form-grid-2">
                 <div class="form-group-custom">
-                    <label>Duty type</label>
+                    <label for="pg-duty-form-duty">Duty type</label>
                     <input type="text" id="pg-duty-form-duty" class="form-control-custom">
                 </div>
                 <div class="form-group-custom">
-                    <label>Cab type</label>
+                    <label for="pg-duty-form-cab">Cab type</label>
                     <input type="text" id="pg-duty-form-cab" class="form-control-custom">
                 </div>
             </div>
             <div class="form-group-custom">
-                <label>Pickup / route</label>
+                <label for="pg-duty-form-route">Pickup / route</label>
                 <input type="text" id="pg-duty-form-route" class="form-control-custom">
             </div>
             <div class="form-group-custom">
-                <label>Remarks</label>
+                <label for="pg-duty-form-remarks">Remarks</label>
                 <textarea id="pg-duty-form-remarks" class="form-control-custom" rows="2"></textarea>
             </div>
             <p id="pg-duty-form-error" style="color: #ef4444; min-height: 1.2rem;"></p>
@@ -3428,9 +3673,11 @@ async function savePgDuty(event) {
         error.textContent = 'Branch is not valid.';
         return;
     }
+    const companyId = (document.getElementById('pg-duty-form-company') || {}).value || '';
     const payload = {
         branch_id: branchId,
         trip_date: document.getElementById('pg-duty-form-date').value,
+        company_id: companyId || null,
         source_booking_id: document.getElementById('pg-duty-form-source').value.trim() || null,
         pickup_time: document.getElementById('pg-duty-form-pickup').value || null,
         employee_name: document.getElementById('pg-duty-form-employee').value.trim() || null,
@@ -3486,11 +3733,14 @@ async function openPgDutyDetail(bookingId) {
         if (booking.status === 'unassigned') {
             actions += `<button class="btn btn-primary" type="button" onclick="promptAssignPgDuty('${booking.id}')">Assign driver</button>`;
             actions += `<button class="btn btn-secondary" type="button" onclick="promptEditPgDuty('${booking.id}')">Edit / reschedule</button>`;
-            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/cancel', {})">Cancel</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="confirmPgDutyCancel('${booking.id}')">Cancel</button>`;
         }
         if (booking.status === 'assigned' || booking.status === 'accepted') {
             actions += `<button class="btn btn-primary" type="button" onclick="promptAssignPgDuty('${booking.id}', true)">Reassign</button>`;
             actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/unassign', {})">Unassign</button>`;
+            if (assignment) {
+                actions += `<button class="btn btn-secondary" type="button" onclick="promptChangePgDutyVehicle('${assignment.id}', '${booking.id}')">Change vehicle</button>`;
+            }
             if (assignment && booking.status === 'assigned') {
                 actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/assignments/${assignment.id}/accept', {})">Mark accepted</button>`;
                 actions += `<button class="btn btn-secondary" type="button" onclick="promptRejectPgDuty('${assignment.id}')">Reject</button>`;
@@ -3499,11 +3749,27 @@ async function openPgDutyDetail(bookingId) {
             if (booking.status === 'accepted') {
                 actions += `<button class="btn btn-primary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/start', {})">Start trip</button>`;
             }
-            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/cancel', {})">Cancel</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="confirmPgDutyCancel('${booking.id}')">Cancel</button>`;
         }
         if (booking.status === 'started') {
             actions += `<button class="btn btn-primary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/complete', {})">Complete trip</button>`;
-            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/cancel', {})">Cancel</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="confirmPgDutyCancel('${booking.id}')">Cancel</button>`;
+        }
+        let assignmentHistory = '';
+        try {
+            const histRes = await fetch(`/api/operations/bookings/${bookingId}/assignments`, { credentials: 'same-origin' });
+            const histBody = await histRes.json();
+            if (histRes.ok && histBody.success) {
+                const payload = histBody.data || {};
+                const rows = payload.assignments || (Array.isArray(payload) ? payload : []);
+                assignmentHistory = rows.length
+                    ? rows.map((row) => escapeHtmlDuty(
+                        `${row.status || ''} · ${row.driver_name || row.driver_id || ''} · ${row.vehicle_registration || row.vehicle_id || 'no vehicle'}`
+                    )).join('<br>')
+                    : '—';
+            }
+        } catch (err) {
+            assignmentHistory = '—';
         }
         panel.innerHTML = `
             <div class="dashboard-table-container">
@@ -3513,6 +3779,7 @@ async function openPgDutyDetail(bookingId) {
                 </div>
                 <div style="padding: 1rem; display:grid; gap:0.5rem;">
                     <div><strong>Status:</strong> ${escapeHtmlDuty(booking.status)}</div>
+                    <div><strong>Origin:</strong> ${originBadge(booking.origin)}</div>
                     <div><strong>Source ID:</strong> ${escapeHtmlDuty(booking.source_booking_id || '—')}</div>
                     <div><strong>Date / time:</strong> ${escapeHtmlDuty(booking.trip_date || '')} ${escapeHtmlDuty(booking.pickup_time || '')}</div>
                     <div><strong>Branch:</strong> ${escapeHtmlDuty(branchLabel)}</div>
@@ -3521,10 +3788,13 @@ async function openPgDutyDetail(bookingId) {
                     <div><strong>Pickup:</strong> ${escapeHtmlDuty(booking.planned_start || booking.route_text || '')}</div>
                     <div><strong>Remarks:</strong> ${escapeHtmlDuty(booking.remarks || '')}</div>
                     <div><strong>Driver:</strong> ${escapeHtmlDuty(assignment ? (assignment.driver_name || assignment.driver_id) : '—')}</div>
+                    <div><strong>Assignment status:</strong> ${escapeHtmlDuty(assignment ? assignment.status : '—')}</div>
                     <div><strong>Vehicle:</strong> ${escapeHtmlDuty(assignment && assignment.vehicle_registration ? assignment.vehicle_registration : '—')}</div>
                     <div><strong>WhatsApp:</strong> ${escapeHtmlDuty(assignment && assignment.whatsapp_status ? assignment.whatsapp_status : '—')}</div>
                     <div><strong>Session:</strong> ${escapeHtmlDuty(session ? session.status : '—')}</div>
-                    <div><strong>History:</strong> ${(events || []).map((ev) => escapeHtmlDuty(`${ev.old_status || '∅'} → ${ev.new_status}`)).join(' · ') || '—'}</div>
+                    <div><strong>Session times:</strong> ${escapeHtmlDuty(session ? `${session.started_at || '—'} → ${session.ended_at || '—'}` : '—')}</div>
+                    <div><strong>Booking events:</strong> ${(events || []).map((ev) => escapeHtmlDuty(`${ev.old_status || '∅'} → ${ev.new_status}`)).join(' · ') || '—'}</div>
+                    <div><strong>Assignment history:</strong><div>${assignmentHistory || '—'}</div></div>
                 </div>
             </div>
         `;
@@ -3532,6 +3802,11 @@ async function openPgDutyDetail(bookingId) {
         console.error(err);
         panel.innerHTML = '<p style="color:#ef4444;">Booking could not be loaded.</p>';
     }
+}
+
+function confirmPgDutyCancel(bookingId) {
+    if (!window.confirm('Cancel this booking? Open assignments will be closed by the backend rules.')) return;
+    runPgDutyAction(`/api/operations/bookings/${bookingId}/cancel`, {});
 }
 
 async function runPgDutyAction(url, payload) {
@@ -3561,23 +3836,31 @@ async function runPgDutyAction(url, payload) {
 }
 
 async function promptAssignPgDuty(bookingId, reassign) {
-    const driversRes = await fetch('/api/drivers?active=true&verification_status=verified', { credentials: 'same-origin' });
+    const [driversRes, vehiclesRes] = await Promise.all([
+        fetch('/api/drivers?active=true&verification_status=verified', { credentials: 'same-origin' }),
+        fetch('/api/vehicles?status=active', { credentials: 'same-origin' }),
+    ]);
     const driversBody = await driversRes.json();
+    const vehiclesBody = await vehiclesRes.json();
     const drivers = driversBody.data || [];
+    const vehicles = vehiclesBody.data || [];
     if (!drivers.length) {
         setPgDutyStatus('No verified active drivers are available.', true);
         return;
     }
     const options = drivers.map((d) => `<option value="${d.id}">${escapeHtmlDuty(d.display_name)} (${escapeHtmlDuty(d.phone || 'no phone')})</option>`).join('');
+    const vehicleOptions = ['<option value="">No vehicle</option>'].concat(
+        vehicles.map((v) => `<option value="${v.id}">${escapeHtmlDuty(v.registration_number || v.id)} · ${escapeHtmlDuty(v.model || '')}</option>`)
+    ).join('');
     const html = `
         <form onsubmit="submitAssignPgDuty(event, '${bookingId}', ${reassign ? 'true' : 'false'})">
             <div class="form-group-custom">
-                <label>Driver*</label>
+                <label for="pg-duty-assign-driver">Driver*</label>
                 <select id="pg-duty-assign-driver" class="form-control-custom" required>${options}</select>
             </div>
             <div class="form-group-custom">
-                <label>Vehicle ID (optional)</label>
-                <input id="pg-duty-assign-vehicle" class="form-control-custom" placeholder="Vehicle UUID">
+                <label for="pg-duty-assign-vehicle">Vehicle (optional)</label>
+                <select id="pg-duty-assign-vehicle" class="form-control-custom">${vehicleOptions}</select>
             </div>
             <label style="display:flex; gap:0.5rem; align-items:center; margin-bottom:1rem;">
                 <input type="checkbox" id="pg-duty-assign-wa" checked>
@@ -3592,6 +3875,7 @@ async function promptAssignPgDuty(bookingId, reassign) {
 
 async function submitAssignPgDuty(event, bookingId, reassign) {
     event.preventDefault();
+    if (pgDutyAssignBusy) return;
     const error = document.getElementById('pg-duty-assign-error');
     error.textContent = '';
     const payload = {
@@ -3603,6 +3887,7 @@ async function submitAssignPgDuty(event, bookingId, reassign) {
     const url = reassign
         ? `/api/operations/bookings/${bookingId}/reassign`
         : `/api/operations/bookings/${bookingId}/assign`;
+    pgDutyAssignBusy = true;
     try {
         const res = await fetch(url, {
             method: 'POST',
@@ -3626,6 +3911,57 @@ async function submitAssignPgDuty(event, bookingId, reassign) {
     } catch (err) {
         console.error(err);
         error.textContent = 'Assignment failed.';
+    } finally {
+        pgDutyAssignBusy = false;
+    }
+}
+
+async function promptChangePgDutyVehicle(assignmentId, bookingId) {
+    const vehiclesRes = await fetch('/api/vehicles?status=active', { credentials: 'same-origin' });
+    const vehiclesBody = await vehiclesRes.json();
+    const vehicles = vehiclesBody.data || [];
+    if (!vehicles.length) {
+        setPgDutyStatus('No active vehicles are available.', true);
+        return;
+    }
+    const options = vehicles.map((v) =>
+        `<option value="${v.id}">${escapeHtmlDuty(v.registration_number || v.id)} · ${escapeHtmlDuty(v.model || '')}</option>`
+    ).join('');
+    const html = `
+        <form onsubmit="submitChangePgDutyVehicle(event, '${assignmentId}', '${bookingId}')">
+            <div class="form-group-custom">
+                <label for="pg-duty-change-vehicle">Vehicle*</label>
+                <select id="pg-duty-change-vehicle" class="form-control-custom" required>${options}</select>
+            </div>
+            <p id="pg-duty-change-vehicle-error" style="color:#ef4444; min-height:1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Save vehicle</button>
+        </form>
+    `;
+    openModal('Change vehicle', html);
+}
+
+async function submitChangePgDutyVehicle(event, assignmentId, bookingId) {
+    event.preventDefault();
+    const error = document.getElementById('pg-duty-change-vehicle-error');
+    error.textContent = '';
+    try {
+        const res = await fetch(`/api/operations/assignments/${assignmentId}/vehicle`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ vehicle_id: document.getElementById('pg-duty-change-vehicle').value }),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'Vehicle could not be changed.';
+            return;
+        }
+        closeModal();
+        fetchPgDuties('Vehicle updated.');
+        openPgDutyDetail(bookingId);
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'Vehicle could not be changed.';
     }
 }
 
@@ -3738,6 +4074,23 @@ async function fetchPgFinance(message) {
         renderPgFinanceInvoices((invoices.success && invoices.data) || []);
         renderPgFinancePayouts((payouts.success && payouts.data) || []);
         renderPgFinanceExpenses((expenses.success && expenses.data) || []);
+        const settlementSelect = document.getElementById('pg-finance-settlement-company');
+        if (settlementSelect && !(dash.data && (dash.data.by_company || []).length)) {
+            try {
+                const companiesRes = await fetch('/api/companies', { credentials: 'same-origin' });
+                const companiesBody = await companiesRes.json();
+                if (companiesRes.ok && companiesBody.success) {
+                    populatePgFinanceSettlementCompanies(
+                        (companiesBody.data || []).map((row) => ({
+                            company_id: row.id,
+                            company_name: row.name,
+                        }))
+                    );
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
         if (status) status.textContent = message || `Loaded ${((invoices.data) || []).length || 0} invoices.`;
     } catch (err) {
         console.error(err);
@@ -3748,6 +4101,12 @@ async function fetchPgFinance(message) {
 function renderPgFinanceDashboard(data) {
     const el = document.getElementById('pg-finance-dashboard-body');
     if (!el) return;
+    const byBranch = (data.by_branch || []).map((row) =>
+        `<li>${escapeHtmlDuty(row.branch_code || row.branch_id)} · invoiced ₹ ${pgFinanceMoney(row.invoiced)} · outstanding ₹ ${pgFinanceMoney(row.outstanding)}</li>`
+    ).join('') || '<li>No branch totals.</li>';
+    const byCompany = (data.by_company || []).slice(0, 8).map((row) =>
+        `<li>${escapeHtmlDuty(row.company_name || row.company_id)} · outstanding ₹ ${pgFinanceMoney(row.outstanding)}</li>`
+    ).join('') || '<li>No company totals.</li>';
     el.innerHTML = `
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:0.75rem;">
             <div><strong>Invoiced</strong><div>₹ ${pgFinanceMoney(data.total_invoiced)}</div></div>
@@ -3757,7 +4116,23 @@ function renderPgFinanceDashboard(data) {
             <div><strong>Pending payouts</strong><div>₹ ${pgFinanceMoney(data.pending_driver_payouts)}</div></div>
             <div><strong>Paid payouts</strong><div>₹ ${pgFinanceMoney(data.paid_driver_payouts)}</div></div>
             <div><strong>Expenses</strong><div>₹ ${pgFinanceMoney(data.expenses)}</div></div>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:1rem; margin-top:1rem;">
+            <div><strong>By branch</strong><ul style="margin:0.35rem 0 0; padding-left:1.1rem;">${byBranch}</ul></div>
+            <div><strong>By company</strong><ul style="margin:0.35rem 0 0; padding-left:1.1rem;">${byCompany}</ul></div>
         </div>`;
+    populatePgFinanceSettlementCompanies(data.by_company || []);
+}
+
+function populatePgFinanceSettlementCompanies(rows) {
+    const select = document.getElementById('pg-finance-settlement-company');
+    if (!select) return;
+    const current = select.value;
+    const options = ['<option value="">Choose company</option>'].concat(
+        rows.map((row) => `<option value="${escapeHtmlDuty(row.company_id)}">${escapeHtmlDuty(row.company_name || row.company_id)}</option>`)
+    );
+    select.innerHTML = options.join('');
+    if (current) select.value = current;
 }
 
 function renderPgFinanceInvoices(rows) {
@@ -3769,9 +4144,9 @@ function renderPgFinanceInvoices(rows) {
     }
     body.innerHTML = rows.map((row) => `
         <tr>
-            <td>${row.invoice_number || ''}</td>
-            <td>${row.company_name || ''}</td>
-            <td>${row.status || ''}</td>
+            <td>${escapeHtmlDuty(row.invoice_number || '')}</td>
+            <td>${escapeHtmlDuty(row.company_name || '')}</td>
+            <td>${escapeHtmlDuty(row.status || '')}</td>
             <td>₹ ${pgFinanceMoney(row.total_amount)}</td>
             <td>₹ ${pgFinanceMoney(row.paid_amount)}</td>
             <td>₹ ${pgFinanceMoney(row.outstanding_amount)}</td>
@@ -3786,34 +4161,49 @@ function renderPgFinancePayouts(rows) {
     const body = document.getElementById('pg-finance-payouts-body');
     if (!body) return;
     if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No payouts yet.</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No payouts yet.</td></tr>';
         return;
     }
-    body.innerHTML = rows.map((row) => `
+    body.innerHTML = rows.map((row) => {
+        let actions = '—';
+        if (row.status === 'pending') {
+            actions = `
+                <button class="btn btn-secondary" type="button" onclick="markPgPayoutPaid('${row.id}')">Mark paid</button>
+                <button class="btn btn-secondary" type="button" onclick="cancelPgPayout('${row.id}')">Cancel</button>`;
+        }
+        return `
         <tr>
-            <td>${row.driver_name || ''}</td>
-            <td>${row.source_booking_id || row.booking_id || ''}</td>
-            <td>${row.status || ''}</td>
+            <td>${escapeHtmlDuty(row.driver_name || '')}</td>
+            <td>${escapeHtmlDuty(row.source_booking_id || row.booking_id || '')}</td>
+            <td>${escapeHtmlDuty(row.status || '')}</td>
             <td>₹ ${pgFinanceMoney(row.amount)}</td>
-            <td>${row.reference || ''}</td>
-        </tr>`).join('');
+            <td>${escapeHtmlDuty(row.reference || '')}</td>
+            <td style="white-space:nowrap;">${actions}</td>
+        </tr>`;
+    }).join('');
 }
 
 function renderPgFinanceExpenses(rows) {
     const body = document.getElementById('pg-finance-expenses-body');
     if (!body) return;
     if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No expenses yet.</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">No expenses yet.</td></tr>';
         return;
     }
-    body.innerHTML = rows.map((row) => `
+    body.innerHTML = rows.map((row) => {
+        const actions = row.status === 'cancelled'
+            ? '—'
+            : `<button class="btn btn-secondary" type="button" onclick="cancelPgExpense('${row.id}')">Cancel</button>`;
+        return `
         <tr>
-            <td>${row.expense_date || ''}</td>
-            <td>${row.category || ''}</td>
-            <td>${row.description || ''}</td>
+            <td>${escapeHtmlDuty(row.expense_date || '')}</td>
+            <td>${escapeHtmlDuty(row.category || '')}</td>
+            <td>${escapeHtmlDuty(row.description || '')}</td>
             <td>₹ ${pgFinanceMoney(row.amount)}</td>
-            <td>${row.status || ''}</td>
-        </tr>`).join('');
+            <td>${escapeHtmlDuty(row.status || '')}</td>
+            <td>${actions}</td>
+        </tr>`;
+    }).join('');
 }
 
 async function openPgInvoiceDetail(invoiceId) {
@@ -3847,13 +4237,35 @@ async function openPgInvoiceDetail(invoiceId) {
                     <h4>Lines</h4>
                     <ul>${lines.map((line) => `<li>${line.description} · ₹ ${pgFinanceMoney(line.amount)}</li>`).join('') || '<li>None</li>'}</ul>
                     <h4>Payments</h4>
-                    <ul>${payments.map((p) => `<li>${p.paid_on} · ₹ ${pgFinanceMoney(p.amount)} · ${p.method || ''} ${p.active ? '' : '(reversed)'}</li>`).join('') || '<li>None</li>'}</ul>
+                    <ul>${payments.map((p) => {
+                        const reverseBtn = p.active
+                            ? ` <button class="btn btn-secondary" type="button" onclick="reversePgPayment('${p.id}', '${invoice.id}')">Reverse</button>`
+                            : '';
+                        return `<li>${escapeHtmlDuty(p.paid_on)} · ₹ ${pgFinanceMoney(p.amount)} · ${escapeHtmlDuty(p.method || '')} ${p.active ? '' : '(reversed)'}${reverseBtn}</li>`;
+                    }).join('') || '<li>None</li>'}</ul>
                 </div>
             </div>`;
     } catch (err) {
         console.error(err);
         detail.innerHTML = '<p style="color: var(--danger);">Invoice could not be loaded.</p>';
     }
+}
+
+async function reversePgPayment(paymentId, invoiceId) {
+    if (!window.confirm('Reverse this payment? This uses the finance reverse API.')) return;
+    const reason = prompt('Reversal reason') || 'Reversed from supervisor portal';
+    const res = await fetch(`/api/finance/payments/${paymentId}/reverse`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Payment could not be reversed.');
+        return;
+    }
+    fetchPgFinance('Payment reversed.');
+    openPgInvoiceDetail(invoiceId);
 }
 
 async function issuePgInvoice(invoiceId) {
@@ -3912,32 +4324,27 @@ async function showCreatePgInvoiceModal() {
     const companiesRes = await fetch('/api/companies', { credentials: 'same-origin' });
     const companiesBody = await companiesRes.json();
     const companies = (companiesBody.success && companiesBody.data) || [];
-    const companyOptions = companies.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+    const companyOptions = companies.map((c) => `<option value="${c.id}">${escapeHtmlDuty(c.name)}</option>`).join('');
     const html = `
-        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-            <div class="modal-content" style="max-width:32rem;">
-                <h3>Create invoice</h3>
-                <p id="pg-finance-invoice-error" style="color:var(--danger);"></p>
-                <label>Branch</label>
-                <select id="pg-fin-inv-branch" class="form-control-custom">
-                    <option value="BLR">Bengaluru</option>
-                    <option value="HYD">Hyderabad</option>
-                </select>
-                <label>Company</label>
-                <select id="pg-fin-inv-company" class="form-control-custom">${companyOptions}</select>
-                <label>Line description</label>
-                <input id="pg-fin-inv-desc" class="form-control-custom" value="Cab hire charges">
-                <label>Line amount (INR)</label>
-                <input id="pg-fin-inv-amount" class="form-control-custom" type="number" min="0" step="0.01">
-                <label>Due date</label>
-                <input id="pg-fin-inv-due" class="form-control-custom" type="date">
-                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-                    <button class="btn btn-primary" type="button" onclick="submitPgInvoice()">Save draft</button>
-                    <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
-                </div>
-            </div>
+        <p id="pg-finance-invoice-error" style="color:var(--danger);"></p>
+        <label for="pg-fin-inv-branch">Branch</label>
+        <select id="pg-fin-inv-branch" class="form-control-custom">
+            <option value="BLR">Bengaluru</option>
+            <option value="HYD">Hyderabad</option>
+        </select>
+        <label for="pg-fin-inv-company">Company</label>
+        <select id="pg-fin-inv-company" class="form-control-custom">${companyOptions}</select>
+        <label for="pg-fin-inv-desc">Line description</label>
+        <input id="pg-fin-inv-desc" class="form-control-custom" value="Cab hire charges">
+        <label for="pg-fin-inv-amount">Line amount (INR)</label>
+        <input id="pg-fin-inv-amount" class="form-control-custom" type="number" min="0" step="0.01">
+        <label for="pg-fin-inv-due">Due date</label>
+        <input id="pg-fin-inv-due" class="form-control-custom" type="date">
+        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+            <button class="btn btn-primary" type="button" onclick="submitPgInvoice()">Save draft</button>
+            <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
         </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
+    openModal('Create invoice', html);
 }
 
 async function submitPgInvoice() {
@@ -3978,30 +4385,25 @@ async function submitPgInvoice() {
 
 async function showCreatePgExpenseModal() {
     const html = `
-        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-            <div class="modal-content" style="max-width:28rem;">
-                <h3>Add expense</h3>
-                <p id="pg-finance-expense-error" style="color:var(--danger);"></p>
-                <label>Branch</label>
-                <select id="pg-fin-exp-branch" class="form-control-custom">
-                    <option value="BLR">Bengaluru</option>
-                    <option value="HYD">Hyderabad</option>
-                </select>
-                <label>Category</label>
-                <input id="pg-fin-exp-category" class="form-control-custom" value="Fuel">
-                <label>Description</label>
-                <input id="pg-fin-exp-desc" class="form-control-custom">
-                <label>Amount</label>
-                <input id="pg-fin-exp-amount" class="form-control-custom" type="number" min="0" step="0.01">
-                <label>Date</label>
-                <input id="pg-fin-exp-date" class="form-control-custom" type="date" value="${new Date().toISOString().slice(0,10)}">
-                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-                    <button class="btn btn-primary" type="button" onclick="submitPgExpense()">Save</button>
-                    <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
-                </div>
-            </div>
+        <p id="pg-finance-expense-error" style="color:var(--danger);"></p>
+        <label for="pg-fin-exp-branch">Branch</label>
+        <select id="pg-fin-exp-branch" class="form-control-custom">
+            <option value="BLR">Bengaluru</option>
+            <option value="HYD">Hyderabad</option>
+        </select>
+        <label for="pg-fin-exp-category">Category</label>
+        <input id="pg-fin-exp-category" class="form-control-custom" value="Fuel">
+        <label for="pg-fin-exp-desc">Description</label>
+        <input id="pg-fin-exp-desc" class="form-control-custom">
+        <label for="pg-fin-exp-amount">Amount</label>
+        <input id="pg-fin-exp-amount" class="form-control-custom" type="number" min="0" step="0.01">
+        <label for="pg-fin-exp-date">Date</label>
+        <input id="pg-fin-exp-date" class="form-control-custom" type="date" value="${new Date().toISOString().slice(0,10)}">
+        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+            <button class="btn btn-primary" type="button" onclick="submitPgExpense()">Save</button>
+            <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
         </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
+    openModal('Add expense', html);
 }
 
 async function submitPgExpense() {
@@ -4034,4 +4436,150 @@ async function submitPgExpense() {
     }
     closeModal();
     fetchPgFinance('Expense recorded.');
+}
+
+async function showCreatePgPayoutModal() {
+    const [driversRes, bookingsRes] = await Promise.all([
+        fetch('/api/drivers?active=true', { credentials: 'same-origin' }),
+        fetch('/api/operations/bookings?status=completed', { credentials: 'same-origin' }),
+    ]);
+    const driversBody = await driversRes.json();
+    const bookingsBody = await bookingsRes.json();
+    const drivers = (driversBody.success && driversBody.data) || [];
+    const bookings = (bookingsBody.success && bookingsBody.data) || [];
+    const driverOptions = drivers.map((d) =>
+        `<option value="${d.id}">${escapeHtmlDuty(d.display_name)} (${escapeHtmlDuty(d.phone || '')})</option>`
+    ).join('');
+    const bookingOptions = bookings.slice(0, 100).map((b) =>
+        `<option value="${b.id}">${escapeHtmlDuty(b.source_booking_id || b.id)} · ${escapeHtmlDuty(b.trip_date || '')}</option>`
+    ).join('');
+    const html = `
+        <p id="pg-finance-payout-error" style="color:var(--danger);"></p>
+        <label for="pg-fin-pay-driver">Driver</label>
+        <select id="pg-fin-pay-driver" class="form-control-custom">${driverOptions}</select>
+        <label for="pg-fin-pay-booking">Completed booking</label>
+        <select id="pg-fin-pay-booking" class="form-control-custom">${bookingOptions}</select>
+        <label for="pg-fin-pay-amount">Amount (INR)</label>
+        <input id="pg-fin-pay-amount" class="form-control-custom" type="number" min="0" step="0.01">
+        <label for="pg-fin-pay-ref">Reference</label>
+        <input id="pg-fin-pay-ref" class="form-control-custom">
+        <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+            <button class="btn btn-primary" type="button" onclick="submitPgPayout()">Save pending payout</button>
+            <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
+        </div>`;
+    openModal('Create driver payout', html);
+}
+
+async function submitPgPayout() {
+    const error = document.getElementById('pg-finance-payout-error');
+    error.textContent = '';
+    const payload = {
+        driver_id: document.getElementById('pg-fin-pay-driver').value,
+        booking_id: document.getElementById('pg-fin-pay-booking').value,
+        amount: document.getElementById('pg-fin-pay-amount').value,
+        reference: document.getElementById('pg-fin-pay-ref').value.trim() || null,
+    };
+    const res = await fetch('/api/finance/payouts', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        error.textContent = body.message || 'Payout could not be created.';
+        return;
+    }
+    closeModal();
+    fetchPgFinance('Payout created.');
+}
+
+async function markPgPayoutPaid(payoutId) {
+    const reference = prompt('Payment reference (optional)') || null;
+    const res = await fetch(`/api/finance/payouts/${payoutId}`, {
+        method: 'PATCH', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'paid', reference }),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Payout could not be marked paid.');
+        return;
+    }
+    fetchPgFinance('Payout marked paid.');
+}
+
+async function cancelPgPayout(payoutId) {
+    if (!window.confirm('Cancel this pending payout?')) return;
+    const res = await fetch(`/api/finance/payouts/${payoutId}`, {
+        method: 'PATCH', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Payout could not be cancelled.');
+        return;
+    }
+    fetchPgFinance('Payout cancelled.');
+}
+
+async function cancelPgExpense(expenseId) {
+    if (!window.confirm('Cancel this expense?')) return;
+    const res = await fetch(`/api/finance/expenses/${expenseId}`, {
+        method: 'PATCH', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Expense could not be cancelled.');
+        return;
+    }
+    fetchPgFinance('Expense cancelled.');
+}
+
+async function loadPgCompanySettlement() {
+    const companyId = (document.getElementById('pg-finance-settlement-company') || {}).value || '';
+    const bodyEl = document.getElementById('pg-finance-settlement-body');
+    if (!bodyEl) return;
+    if (!companyId) {
+        bodyEl.textContent = 'Choose a company to view settlement and billable bookings.';
+        return;
+    }
+    bodyEl.textContent = 'Loading settlement…';
+    try {
+        const branch = pgFinanceBranch();
+        const q = branch ? `?branch=${encodeURIComponent(branch)}` : '';
+        const [settlementRes, billableRes] = await Promise.all([
+            fetch(`/api/finance/companies/${companyId}/settlement${q}`, { credentials: 'same-origin' }),
+            fetch(`/api/finance/companies/${companyId}/billable-bookings${q}`, { credentials: 'same-origin' }),
+        ]);
+        const settlementBody = await settlementRes.json();
+        const billableBody = await billableRes.json();
+        if (!settlementRes.ok || !settlementBody.success) {
+            bodyEl.textContent = settlementBody.message || 'Settlement could not be loaded.';
+            return;
+        }
+        const s = settlementBody.data || {};
+        const billable = (billableRes.ok && billableBody.success && (billableBody.data || [])) || [];
+        bodyEl.innerHTML = `
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:0.75rem; margin-bottom:1rem;">
+                <div><strong>Completed duty value</strong><div>₹ ${pgFinanceMoney(s.completed_duty_value)}</div></div>
+                <div><strong>Invoiced</strong><div>₹ ${pgFinanceMoney(s.invoiced_amount)}</div></div>
+                <div><strong>Payments received</strong><div>₹ ${pgFinanceMoney(s.payments_received)}</div></div>
+                <div><strong>Outstanding</strong><div>₹ ${pgFinanceMoney(s.outstanding_balance)}</div></div>
+                <div><strong>Pending driver payouts</strong><div>₹ ${pgFinanceMoney(s.pending_driver_payouts)}</div></div>
+            </div>
+            <strong>Billable bookings</strong>
+            <ul style="margin:0.35rem 0 0; padding-left:1.1rem;">
+                ${billable.length
+                    ? billable.slice(0, 25).map((row) =>
+                        `<li>${escapeHtmlDuty(row.source_booking_id || row.booking_id || row.id)} · ${escapeHtmlDuty(row.trip_date || '')} · ₹ ${pgFinanceMoney(row.amount || row.customer_amount || 0)}</li>`
+                    ).join('')
+                    : '<li>No billable bookings.</li>'}
+            </ul>`;
+    } catch (err) {
+        console.error(err);
+        bodyEl.textContent = 'Settlement could not be loaded.';
+    }
 }

@@ -2004,10 +2004,118 @@ footer {
     filter: drop-shadow(0 18px 24px rgba(15, 23, 42, 0.25));
 }
 
+.ops-board {
+    margin: 0 0 1.25rem;
+    padding: 1rem 1.1rem 1.15rem;
+    border: 1px solid #e8eef5;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(21, 35, 59, 0.04);
+}
+
+.ops-board-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    margin-bottom: 0.9rem;
+}
+
+.ops-board-head h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1.15rem;
+}
+
+.ops-board-head p {
+    margin: 0;
+    color: #66758a;
+    font-size: 0.88rem;
+}
+
+.ops-board-tools {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.ops-board-label {
+    font-size: 0.8rem;
+    color: #66758a;
+}
+
+.ops-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+}
+
+.ops-kpi {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    text-align: left;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid #e8eef5;
+    border-radius: 14px;
+    background: #f8fafc;
+    color: inherit;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ops-kpi:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(21, 35, 59, 0.08);
+}
+
+.ops-kpi.is-static {
+    cursor: default;
+}
+
+.ops-kpi.is-static:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.ops-kpi-label {
+    color: #66758a;
+    font-size: 0.78rem;
+}
+
+.ops-kpi-value {
+    font-size: 1.2rem;
+    color: var(--portal-ink, #15233b);
+}
+
+.origin-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.45rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.origin-client { background: #eaf2ff; color: #1d4ed8; }
+.origin-rac { background: #fff1e8; color: #c2410c; }
+.origin-retail { background: #e9fbf0; color: #15803d; }
+
 .dash-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 1rem;
+}
+
+@media (max-width: 1100px) {
+    .ops-kpi-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+    .ops-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 .dash-card {

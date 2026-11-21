@@ -317,6 +317,39 @@ def _operation_booking_filters():
     }
 
 
+@app.route('/api/operations/dashboard', methods=['GET'])
+def api_operations_dashboard():
+    """Supervisor home board: booking/driver/vehicle counts under RLS."""
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    branch = (request.args.get('branch') or '').strip()
+    branch_id = None
+    if branch:
+        branch_id = dev_postgres._parse_uuid(branch)
+        if branch_id is None:
+            maps = dev_postgres._branch_maps()
+            if maps is None:
+                return jsonify({'success': False, 'message': 'Operations dashboard is not available'}), 503
+            by_code, _ = maps
+            found = by_code.get(branch.upper())
+            if found is None:
+                return jsonify({'success': False, 'message': 'Branch filter is not valid.'}), 400
+            branch_id = found['id']
+    result = operations_duty.operations_dashboard(user_id, branch_id=branch_id)
+    if result is None:
+        return jsonify({'success': False, 'message': 'Operations dashboard is not available'}), 503
+    if not result.get('ok'):
+        return (
+            jsonify(shared_api_contracts.error_payload(
+                result.get('message') or 'Operations dashboard is not available',
+                result.get('error'),
+            )),
+            shared_api_contracts.http_status_for_error(result.get('error')),
+        )
+    return jsonify({'success': True, 'data': result.get('data') or {}})
+
+
 @app.route('/api/operations/bookings', methods=['GET', 'POST'])
 def api_operation_bookings():
     user_id, denied = _operations_actor()

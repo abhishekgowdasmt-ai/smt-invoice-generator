@@ -1510,3 +1510,118 @@ def deliver_operation_whatsapp(user_id, notify):
             "recorded": False,
         }
     return recorded
+
+
+def operations_dashboard(user_id, branch_id=None):
+    """Counts for the supervisor home board from existing booking/driver/vehicle rows.
+
+    Uses the same RLS-backed actor transaction as duty APIs. Does not invent
+    statuses or rates — only aggregates known booking statuses and directory flags.
+    """
+    if branch_id is not None:
+        branch_id = pg._parse_uuid(branch_id)
+        if branch_id is None:
+            return {"ok": False, "error": "invalid", "message": "Branch filter is not valid."}
+
+    def work(cur):
+        booking_params = []
+        booking_branch = ""
+        if branch_id:
+            booking_branch = " AND branch_id = %s::uuid"
+            booking_params.append(branch_id)
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE trip_date = CURRENT_DATE),
+                COUNT(*) FILTER (
+                    WHERE trip_date > CURRENT_DATE
+                      AND status NOT IN ('completed', 'cancelled')
+                ),
+                COUNT(*) FILTER (WHERE status = 'unassigned'),
+                COUNT(*) FILTER (WHERE status = 'assigned'),
+                COUNT(*) FILTER (WHERE status = 'accepted'),
+                COUNT(*) FILTER (WHERE status = 'started'),
+                COUNT(*) FILTER (
+                    WHERE trip_date = CURRENT_DATE AND status = 'completed'
+                ),
+                COUNT(*) FILTER (
+                    WHERE trip_date = CURRENT_DATE AND status = 'cancelled'
+                ),
+                COUNT(*) FILTER (
+                    WHERE origin = 'client_request' AND status = 'unassigned'
+                )
+            FROM bookings
+            WHERE TRUE
+            """
+            + booking_branch,
+            booking_params,
+        )
+        (
+            bookings_today,
+            upcoming,
+            unassigned,
+            assigned,
+            accepted,
+            started,
+            completed_today,
+            cancelled_today,
+            client_requests_open,
+        ) = cur.fetchone()
+
+        driver_params = []
+        driver_branch = ""
+        if branch_id:
+            driver_branch = (
+                " AND EXISTS ("
+                "SELECT 1 FROM driver_branches db "
+                "WHERE db.driver_id = d.id AND db.branch_id = %s::uuid)"
+            )
+            driver_params.append(branch_id)
+        cur.execute(
+            """
+            SELECT
+                COUNT(*) FILTER (WHERE d.active IS TRUE),
+                COUNT(*) FILTER (WHERE d.verification_status = 'unverified')
+            FROM drivers d
+            WHERE TRUE
+            """
+            + driver_branch,
+            driver_params,
+        )
+        active_drivers, pending_verification = cur.fetchone()
+
+        vehicle_params = []
+        vehicle_branch = ""
+        if branch_id:
+            vehicle_branch = " AND v.branch_id = %s::uuid"
+            vehicle_params.append(branch_id)
+        cur.execute(
+            """
+            SELECT COUNT(*) FILTER (WHERE v.status = 'active')
+            FROM vehicles v
+            WHERE TRUE
+            """
+            + vehicle_branch,
+            vehicle_params,
+        )
+        active_vehicles = cur.fetchone()[0]
+
+        return {
+            "ok": True,
+            "data": {
+                "bookings_today": int(bookings_today or 0),
+                "upcoming_bookings": int(upcoming or 0),
+                "unassigned_bookings": int(unassigned or 0),
+                "assigned_duties": int(assigned or 0),
+                "accepted_duties": int(accepted or 0),
+                "trips_in_progress": int(started or 0),
+                "completed_today": int(completed_today or 0),
+                "cancelled_today": int(cancelled_today or 0),
+                "client_requests_open": int(client_requests_open or 0),
+                "active_drivers": int(active_drivers or 0),
+                "pending_driver_verification": int(pending_verification or 0),
+                "active_vehicles": int(active_vehicles or 0),
+            },
+        }
+
+    return pg._actor_work(user_id, work)

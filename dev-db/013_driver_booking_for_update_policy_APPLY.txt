@@ -1,0 +1,79 @@
+Apply 013_driver_booking_for_update_policy.sql to disposable smt_revision8_test only.
+
+Prerequisite: 012_driver_booking_lock_grant.sql already applied.
+
+Why: After 012, driver accept still fails. PostgreSQL 16 applies UPDATE RLS
+policies to SELECT ... FOR UPDATE. This migration adds lock-only UPDATE policies
+(WITH CHECK false) scoped to the current driver's open assignments
+(status IN ('assigned', 'accepted')), plus SELECT for own company_drivers rows
+and company_vehicles rows matching the booking company.
+
+pgAdmin Query Tool on database smt_revision8_test as a superuser:
+
+1. Open
+   C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\013_driver_booking_for_update_policy.sql
+2. Execute (F5). Expect COMMIT.
+3. Verify:
+
+-- Booking UPDATE lock policy exists and is lock-only
+SELECT policyname, cmd, with_check, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'bookings'
+  AND policyname = 'bookings_driver_for_update_lock';
+-- expect 1 row; cmd = UPDATE; with_check = 'false'
+-- qual must mention current_driver_id() and status IN ('assigned', 'accepted')
+
+-- Vehicle UPDATE lock policy exists and is lock-only
+SELECT policyname, cmd, with_check, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'vehicles'
+  AND policyname = 'vehicles_driver_for_update_lock';
+-- expect 1 row; cmd = UPDATE; with_check = 'false'
+-- qual must mention current_driver_id() and status IN ('assigned', 'accepted')
+
+-- company_drivers SELECT policy
+SELECT policyname, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'company_drivers'
+  AND policyname = 'company_drivers_driver_read';
+-- expect 1 row; cmd = SELECT; qual uses driver_id = current_driver_id()
+
+-- company_vehicles SELECT policy (booking company constrained)
+SELECT policyname, cmd, qual
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'company_vehicles'
+  AND policyname = 'company_vehicles_driver_read';
+-- expect 1 row; cmd = SELECT
+-- qual must join bookings and require b.company_id = company_vehicles.company_id
+-- and open assignment statuses only
+
+-- Every smt_driver UPDATE policy on bookings/vehicles is WITH CHECK false
+SELECT tablename, policyname, with_check
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename IN ('bookings', 'vehicles')
+  AND 'smt_driver' = ANY (roles)
+  AND cmd = 'UPDATE';
+-- expect only the two lock policies above; every with_check must be 'false'
+
+-- No driver booking UPDATE policy permits actual row modification
+SELECT COUNT(*) AS unsafe_booking_update_policies
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'bookings'
+  AND 'smt_driver' = ANY (roles)
+  AND cmd = 'UPDATE'
+  AND with_check IS DISTINCT FROM 'false';
+-- expect 0
+
+Do not apply to smt_dev or production without separate approval.
+
+After apply, re-run against smt_revision8_test:
+
+  tests/test_revision8_driver_lock_policies.py
+  tests/test_shared_integration.py
+  tests/test_driver_app.py

@@ -1,0 +1,67 @@
+Apply 015_client_duty_status_definer_selects.sql to disposable smt_revision8_test only.
+
+Prerequisites:
+  - Base schema with client_duty_status owned by smt_definer
+  - 005_revision8_definer_driver_select.sql (or equivalent Revision 8 definer driver cols)
+  - 008_definer_assignment_guard_selects.sql (vehicles id/branch_id/status for definer)
+
+Why: GET /api/client/trips selects client_duty_status as smt_client. The view
+runs as owner smt_definer and needs SELECT on drivers.display_name/phone and
+vehicles.registration_number/model. Those column grants were missing, so the
+API returned HTTP 503.
+
+pgAdmin Query Tool on database smt_revision8_test as a superuser:
+
+1. Open
+   C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\015_client_duty_status_definer_selects.sql
+2. Execute (F5). Expect COMMIT.
+3. Verify:
+
+-- Required definer column SELECTs for the view
+SELECT
+  has_column_privilege('smt_definer', 'drivers', 'display_name', 'SELECT') AS drivers_display_name,
+  has_column_privilege('smt_definer', 'drivers', 'phone', 'SELECT') AS drivers_phone,
+  has_column_privilege('smt_definer', 'vehicles', 'registration_number', 'SELECT') AS vehicles_registration,
+  has_column_privilege('smt_definer', 'vehicles', 'model', 'SELECT') AS vehicles_model;
+-- expect all true
+
+-- Clients and drivers must NOT gain these via this migration
+SELECT
+  has_column_privilege('smt_client', 'drivers', 'display_name', 'SELECT') AS client_drivers_display,
+  has_column_privilege('smt_client', 'drivers', 'phone', 'SELECT') AS client_drivers_phone,
+  has_column_privilege('smt_client', 'vehicles', 'registration_number', 'SELECT') AS client_vehicles_reg,
+  has_column_privilege('smt_client', 'vehicles', 'model', 'SELECT') AS client_vehicles_model;
+-- expect all false (smt_client still uses client_duty_status only)
+
+-- View ownership / invoker settings unchanged
+SELECT c.relname,
+       pg_get_userbyid(c.relowner) AS owner,
+       COALESCE(o.option_value, 'false') AS security_invoker
+FROM pg_class c
+LEFT JOIN pg_options_to_table(c.reloptions) o
+  ON o.option_name = 'security_invoker'
+WHERE c.relname = 'client_duty_status';
+-- expect owner = smt_definer, security_invoker = false
+
+-- Client still has SELECT on the view; still no SELECT on booking_assignments
+SELECT
+  has_table_privilege('smt_client', 'client_duty_status', 'SELECT') AS client_view_select,
+  has_table_privilege('smt_client', 'booking_assignments', 'SELECT') AS client_assignments_select;
+-- expect true, false
+
+-- Isolation smoke (replace COMPANY_A / COMPANY_B / CLIENT_A_USER_ID with real UUIDs
+-- from a disposable seed, or run the automated test below instead):
+-- BEGIN;
+-- SELECT set_config('role', 'smt_client', true);
+-- SELECT set_config('app.user_id', 'CLIENT_A_USER_ID', true);
+-- SELECT company_id FROM client_duty_status;
+-- -- must only return company A rows
+-- ROLLBACK;
+
+Do not apply to smt_dev or production without separate approval.
+
+After apply, re-run against smt_revision8_test:
+
+  tests/test_client_trips_duty_status.py
+  tests/test_shared_integration.py
+  tests/test_client_portal.py

@@ -125,7 +125,7 @@
                     <div class="portal-hero-copy">
                         <p class="portal-kicker">Welcome to</p>
                         <h2>Shree Maruthi Travels</h2>
-                        <p>Manage your transport operations efficiently with our integrated system for bookings, trips, invoices and more.</p>
+                        <p>Operational overview from the shared PostgreSQL register, plus shortcuts to RAC, duties, finance, and directories.</p>
                         <ul class="portal-pills">
                             <li><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> On Time</li>
                             <li><svg viewBox="0 0 24 24"><path d="M12 3l7 3v6c0 5-3.4 7.7-7 9-3.6-1.3-7-4-7-9V6z"/></svg> Safe</li>
@@ -136,23 +136,53 @@
                         <img src="{{ url_for('static', filename='images/commuter_bus.png') }}" alt="">
                     </div>
                 </section>
+                <div class="ops-board" id="ops-home-board">
+                    <div class="ops-board-head">
+                        <div>
+                            <h3>Operations board</h3>
+                            <p id="ops-home-status">Loading operational counts…</p>
+                        </div>
+                        <div class="ops-board-tools">
+                            <label class="ops-board-label" for="ops-home-branch">Branch</label>
+                            <select id="ops-home-branch" class="form-control-custom" onchange="fetchOpsHomeBoard()">
+                                <option value="">All cities</option>
+                                <option value="BLR">Bengaluru</option>
+                                <option value="HYD">Hyderabad</option>
+                            </select>
+                            <button type="button" class="btn btn-secondary" onclick="fetchOpsHomeBoard()">Refresh</button>
+                        </div>
+                    </div>
+                    <div class="ops-kpi-grid" id="ops-home-kpis" aria-live="polite"></div>
+                </div>
                 <div class="dash-grid">
+                    <button type="button" class="dash-card tone-orange" onclick="switchTab('pg-duties')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M8 7h11M8 12h11M8 17h7"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>
+                        <h3>PostgreSQL Duties</h3>
+                        <p>Assign, reassign, and complete bookings on the shared register (including client requests).</p>
+                        <span class="dash-open">Open →</span>
+                    </button>
+                    <button type="button" class="dash-card tone-teal" onclick="switchTab('pg-finance')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h3"/></svg></span>
+                        <h3>PostgreSQL Finance</h3>
+                        <p>Invoices, payments, payouts, expenses, and outstanding balances.</p>
+                        <span class="dash-open">Open →</span>
+                    </button>
                     <a class="dash-card tone-orange" href="/admin/dispatch/">
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.4"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0M14 19a4.5 4.5 0 0 1 6.5 0"/></svg></span>
                         <h3>RAC Management</h3>
-                        <p>Bookings, insights, driver assignment, upload, and WhatsApp dispatch.</p>
+                        <p>Live RAC JSON roster — separate from the PostgreSQL duty board.</p>
                         <span class="dash-open">Open →</span>
                     </a>
                     <button type="button" class="dash-card tone-blue" onclick="switchTab('tracking')">
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 17v2M17 17v2M7 12h10"/></svg></span>
                         <h3>ETS</h3>
-                        <p>Employee Transportation — live operations map for corporate commute.</p>
+                        <p>Employee Transportation simulation map (SQLite demo, not live GPS).</p>
                         <span class="dash-open">Open →</span>
                     </button>
                     <button type="button" class="dash-card tone-green" onclick="switchTab('datasource')">
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg></span>
                         <h3>DataSource</h3>
-                        <p>Drivers, corporate clients, EV fleets, enquiries, cabs, Zoho, and files.</p>
+                        <p>PostgreSQL directories, SQLite demo registers, enquiries, Zoho, and files.</p>
                         <span class="dash-open">Open →</span>
                     </button>
                     <a class="dash-card tone-purple" href="/admin/trips">
@@ -164,8 +194,8 @@
                     <a class="dash-card tone-teal dash-wide" href="/admin/invoices/">
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h3"/></svg></span>
                         <div>
-                            <h3>Invoice generation</h3>
-                            <p>Client invoices, GST formats, and print / save PDF.</p>
+                            <h3>Invoice print layouts</h3>
+                            <p>GST print / PDF layouts. Authoritative invoice data lives under PostgreSQL Finance.</p>
                             <span class="dash-open">Open →</span>
                         </div>
                     </a>
@@ -210,10 +240,16 @@
                         <p>Create, assign, and complete local PostgreSQL bookings. Separate from the live RAC JSON roster.</p>
                         <span class="dash-open">Open →</span>
                     </button>
+                    <button type="button" class="dash-card tone-teal" onclick="switchTab('pg-finance')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M7 3h10v18H7z"/><path d="M10 8h4M10 12h4M10 16h3"/></svg></span>
+                        <h3>PostgreSQL Finance</h3>
+                        <p>Invoices, payments, payouts, expenses, and settlements on the shared register.</p>
+                        <span class="dash-open">Open →</span>
+                    </button>
                     <button type="button" class="dash-card tone-green" onclick="switchTab('companies')">
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-4 8 4v12M9 20v-6h6v6"/></svg></span>
                         <h3>Corporate Clients</h3>
-                        <p>Company accounts assigned to the fleet.</p>
+                        <p>Companies, linked client portal users, and fleet associations.</p>
                         <span class="dash-open">Open →</span>
                     </button>
                     <button type="button" class="dash-card tone-purple" onclick="switchTab('ev')">
@@ -588,14 +624,14 @@
                     </div>
                     <button class="btn btn-primary" type="button" onclick="showCreatePgDutyModal()">Create booking</button>
                 </header>
-                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
-                    <input id="pg-duty-search" class="form-control-custom" placeholder="Search booking ID or name" style="max-width: 16rem;" oninput="fetchPgDuties()">
-                    <select id="pg-duty-branch" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()">
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: center;">
+                    <input id="pg-duty-search" class="form-control-custom" placeholder="Search booking ID or name" style="max-width: 16rem;" oninput="fetchPgDuties()" aria-label="Search bookings">
+                    <select id="pg-duty-branch" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()" aria-label="Branch filter">
                         <option value="">All cities</option>
                         <option value="BLR">Bengaluru</option>
                         <option value="HYD">Hyderabad</option>
                     </select>
-                    <select id="pg-duty-status" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()">
+                    <select id="pg-duty-status" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()" aria-label="Status filter">
                         <option value="">All statuses</option>
                         <option value="unassigned">Unassigned</option>
                         <option value="assigned">Assigned</option>
@@ -604,7 +640,14 @@
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                     </select>
-                    <input id="pg-duty-date" type="date" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()">
+                    <select id="pg-duty-origin" class="form-control-custom" style="max-width: 14rem;" onchange="fetchPgDuties()" aria-label="Origin filter">
+                        <option value="">All origins</option>
+                        <option value="client_request">Client requests</option>
+                        <option value="rac">RAC</option>
+                        <option value="retail">Retail</option>
+                    </select>
+                    <input id="pg-duty-date" type="date" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()" aria-label="Trip date filter">
+                    <button type="button" class="btn btn-secondary" onclick="filterPgDutiesClientRequests()">Client requests</button>
                 </div>
                 <p id="pg-duties-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading duties...</p>
                 <div class="dashboard-table-container">
@@ -619,6 +662,7 @@
                                     <th>Source ID</th>
                                     <th>Passenger</th>
                                     <th>Branch</th>
+                                    <th>Origin</th>
                                     <th>Status</th>
                                     <th>Duty</th>
                                     <th>Pickup</th>
@@ -627,7 +671,7 @@
                             </thead>
                             <tbody id="pg-duties-table-body">
                                 <tr>
-                                    <td colspan="8" style="text-align: center; color: var(--text-muted);">Loading duties...</td>
+                                    <td colspan="9" style="text-align: center; color: var(--text-muted);">Loading duties...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -686,21 +730,22 @@
                     </div>
                 </div>
                 <div class="dashboard-table-container" style="margin-bottom:1.5rem;">
-                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
                         <h3 style="font-size:1.25rem;">Driver payouts</h3>
+                        <button class="btn btn-secondary" type="button" onclick="showCreatePgPayoutModal()">Create payout</button>
                     </div>
                     <div style="overflow-x:auto;">
                         <table>
                             <thead>
-                                <tr><th>Driver</th><th>Booking</th><th>Status</th><th>Amount</th><th>Reference</th></tr>
+                                <tr><th>Driver</th><th>Booking</th><th>Status</th><th>Amount</th><th>Reference</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="pg-finance-payouts-body">
-                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
+                                <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
-                <div class="dashboard-table-container">
+                <div class="dashboard-table-container" style="margin-bottom:1.5rem;">
                     <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center;">
                         <h3 style="font-size:1.25rem;">Expenses</h3>
                         <button class="btn btn-secondary" type="button" onclick="showCreatePgExpenseModal()">Add expense</button>
@@ -708,13 +753,25 @@
                     <div style="overflow-x:auto;">
                         <table>
                             <thead>
-                                <tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Status</th></tr>
+                                <tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="pg-finance-expenses-body">
-                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
+                                <tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
                             </tbody>
                         </table>
                     </div>
+                </div>
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <h3 style="font-size:1.25rem;">Company settlement</h3>
+                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                            <select id="pg-finance-settlement-company" class="form-control-custom" style="max-width:16rem;" aria-label="Settlement company">
+                                <option value="">Choose company</option>
+                            </select>
+                            <button class="btn btn-secondary" type="button" onclick="loadPgCompanySettlement()">Load</button>
+                        </div>
+                    </div>
+                    <div id="pg-finance-settlement-body" style="padding:1rem; color: var(--text-muted);">Choose a company to view settlement and billable bookings.</div>
                 </div>
                 <div id="pg-finance-detail" style="margin-top:1.5rem; display:none;"></div>
             </div>

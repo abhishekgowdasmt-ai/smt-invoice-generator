@@ -1,0 +1,50 @@
+Apply 014_driver_assignment_open_lock.sql to disposable smt_revision8_test only.
+
+Prerequisites:
+  - 012_driver_booking_lock_grant.sql
+  - 013_driver_booking_for_update_policy.sql
+
+Why: After accept, assignment status is 'accepted'. PostgreSQL 16 FOR UPDATE uses
+UPDATE RLS policies. The old assignments_driver_update USING clause required
+status = 'assigned', so start/complete/idempotent-accept could not lock the row.
+
+pgAdmin Query Tool on database smt_revision8_test as a superuser:
+
+1. Open
+   C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\014_driver_assignment_open_lock.sql
+2. Execute (F5). Expect COMMIT.
+3. Verify:
+
+-- Policy USING includes assigned and accepted; WITH CHECK unchanged
+SELECT policyname, cmd, qual, with_check
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'booking_assignments'
+  AND policyname = 'assignments_driver_update';
+-- expect 1 row
+-- qual must include current_driver_id() and status IN ('assigned', 'accepted')
+-- with_check must be status IN ('accepted', 'rejected') with current_driver_id()
+
+-- No other smt_driver UPDATE policies on booking_assignments
+SELECT COUNT(*) FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'booking_assignments'
+  AND 'smt_driver' = ANY (roles)
+  AND cmd = 'UPDATE';
+-- expect 1
+
+-- Owner/staff UPDATE policies still present
+SELECT COUNT(*) FROM pg_policies
+WHERE schemaname = 'public'
+  AND tablename = 'booking_assignments'
+  AND policyname = 'assignments_staff_update';
+-- expect 1
+
+Do not apply to smt_dev or production without separate approval.
+
+After apply, re-run against smt_revision8_test:
+
+  tests/test_revision8_assignment_open_lock.py
+  tests/test_revision8_driver_lock_policies.py
+  tests/test_shared_integration.py
+  tests/test_driver_app.py

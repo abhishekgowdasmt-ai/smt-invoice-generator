@@ -64,6 +64,11 @@ Common rules:
 **Shared data (same tables):** bookings, booking_assignments, trip_sessions,
 duty_readings, invoices, payments, driver_payouts, companies, drivers, vehicles.
 
+Supervisor website polish (Master Prompt 6) is documented in
+`SUPERVISOR_WEBSITE.md`, including the home operations board
+(`GET /api/operations/dashboard`) that aggregates existing booking/driver/vehicle
+counts under RLS.
+
 **Supervisor-specific:** `/api/operations/*`, `/api/finance/*`, master-data CRUD,
 login provisioning for drivers/clients.
 
@@ -141,10 +146,14 @@ Order for a disposable `*_test` database (do not apply here without approval):
 5. `011_client_portal.sql`
 6. `012_driver_booking_lock_grant.sql` — `GRANT UPDATE (status) ON bookings TO smt_driver`
    so `assignment_guard` can `SELECT … FOR UPDATE` during driver accept/reject.
-   No driver UPDATE RLS policy is added; actual booking updates remain denied.
+7. `013_driver_booking_for_update_policy.sql` — lock-only booking/vehicle UPDATE
+   policies (`WITH CHECK false`) plus company link SELECTs for open duties.
+8. `014_driver_assignment_open_lock.sql` — widen `assignments_driver_update` USING
+   to `assigned|accepted` so drivers can `FOR UPDATE` after accept (start/complete);
+   WITH CHECK stays `accepted|rejected`.
 
-Master Prompt 5 prepares migration **012** (not applied automatically). Apply to
-`smt_revision8_test` only after approval; see `dev-db/012_driver_booking_lock_grant_APPLY.txt`.
+Apply 012–014 to `smt_revision8_test` only after approval; see matching `*_APPLY.txt`
+files under `dev-db/`.
 
 ## Run each application locally
 
