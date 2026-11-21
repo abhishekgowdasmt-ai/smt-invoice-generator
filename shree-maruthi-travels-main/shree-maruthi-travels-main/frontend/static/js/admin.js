@@ -73,7 +73,7 @@ function revealWorkspace(me) {
     document.getElementById('admin-login-overlay').classList.add('hidden');
     document.getElementById('admin-workspace').style.display = 'flex';
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'companies', 'ev', 'tracking', 'settings', 'help'];
     switchTab(allowed.includes(hash) ? hash : 'home');
 }
 
@@ -110,7 +110,7 @@ function closeAdminNav() {
     if (workspace) workspace.classList.remove('nav-open');
 }
 
-const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'companies', 'ev'];
+const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'companies', 'ev'];
 
 // --- TAB SWITCHER ---
 function switchTab(tabId) {
@@ -166,6 +166,8 @@ function switchTab(tabId) {
         fetchPgVehicles();
     } else if (tabId === 'pg-duties') {
         fetchPgDuties();
+    } else if (tabId === 'pg-finance') {
+        fetchPgFinance();
     } else if (tabId === 'companies') {
         fetchCompanies();
     } else if (tabId === 'ev') {
@@ -178,7 +180,7 @@ function switchTab(tabId) {
 window.addEventListener('hashchange', () => {
     if (!smtToken) return;
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'pg-finance', 'companies', 'ev', 'tracking', 'settings', 'help'];
     if (!allowed.includes(hash)) return;
     const current = document.querySelector('.admin-tab-content.active');
     if (current && current.id === `tab-${hash}`) return;
@@ -3697,4 +3699,339 @@ async function submitEditPgDuty(event, bookingId) {
         console.error(err);
         error.textContent = 'Booking could not be updated.';
     }
+}
+
+// --- PostgreSQL Finance ---
+function pgFinanceBranch() {
+    return (document.getElementById('pg-finance-branch') || {}).value || '';
+}
+
+function pgFinanceMoney(value) {
+    const n = Number(value || 0);
+    return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+async function fetchPgFinance(message) {
+    const status = document.getElementById('pg-finance-status');
+    if (status) status.textContent = message || 'Loading finance...';
+    const branch = pgFinanceBranch();
+    const search = (document.getElementById('pg-finance-search') || {}).value || '';
+    const q = new URLSearchParams();
+    if (branch) q.set('branch', branch);
+    if (search) q.set('search', search);
+    try {
+        const [dashRes, invRes, payRes, expRes] = await Promise.all([
+            fetch(`/api/finance/dashboard${branch ? `?branch=${encodeURIComponent(branch)}` : ''}`, { credentials: 'same-origin' }),
+            fetch(`/api/finance/invoices?${q.toString()}`, { credentials: 'same-origin' }),
+            fetch(`/api/finance/payouts${branch ? `?branch=${encodeURIComponent(branch)}` : ''}`, { credentials: 'same-origin' }),
+            fetch(`/api/finance/expenses${branch ? `?branch=${encodeURIComponent(branch)}` : ''}`, { credentials: 'same-origin' }),
+        ]);
+        const dash = await dashRes.json();
+        const invoices = await invRes.json();
+        const payouts = await payRes.json();
+        const expenses = await expRes.json();
+        if (!dashRes.ok || !dash.success) {
+            if (status) status.textContent = dash.message || 'Finance is not available.';
+            return;
+        }
+        renderPgFinanceDashboard(dash.data || {});
+        renderPgFinanceInvoices((invoices.success && invoices.data) || []);
+        renderPgFinancePayouts((payouts.success && payouts.data) || []);
+        renderPgFinanceExpenses((expenses.success && expenses.data) || []);
+        if (status) status.textContent = message || `Loaded ${((invoices.data) || []).length || 0} invoices.`;
+    } catch (err) {
+        console.error(err);
+        if (status) status.textContent = 'Finance could not be loaded.';
+    }
+}
+
+function renderPgFinanceDashboard(data) {
+    const el = document.getElementById('pg-finance-dashboard-body');
+    if (!el) return;
+    el.innerHTML = `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(10rem,1fr)); gap:0.75rem;">
+            <div><strong>Invoiced</strong><div>₹ ${pgFinanceMoney(data.total_invoiced)}</div></div>
+            <div><strong>Collected</strong><div>₹ ${pgFinanceMoney(data.total_collected)}</div></div>
+            <div><strong>Outstanding</strong><div>₹ ${pgFinanceMoney(data.outstanding_receivables)}</div></div>
+            <div><strong>Overdue invoices</strong><div>${data.overdue_invoice_count || 0}</div></div>
+            <div><strong>Pending payouts</strong><div>₹ ${pgFinanceMoney(data.pending_driver_payouts)}</div></div>
+            <div><strong>Paid payouts</strong><div>₹ ${pgFinanceMoney(data.paid_driver_payouts)}</div></div>
+            <div><strong>Expenses</strong><div>₹ ${pgFinanceMoney(data.expenses)}</div></div>
+        </div>`;
+}
+
+function renderPgFinanceInvoices(rows) {
+    const body = document.getElementById('pg-finance-invoices-body');
+    if (!body) return;
+    if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" style="text-align:center; color: var(--text-muted);">No invoices yet.</td></tr>';
+        return;
+    }
+    body.innerHTML = rows.map((row) => `
+        <tr>
+            <td>${row.invoice_number || ''}</td>
+            <td>${row.company_name || ''}</td>
+            <td>${row.status || ''}</td>
+            <td>₹ ${pgFinanceMoney(row.total_amount)}</td>
+            <td>₹ ${pgFinanceMoney(row.paid_amount)}</td>
+            <td>₹ ${pgFinanceMoney(row.outstanding_amount)}</td>
+            <td style="white-space:nowrap;">
+                <button class="btn btn-secondary" type="button" onclick="openPgInvoiceDetail('${row.id}')">Open</button>
+                <a class="btn btn-secondary" href="/admin/invoices/?invoice_id=${encodeURIComponent(row.id)}">Print</a>
+            </td>
+        </tr>`).join('');
+}
+
+function renderPgFinancePayouts(rows) {
+    const body = document.getElementById('pg-finance-payouts-body');
+    if (!body) return;
+    if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No payouts yet.</td></tr>';
+        return;
+    }
+    body.innerHTML = rows.map((row) => `
+        <tr>
+            <td>${row.driver_name || ''}</td>
+            <td>${row.source_booking_id || row.booking_id || ''}</td>
+            <td>${row.status || ''}</td>
+            <td>₹ ${pgFinanceMoney(row.amount)}</td>
+            <td>${row.reference || ''}</td>
+        </tr>`).join('');
+}
+
+function renderPgFinanceExpenses(rows) {
+    const body = document.getElementById('pg-finance-expenses-body');
+    if (!body) return;
+    if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--text-muted);">No expenses yet.</td></tr>';
+        return;
+    }
+    body.innerHTML = rows.map((row) => `
+        <tr>
+            <td>${row.expense_date || ''}</td>
+            <td>${row.category || ''}</td>
+            <td>${row.description || ''}</td>
+            <td>₹ ${pgFinanceMoney(row.amount)}</td>
+            <td>${row.status || ''}</td>
+        </tr>`).join('');
+}
+
+async function openPgInvoiceDetail(invoiceId) {
+    const detail = document.getElementById('pg-finance-detail');
+    if (!detail) return;
+    detail.style.display = 'block';
+    detail.innerHTML = '<p style="color: var(--text-secondary);">Loading invoice...</p>';
+    try {
+        const res = await fetch(`/api/finance/invoices/${invoiceId}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            detail.innerHTML = `<p style="color: var(--danger);">${body.message || 'Invoice was not found.'}</p>`;
+            return;
+        }
+        const invoice = body.data.invoice || {};
+        const lines = body.data.lines || [];
+        const payments = body.data.payments || [];
+        detail.innerHTML = `
+            <div class="dashboard-table-container">
+                <div class="dashboard-table-header" style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                    <h3 style="font-size:1.25rem;">${invoice.invoice_number || 'Invoice'} · ${invoice.status || ''}</h3>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        ${invoice.status === 'draft' ? `<button class="btn btn-primary" type="button" onclick="issuePgInvoice('${invoice.id}')">Issue</button>` : ''}
+                        ${invoice.status !== 'void' && invoice.status !== 'draft' ? `<button class="btn btn-secondary" type="button" onclick="recordPgPayment('${invoice.id}')">Record payment</button>` : ''}
+                        ${invoice.status !== 'void' ? `<button class="btn btn-secondary" type="button" onclick="voidPgInvoice('${invoice.id}')">Void</button>` : ''}
+                        <a class="btn btn-secondary" href="/admin/invoices/?invoice_id=${encodeURIComponent(invoice.id)}">Print layout</a>
+                    </div>
+                </div>
+                <div style="padding:1rem;">
+                    <p>Company: ${invoice.company_name || ''} · Outstanding ₹ ${pgFinanceMoney(invoice.outstanding_amount)}</p>
+                    <h4>Lines</h4>
+                    <ul>${lines.map((line) => `<li>${line.description} · ₹ ${pgFinanceMoney(line.amount)}</li>`).join('') || '<li>None</li>'}</ul>
+                    <h4>Payments</h4>
+                    <ul>${payments.map((p) => `<li>${p.paid_on} · ₹ ${pgFinanceMoney(p.amount)} · ${p.method || ''} ${p.active ? '' : '(reversed)'}</li>`).join('') || '<li>None</li>'}</ul>
+                </div>
+            </div>`;
+    } catch (err) {
+        console.error(err);
+        detail.innerHTML = '<p style="color: var(--danger);">Invoice could not be loaded.</p>';
+    }
+}
+
+async function issuePgInvoice(invoiceId) {
+    const res = await fetch(`/api/finance/invoices/${invoiceId}/issue`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' }, body: '{}',
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Invoice could not be issued.');
+        return;
+    }
+    fetchPgFinance('Invoice issued.');
+    openPgInvoiceDetail(invoiceId);
+}
+
+async function voidPgInvoice(invoiceId) {
+    const reason = prompt('Void reason');
+    if (!reason) return;
+    const res = await fetch(`/api/finance/invoices/${invoiceId}/void`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Invoice could not be voided.');
+        return;
+    }
+    fetchPgFinance('Invoice voided.');
+    openPgInvoiceDetail(invoiceId);
+}
+
+async function recordPgPayment(invoiceId) {
+    const amount = prompt('Payment amount (INR)');
+    if (!amount) return;
+    const paidOn = prompt('Paid on (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
+    if (!paidOn) return;
+    const method = prompt('Method (cash/neft/rtgs/upi/cheque/card/other)', 'neft') || 'neft';
+    const reference = prompt('Reference (optional)') || null;
+    const res = await fetch(`/api/finance/invoices/${invoiceId}/payments`, {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, paid_on: paidOn, method, reference }),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        alert(body.message || 'Payment could not be recorded.');
+        return;
+    }
+    fetchPgFinance('Payment recorded.');
+    openPgInvoiceDetail(invoiceId);
+}
+
+async function showCreatePgInvoiceModal() {
+    const companiesRes = await fetch('/api/companies', { credentials: 'same-origin' });
+    const companiesBody = await companiesRes.json();
+    const companies = (companiesBody.success && companiesBody.data) || [];
+    const companyOptions = companies.map((c) => `<option value="${c.id}">${c.name}</option>`).join('');
+    const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal-content" style="max-width:32rem;">
+                <h3>Create invoice</h3>
+                <p id="pg-finance-invoice-error" style="color:var(--danger);"></p>
+                <label>Branch</label>
+                <select id="pg-fin-inv-branch" class="form-control-custom">
+                    <option value="BLR">Bengaluru</option>
+                    <option value="HYD">Hyderabad</option>
+                </select>
+                <label>Company</label>
+                <select id="pg-fin-inv-company" class="form-control-custom">${companyOptions}</select>
+                <label>Line description</label>
+                <input id="pg-fin-inv-desc" class="form-control-custom" value="Cab hire charges">
+                <label>Line amount (INR)</label>
+                <input id="pg-fin-inv-amount" class="form-control-custom" type="number" min="0" step="0.01">
+                <label>Due date</label>
+                <input id="pg-fin-inv-due" class="form-control-custom" type="date">
+                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <button class="btn btn-primary" type="button" onclick="submitPgInvoice()">Save draft</button>
+                    <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitPgInvoice() {
+    const error = document.getElementById('pg-finance-invoice-error');
+    error.textContent = '';
+    const branchCode = document.getElementById('pg-fin-inv-branch').value;
+    const branchesRes = await fetch('/api/branches', { credentials: 'same-origin' });
+    const branchesBody = await branchesRes.json();
+    const branch = ((branchesBody.data) || []).find((b) => b.code === branchCode);
+    if (!branch) {
+        error.textContent = 'Branch is not available.';
+        return;
+    }
+    const payload = {
+        branch_id: branch.id,
+        company_id: document.getElementById('pg-fin-inv-company').value,
+        due_date: document.getElementById('pg-fin-inv-due').value || null,
+        lines: [{
+            description: document.getElementById('pg-fin-inv-desc').value.trim(),
+            amount: document.getElementById('pg-fin-inv-amount').value,
+        }],
+    };
+    const res = await fetch('/api/finance/invoices', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        error.textContent = body.message || 'Invoice could not be created.';
+        return;
+    }
+    closeModal();
+    fetchPgFinance('Invoice draft created.');
+    const invoice = (body.data && body.data.invoice) || body.data;
+    if (invoice && invoice.id) openPgInvoiceDetail(invoice.id);
+}
+
+async function showCreatePgExpenseModal() {
+    const html = `
+        <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+            <div class="modal-content" style="max-width:28rem;">
+                <h3>Add expense</h3>
+                <p id="pg-finance-expense-error" style="color:var(--danger);"></p>
+                <label>Branch</label>
+                <select id="pg-fin-exp-branch" class="form-control-custom">
+                    <option value="BLR">Bengaluru</option>
+                    <option value="HYD">Hyderabad</option>
+                </select>
+                <label>Category</label>
+                <input id="pg-fin-exp-category" class="form-control-custom" value="Fuel">
+                <label>Description</label>
+                <input id="pg-fin-exp-desc" class="form-control-custom">
+                <label>Amount</label>
+                <input id="pg-fin-exp-amount" class="form-control-custom" type="number" min="0" step="0.01">
+                <label>Date</label>
+                <input id="pg-fin-exp-date" class="form-control-custom" type="date" value="${new Date().toISOString().slice(0,10)}">
+                <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+                    <button class="btn btn-primary" type="button" onclick="submitPgExpense()">Save</button>
+                    <button class="btn btn-secondary" type="button" onclick="closeModal()">Cancel</button>
+                </div>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitPgExpense() {
+    const error = document.getElementById('pg-finance-expense-error');
+    error.textContent = '';
+    const branchCode = document.getElementById('pg-fin-exp-branch').value;
+    const branchesRes = await fetch('/api/branches', { credentials: 'same-origin' });
+    const branchesBody = await branchesRes.json();
+    const branch = ((branchesBody.data) || []).find((b) => b.code === branchCode);
+    if (!branch) {
+        error.textContent = 'Branch is not available.';
+        return;
+    }
+    const payload = {
+        branch_id: branch.id,
+        category: document.getElementById('pg-fin-exp-category').value.trim(),
+        description: document.getElementById('pg-fin-exp-desc').value.trim(),
+        amount: document.getElementById('pg-fin-exp-amount').value,
+        expense_date: document.getElementById('pg-fin-exp-date').value,
+    };
+    const res = await fetch('/api/finance/expenses', {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok || !body.success) {
+        error.textContent = body.message || 'Expense could not be saved.';
+        return;
+    }
+    closeModal();
+    fetchPgFinance('Expense recorded.');
 }

@@ -29,6 +29,7 @@ from rac_api import rac_bp
 import staff_auth
 import dev_postgres
 import operations_duty
+import operations_finance
 
 dev_postgres.check_development_database()
 
@@ -452,6 +453,260 @@ def api_operation_assignment_vehicle(assignment_id):
     return _operations_duty_response(
         user_id, operations_duty.set_assignment_vehicle(user_id, assignment_id, payload)
     )
+
+
+def _finance_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Financial register is not available'}), 503
+    if result.get('ok'):
+        data = {
+            key: result[key]
+            for key in (
+                'invoice', 'invoices', 'lines', 'payments', 'payment', 'idempotent',
+                'payout', 'payouts', 'expense', 'expenses', 'settlement',
+                'dashboard', 'bookings', 'bank',
+            )
+            if key in result
+        }
+        if set(data) <= {'invoices'}:
+            data = data.get('invoices')
+        elif set(data) <= {'payouts'}:
+            data = data.get('payouts')
+        elif set(data) <= {'expenses'}:
+            data = data.get('expenses')
+        elif set(data) <= {'bookings'}:
+            data = data.get('bookings')
+        elif set(data) <= {'dashboard'}:
+            data = data.get('dashboard')
+        elif set(data) <= {'settlement'}:
+            data = data.get('settlement')
+        elif set(data) <= {'bank'}:
+            data = data.get('bank')
+        elif set(data) <= {'payout'}:
+            data = data.get('payout')
+        elif set(data) <= {'expense'}:
+            data = data.get('expense')
+        elif set(data) <= {'invoice'}:
+            data = data.get('invoice')
+        return jsonify({'success': True, 'data': data}), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Financial request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message}), 404
+    if error == 'forbidden':
+        return jsonify({'success': False, 'message': message}), 403
+    if error == 'conflict':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'unavailable':
+        return jsonify({'success': False, 'message': message}), 503
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': 'Financial request could not be completed'}), 400
+
+
+def _finance_branch_arg():
+    branch = (request.args.get('branch') or '').strip()
+    if not branch:
+        return None, None
+    branch_id = dev_postgres._parse_uuid(branch)
+    if branch_id is not None:
+        return branch_id, None
+    maps = dev_postgres._branch_maps()
+    if maps is None:
+        return None, {'error': 'unavailable', 'message': 'Financial register is not available'}
+    by_code, _ = maps
+    found = by_code.get(branch.upper())
+    if found is None:
+        return None, {'error': 'invalid', 'message': 'Branch filter is not valid.'}
+    return found['id'], None
+
+
+@app.route('/api/finance/bank-details', methods=['GET'])
+def api_finance_bank_details():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _finance_response(operations_finance.bank_details(user_id))
+
+
+@app.route('/api/finance/dashboard', methods=['GET'])
+def api_finance_dashboard():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    branch_id, err = _finance_branch_arg()
+    if err:
+        return _finance_response(err)
+    return _finance_response(operations_finance.finance_dashboard(
+        user_id,
+        branch_id=branch_id,
+        date_from=request.args.get('from'),
+        date_to=request.args.get('to'),
+    ))
+
+
+@app.route('/api/finance/invoices', methods=['GET', 'POST'])
+def api_finance_invoices():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        branch_id, err = _finance_branch_arg()
+        if err:
+            return _finance_response(err)
+        company_id = dev_postgres._parse_uuid(request.args.get('company_id'))
+        if request.args.get('company_id') and company_id is None:
+            return jsonify({'success': False, 'message': 'Company filter is not valid.'}), 400
+        return _finance_response(operations_finance.list_invoices(
+            user_id,
+            branch_id=branch_id,
+            company_id=company_id,
+            status=(request.args.get('status') or '').strip().lower() or None,
+            search=(request.args.get('search') or '').strip() or None,
+        ))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Invoice details are not valid.'}), 400
+    return _finance_response(operations_finance.create_invoice(user_id, payload), created=True)
+
+
+@app.route('/api/finance/invoices/<invoice_id>', methods=['GET', 'PATCH'])
+def api_finance_invoice_detail(invoice_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        return _finance_response(operations_finance.get_invoice(user_id, invoice_id))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Invoice details are not valid.'}), 400
+    return _finance_response(operations_finance.update_draft_invoice(user_id, invoice_id, payload))
+
+
+@app.route('/api/finance/invoices/<invoice_id>/issue', methods=['POST'])
+def api_finance_invoice_issue(invoice_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _finance_response(operations_finance.issue_invoice(user_id, invoice_id, payload))
+
+
+@app.route('/api/finance/invoices/<invoice_id>/void', methods=['POST'])
+def api_finance_invoice_void(invoice_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _finance_response(operations_finance.void_invoice(user_id, invoice_id, payload))
+
+
+@app.route('/api/finance/invoices/<invoice_id>/payments', methods=['POST'])
+def api_finance_invoice_payment(invoice_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Payment details are not valid.'}), 400
+    return _finance_response(operations_finance.record_payment(user_id, invoice_id, payload), created=True)
+
+
+@app.route('/api/finance/payments/<payment_id>/reverse', methods=['POST'])
+def api_finance_payment_reverse(payment_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _finance_response(operations_finance.reverse_payment(user_id, payment_id, payload))
+
+
+@app.route('/api/finance/payouts', methods=['GET', 'POST'])
+def api_finance_payouts():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        branch_id, err = _finance_branch_arg()
+        if err:
+            return _finance_response(err)
+        driver_id = dev_postgres._parse_uuid(request.args.get('driver_id'))
+        if request.args.get('driver_id') and driver_id is None:
+            return jsonify({'success': False, 'message': 'Driver filter is not valid.'}), 400
+        return _finance_response(operations_finance.list_payouts(
+            user_id,
+            branch_id=branch_id,
+            status=(request.args.get('status') or '').strip().lower() or None,
+            driver_id=driver_id,
+        ))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Payout details are not valid.'}), 400
+    return _finance_response(operations_finance.create_payout(user_id, payload), created=True)
+
+
+@app.route('/api/finance/payouts/<payout_id>', methods=['PATCH'])
+def api_finance_payout_update(payout_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Payout details are not valid.'}), 400
+    return _finance_response(operations_finance.update_payout(user_id, payout_id, payload))
+
+
+@app.route('/api/finance/expenses', methods=['GET', 'POST'])
+def api_finance_expenses():
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    if request.method == 'GET':
+        branch_id, err = _finance_branch_arg()
+        if err:
+            return _finance_response(err)
+        return _finance_response(operations_finance.list_expenses(
+            user_id,
+            branch_id=branch_id,
+            status=(request.args.get('status') or '').strip().lower() or None,
+        ))
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Expense details are not valid.'}), 400
+    return _finance_response(operations_finance.create_expense(user_id, payload), created=True)
+
+
+@app.route('/api/finance/expenses/<expense_id>', methods=['PATCH'])
+def api_finance_expense_update(expense_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'message': 'Expense details are not valid.'}), 400
+    return _finance_response(operations_finance.update_expense(user_id, expense_id, payload))
+
+
+@app.route('/api/finance/companies/<company_id>/settlement', methods=['GET'])
+def api_finance_company_settlement(company_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    branch_id, err = _finance_branch_arg()
+    if err:
+        return _finance_response(err)
+    return _finance_response(operations_finance.company_settlement(user_id, company_id, branch_id=branch_id))
+
+
+@app.route('/api/finance/companies/<company_id>/billable-bookings', methods=['GET'])
+def api_finance_billable_bookings(company_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    branch_id, err = _finance_branch_arg()
+    if err:
+        return _finance_response(err)
+    return _finance_response(operations_finance.list_billable_bookings(user_id, company_id, branch_id=branch_id))
 
 
 def _company_owner(denied_message='Only an owner can manage companies'):

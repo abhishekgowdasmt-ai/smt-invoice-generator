@@ -1,0 +1,7 @@
+Apply migration 009 to the disposable test database only.
+
+In PowerShell (postgres password prompt):
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -v ON_ERROR_STOP=1 -f "C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\009_finance_lifecycle.sql"
+
+Do not apply to smt_dev or production without separate approval.

@@ -867,7 +867,48 @@ function monthRange(offset = 0) {
   return { from: iso(from), to: iso(to) };
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+async function loadPostgresInvoice(invoiceId) {
+  const res = await fetch(`/api/finance/invoices/${encodeURIComponent(invoiceId)}`, {
+    credentials: "same-origin",
+  });
+  const body = await res.json();
+  if (!res.ok || !body.success) {
+    throw new Error(body.message || "Invoice was not found.");
+  }
+  const invoice = body.data.invoice || {};
+  const lines = body.data.lines || [];
+  fillCompanyDefaults();
+  try {
+    const bankRes = await fetch("/api/finance/bank-details", { credentials: "same-origin" });
+    const bankBody = await bankRes.json();
+    if (bankRes.ok && bankBody.success && bankBody.data) {
+      const bank = bankBody.data;
+      if (bank.bank) $("coBank").value = bank.bank;
+      if (bank.account_name) $("coAccountName").value = bank.account_name;
+      if (bank.account_no) $("coAccountNo").value = bank.account_no;
+      if (bank.ifsc) $("coIfsc").value = bank.ifsc;
+      if (bank.branch) {
+        $("coBranchSrt").value = bank.branch;
+        $("coBranchGst").value = bank.branch;
+      }
+    }
+  } catch (err) {
+    // Keep print layout defaults when bank details are unavailable.
+  }
+  $("invoiceNo").value = invoice.invoice_number || "";
+  $("invoiceDate").value = (invoice.issued_at || invoice.created_at || todayIso()).slice(0, 10);
+  $("periodFrom").value = invoice.period_start || "";
+  $("periodTo").value = invoice.period_end || "";
+  $("billToName").value = invoice.company_name || "";
+  $("items").innerHTML = "";
+  if (lines.length) {
+    lines.forEach((line) => addItem(line.description || "", line.amount || ""));
+  } else {
+    addItem("Cab Hire Charges", invoice.total_amount || "");
+  }
+}
+
+window.addEventListener("DOMContentLoaded", async () => {
   Object.entries(PRESETS).forEach(([id, p]) => {
     const opt = document.createElement("option");
     opt.value = id;
@@ -875,8 +916,22 @@ window.addEventListener("DOMContentLoaded", () => {
     $("preset").appendChild(opt);
   });
   fillCompanyDefaults();
-  const restored = restore();
-  migrateBankDetails();
+  const params = new URLSearchParams(window.location.search);
+  const invoiceId = (params.get("invoice_id") || "").trim();
+  let restored = false;
+  if (invoiceId) {
+    try {
+      await loadPostgresInvoice(invoiceId);
+      restored = true;
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "PostgreSQL invoice could not be loaded.");
+    }
+  }
+  if (!restored) {
+    restored = restore();
+    migrateBankDetails();
+  }
   if (!restored) {
     $("invoiceDate").value = todayIso();
     const r = monthRange(-1);

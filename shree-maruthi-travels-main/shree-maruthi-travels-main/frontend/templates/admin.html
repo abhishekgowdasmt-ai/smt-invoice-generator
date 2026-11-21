@@ -86,6 +86,7 @@
                         <button type="button" id="btn-tab-pg-drivers" onclick="switchTab('pg-drivers')">PostgreSQL Drivers</button>
                         <button type="button" id="btn-tab-pg-vehicles" onclick="switchTab('pg-vehicles')">PostgreSQL Vehicles</button>
                         <button type="button" id="btn-tab-pg-duties" onclick="switchTab('pg-duties')">PostgreSQL Duties</button>
+                        <button type="button" id="btn-tab-pg-finance" onclick="switchTab('pg-finance')">PostgreSQL Finance</button>
                         <button type="button" id="btn-tab-companies" onclick="switchTab('companies')">Corporate Clients</button>
                         <button type="button" id="btn-tab-ev" onclick="switchTab('ev')">EV Fleets</button>
                         <button type="button" id="btn-tab-cabs" onclick="switchTab('cabs')">Cabs &amp; Documents</button>
@@ -633,6 +634,89 @@
                     </div>
                 </div>
                 <div id="pg-duty-detail" style="margin-top: 1.5rem; display: none;"></div>
+            </div>
+
+            <!-- Tab: PostgreSQL Finance -->
+            <div class="admin-tab-content" id="tab-pg-finance" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">PostgreSQL Finance</h2>
+                        <p style="color: var(--text-secondary);">Invoices, payments, driver payouts, expenses and settlements from the local PostgreSQL register.</p>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                        <button class="btn btn-secondary" type="button" onclick="fetchPgFinance()">Refresh</button>
+                        <a class="btn btn-primary" href="/admin/invoices/">Open print layouts</a>
+                    </div>
+                </header>
+                <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem;">
+                    <select id="pg-finance-branch" class="form-control-custom" style="max-width:12rem;" onchange="fetchPgFinance()">
+                        <option value="">All cities</option>
+                        <option value="BLR">Bengaluru</option>
+                        <option value="HYD">Hyderabad</option>
+                    </select>
+                    <input id="pg-finance-search" class="form-control-custom" placeholder="Search invoice or company" style="max-width:16rem;" oninput="fetchPgFinance()">
+                </div>
+                <p id="pg-finance-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading finance...</p>
+                <div id="pg-finance-dashboard" class="dashboard-table-container" style="margin-bottom:1.5rem;">
+                    <div class="dashboard-table-header"><h3 style="font-size:1.25rem;">Dashboard</h3></div>
+                    <div id="pg-finance-dashboard-body" style="padding:1rem; color: var(--text-muted);">Loading...</div>
+                </div>
+                <div class="dashboard-table-container" style="margin-bottom:1.5rem;">
+                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;">
+                        <h3 style="font-size:1.25rem;">Invoices</h3>
+                        <button class="btn btn-primary" type="button" onclick="showCreatePgInvoiceModal()">Create invoice</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table id="pg-finance-invoices-table">
+                            <thead>
+                                <tr>
+                                    <th>Number</th>
+                                    <th>Company</th>
+                                    <th>Status</th>
+                                    <th>Total</th>
+                                    <th>Paid</th>
+                                    <th>Outstanding</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pg-finance-invoices-body">
+                                <tr><td colspan="7" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="dashboard-table-container" style="margin-bottom:1.5rem;">
+                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="font-size:1.25rem;">Driver payouts</h3>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr><th>Driver</th><th>Booking</th><th>Status</th><th>Amount</th><th>Reference</th></tr>
+                            </thead>
+                            <tbody id="pg-finance-payouts-body">
+                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header" style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="font-size:1.25rem;">Expenses</h3>
+                        <button class="btn btn-secondary" type="button" onclick="showCreatePgExpenseModal()">Add expense</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table>
+                            <thead>
+                                <tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Status</th></tr>
+                            </thead>
+                            <tbody id="pg-finance-expenses-body">
+                                <tr><td colspan="5" style="text-align:center; color: var(--text-muted);">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="pg-finance-detail" style="margin-top:1.5rem; display:none;"></div>
             </div>
 
             <!-- Tab: Corporate Clients -->
