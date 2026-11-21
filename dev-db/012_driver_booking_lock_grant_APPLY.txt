@@ -1,0 +1,31 @@
+Apply 012_driver_booking_lock_grant.sql to disposable smt_revision8_test only.
+
+Prerequisite: 010_driver_app.sql and 011_client_portal.sql already applied.
+
+Why: Driver accept/reject fires assignment_guard, which locks bookings with
+SELECT ... FOR UPDATE. PostgreSQL 16 requires UPDATE on at least one column for
+that lock. Without this grant, /api/driver/duties/<id>/accept returns 403.
+
+This does NOT add an UPDATE RLS policy for smt_driver on bookings. Drivers still
+cannot update booking rows through RLS.
+
+pgAdmin (Query Tool) on database smt_revision8_test, connected as a superuser:
+
+1. Open File → Open →
+   C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\012_driver_booking_lock_grant.sql
+2. Execute (F5). Expect COMMIT with no errors.
+3. Verify:
+
+SELECT has_column_privilege('smt_driver', 'bookings', 'status', 'UPDATE');
+-- expect t
+
+Do not apply to smt_dev or production without separate approval.
+
+After apply, re-run:
+
+SMT_REVISION8_DISPOSABLE=yes
+SMT_REVISION8_DATABASE_URL=<dsn for smt_revision8_test>
+SMT_REVISION8_BOOTSTRAP_OWNER_ID=<owner uuid in that database>
+
+python tests/test_shared_integration.py
+python tests/test_driver_app.py

@@ -34,6 +34,7 @@ import operations_duty
 import operations_finance
 import operations_driver_app
 import operations_client_portal
+import shared_api_contracts
 
 dev_postgres.check_development_database()
 
@@ -211,21 +212,10 @@ def _driver_api_response(result, created=False):
         return jsonify(payload), (201 if created else 200)
     error = result.get('error')
     message = result.get('message') or 'Driver request could not be completed'
-    if error == 'not_found':
-        return jsonify({'success': False, 'message': message}), 404
-    if error == 'forbidden':
-        return jsonify({'success': False, 'message': message}), 403
-    if error == 'conflict':
-        return jsonify({'success': False, 'message': message}), 409
-    if error == 'disabled':
-        return jsonify({'success': False, 'message': message, 'code': 'disabled'}), 403
-    if error == 'unauthorized':
-        return jsonify({'success': False, 'message': message}), 401
-    if error == 'unavailable':
-        return jsonify({'success': False, 'message': message}), 503
-    if error == 'invalid':
-        return jsonify({'success': False, 'message': message}), 400
-    return jsonify({'success': False, 'message': message}), 400
+    return (
+        jsonify(shared_api_contracts.error_payload(message, error)),
+        shared_api_contracts.http_status_for_error(error),
+    )
 
 
 def _client_actor():
@@ -249,21 +239,10 @@ def _client_api_response(result, created=False):
         return jsonify(payload), (201 if created else 200)
     error = result.get('error')
     message = result.get('message') or 'Client request could not be completed'
-    if error == 'not_found':
-        return jsonify({'success': False, 'message': message}), 404
-    if error == 'forbidden':
-        return jsonify({'success': False, 'message': message}), 403
-    if error == 'conflict':
-        return jsonify({'success': False, 'message': message}), 409
-    if error == 'disabled':
-        return jsonify({'success': False, 'message': message, 'code': 'disabled'}), 403
-    if error == 'unauthorized':
-        return jsonify({'success': False, 'message': message}), 401
-    if error == 'unavailable':
-        return jsonify({'success': False, 'message': message}), 503
-    if error == 'invalid':
-        return jsonify({'success': False, 'message': message}), 400
-    return jsonify({'success': False, 'message': message}), 400
+    return (
+        jsonify(shared_api_contracts.error_payload(message, error)),
+        shared_api_contracts.http_status_for_error(error),
+    )
 
 
 def _set_client_cookie(resp, token):
@@ -298,17 +277,10 @@ def _operations_response(result, created=False):
         return jsonify(payload), (201 if created else 200)
     error = result.get('error')
     message = result.get('message') or 'Booking request could not be completed'
-    if error == 'not_found':
-        return jsonify({'success': False, 'message': message}), 404
-    if error == 'forbidden':
-        return jsonify({'success': False, 'message': message}), 403
-    if error == 'conflict':
-        return jsonify({'success': False, 'message': message}), 409
-    if error == 'unavailable':
-        return jsonify({'success': False, 'message': message}), 503
-    if error == 'invalid':
-        return jsonify({'success': False, 'message': message}), 400
-    return jsonify({'success': False, 'message': 'Booking request could not be completed'}), 400
+    return (
+        jsonify(shared_api_contracts.error_payload(message, error)),
+        shared_api_contracts.http_status_for_error(error),
+    )
 
 
 def _operation_booking_filters():
@@ -330,6 +302,9 @@ def _operation_booking_filters():
     if trip_raw not in (None, ''):
         trip_date = dev_postgres._clean_date(trip_raw)
     status = (request.args.get('status') or '').strip().lower() or None
+    origin = (request.args.get('origin') or '').strip().lower() or None
+    if origin and origin not in shared_api_contracts.BOOKING_ORIGINS:
+        return {'error': 'invalid', 'message': 'Origin filter is not valid.'}
     search = (request.args.get('search') or '').strip()
     if len(search) > 80:
         return {'error': 'invalid', 'message': 'Search is too long.'}
@@ -337,6 +312,7 @@ def _operation_booking_filters():
         'branch_id': branch_id,
         'trip_date': trip_date,
         'status': status,
+        'origin': origin,
         'search': search or None,
     }
 
@@ -357,6 +333,7 @@ def api_operation_bookings():
             branch_id=filters['branch_id'],
             trip_date=filters['trip_date'],
             status=filters['status'],
+            origin=filters.get('origin'),
             search=filters['search'],
         ))
     payload = request.get_json(silent=True)
@@ -882,17 +859,10 @@ def _finance_response(result, created=False):
         return jsonify({'success': True, 'data': data}), (201 if created else 200)
     error = result.get('error')
     message = result.get('message') or 'Financial request could not be completed'
-    if error == 'not_found':
-        return jsonify({'success': False, 'message': message}), 404
-    if error == 'forbidden':
-        return jsonify({'success': False, 'message': message}), 403
-    if error == 'conflict':
-        return jsonify({'success': False, 'message': message}), 409
-    if error == 'unavailable':
-        return jsonify({'success': False, 'message': message}), 503
-    if error == 'invalid':
-        return jsonify({'success': False, 'message': message}), 400
-    return jsonify({'success': False, 'message': 'Financial request could not be completed'}), 400
+    return (
+        jsonify(shared_api_contracts.error_payload(message, error)),
+        shared_api_contracts.http_status_for_error(error),
+    )
 
 
 def _finance_branch_arg():

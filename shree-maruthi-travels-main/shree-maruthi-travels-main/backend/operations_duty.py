@@ -1,7 +1,7 @@
 """PostgreSQL operational duty lifecycle for the supervisor portal.
 
-Assignment, trip sessions and WhatsApp delivery for RAC-origin bookings.
-Does not touch rac_data.json or the /api/v1 RAC routes.
+Assignment, trip sessions and WhatsApp delivery for shared-origin bookings
+(rac, retail, client_request). Does not touch rac_data.json or /api/v1 RAC routes.
 """
 from __future__ import annotations
 
@@ -9,6 +9,9 @@ import os
 import re
 import uuid
 from urllib.parse import quote
+
+# Origins that supervisors may assign/reassign through the shared duty APIs.
+_ASSIGNABLE_ORIGINS = frozenset(("rac", "retail", "client_request"))
 
 import requests
 
@@ -191,6 +194,12 @@ def _duty_error(exc):
             "ok": False,
             "error": "conflict",
             "message": "This booking already has an open assignment.",
+        }
+    if constraint in ("one_active_session_per_assignment", "one_active_session_per_driver"):
+        return {
+            "ok": False,
+            "error": "conflict",
+            "message": "This trip is already started.",
         }
     if primary.startswith("Invalid assignment transition"):
         return {
@@ -481,12 +490,12 @@ def assign_booking(user_id, booking_id, payload):
             if booking is None:
                 cur.execute("RELEASE SAVEPOINT duty_write")
                 return {"ok": False, "error": "not_found", "message": "Booking was not found."}
-            if booking["origin"] != "rac":
+            if booking["origin"] not in _ASSIGNABLE_ORIGINS:
                 cur.execute("RELEASE SAVEPOINT duty_write")
                 return {
                     "ok": False,
                     "error": "conflict",
-                    "message": "Only a RAC booking can be assigned here.",
+                    "message": "This booking origin cannot be assigned here.",
                 }
             if booking["status"] != "unassigned":
                 cur.execute("RELEASE SAVEPOINT duty_write")
@@ -579,12 +588,12 @@ def reassign_booking(user_id, booking_id, payload):
             if booking is None:
                 cur.execute("RELEASE SAVEPOINT duty_write")
                 return {"ok": False, "error": "not_found", "message": "Booking was not found."}
-            if booking["origin"] != "rac":
+            if booking["origin"] not in _ASSIGNABLE_ORIGINS:
                 cur.execute("RELEASE SAVEPOINT duty_write")
                 return {
                     "ok": False,
                     "error": "conflict",
-                    "message": "Only a RAC booking can be assigned here.",
+                    "message": "This booking origin cannot be reassigned here.",
                 }
             if booking["status"] not in ("assigned", "accepted"):
                 cur.execute("RELEASE SAVEPOINT duty_write")
@@ -1013,6 +1022,21 @@ def start_trip(user_id, booking_id):
                     "ok": False,
                     "error": "conflict",
                     "message": "An accepted assignment is required to start the trip.",
+                }
+            cur.execute(
+                """
+                SELECT id::text FROM trip_sessions
+                WHERE assignment_id = %s::uuid AND status = 'active'
+                FOR UPDATE
+                """,
+                (assignment["id"],),
+            )
+            if cur.fetchone() is not None:
+                cur.execute("RELEASE SAVEPOINT duty_write")
+                return {
+                    "ok": False,
+                    "error": "conflict",
+                    "message": "This trip is already started.",
                 }
             session_id = str(uuid.uuid4())
             cur.execute(

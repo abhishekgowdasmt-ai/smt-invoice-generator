@@ -75,6 +75,11 @@ Client must already exist (`role=client`) and be linked to exactly one company.
 
 `tests/test_client_portal.py` against disposable `*_test` only (requires 011).
 
+## Shared backend
+
+See `INTEGRATION.md` (Master Prompt 5) for three-application architecture,
+auth matrix, and assignable booking origins including `client_request`.
+
 ## Known limitations
 
 - No live GPS tracking (not authorized / not wired).

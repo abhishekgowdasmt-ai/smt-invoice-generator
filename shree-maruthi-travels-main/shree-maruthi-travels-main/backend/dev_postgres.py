@@ -2881,9 +2881,21 @@ def _booking_database_error(exc):
     return {"ok": False, "error": "invalid", "message": "Booking could not be saved."}
 
 
-def list_operation_bookings(user_id, branch_id=None, trip_date=None, status=None, search=None):
+_BOOKING_ORIGINS = (
+    "rac",
+    "ets_occurrence",
+    "retail",
+    "client_request",
+)
+
+
+def list_operation_bookings(
+    user_id, branch_id=None, trip_date=None, status=None, origin=None, search=None
+):
     if status is not None and status not in _BOOKING_STATUSES:
         return {"ok": False, "error": "invalid", "message": "Status filter is not valid."}
+    if origin is not None and origin not in _BOOKING_ORIGINS:
+        return {"ok": False, "error": "invalid", "message": "Origin filter is not valid."}
     if trip_date is False:
         return {"ok": False, "error": "invalid", "message": "Trip date filter is not valid."}
     if branch_id is False:
@@ -2901,6 +2913,9 @@ def list_operation_bookings(user_id, branch_id=None, trip_date=None, status=None
         if status:
             clauses.append("b.status = %s")
             params.append(status)
+        if origin:
+            clauses.append("b.origin = %s")
+            params.append(origin)
         if search:
             escaped = search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             like = "%" + escaped + "%"

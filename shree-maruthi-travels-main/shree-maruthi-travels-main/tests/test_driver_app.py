@@ -76,6 +76,10 @@ def require_disposable_local_database():
             name, address = cur.fetchone()
             cur.execute("SELECT to_regclass('public.driver_notifications') IS NOT NULL")
             has_notifications = cur.fetchone()[0]
+            cur.execute(
+                "SELECT has_column_privilege('smt_driver', 'bookings', 'status', 'UPDATE')"
+            )
+            driver_can_lock_booking = cur.fetchone()[0]
     folded = (name or "").lower()
     if folded in ("smt_dev", "postgres", "template0", "template1") or "prod" in folded:
         raise unittest.SkipTest("refusing database " + name)
@@ -87,13 +91,13 @@ def require_disposable_local_database():
         raise unittest.SkipTest(
             "Apply dev-db/010_driver_app.sql to " + name + " before driver app tests"
         )
-    return name
+    return name, bool(driver_can_lock_booking)
 
 
 class DriverAppTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.database_name = require_disposable_local_database()
+        cls.database_name, cls.driver_can_lock_booking = require_disposable_local_database()
         if not operations_duty.assignment_triggers_ready():
             raise unittest.SkipTest("Assignment triggers need migration 007")
         cls.owner = client_for(OWNER)
@@ -220,6 +224,12 @@ class DriverAppTests(unittest.TestCase):
         self.assertEqual(accept_b.status_code, 404)
 
     def test_02_accept_start_complete_and_readings(self):
+        if not self.driver_can_lock_booking:
+            raise unittest.SkipTest(
+                "Apply dev-db/012_driver_booking_lock_grant.sql to "
+                + self.database_name
+                + " before driver accept/start tests"
+            )
         client = self._driver_client(self.phone_a)
         accept = client.post("/api/driver/duties/%s/accept" % self.assignment_id)
         self.assertEqual(accept.status_code, 200, accept.get_json())

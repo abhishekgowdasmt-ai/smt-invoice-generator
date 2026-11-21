@@ -98,9 +98,11 @@ def authenticate_driver(phone, password):
         rows = cur.fetchall()
         if len(rows) != 1:
             box["row"] = None
-            return
+            return True
         box["row"] = rows[0]
+        return True
 
+    # work returns True on success; None callback result must not mean portal failure.
     done = _owner_work(owner_id, work)
     if done is None:
         return None
@@ -698,6 +700,7 @@ def start_trip(user_id, assignment_id, payload=None):
                 """
                 SELECT id::text FROM trip_sessions
                 WHERE assignment_id = %s::uuid AND status = 'active'
+                FOR UPDATE
                 """,
                 (assignment_id,),
             )

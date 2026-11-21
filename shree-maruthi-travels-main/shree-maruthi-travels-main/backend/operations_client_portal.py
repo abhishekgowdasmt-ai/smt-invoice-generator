@@ -66,9 +66,11 @@ def authenticate_client(email, password):
         rows = cur.fetchall()
         if len(rows) != 1:
             box["row"] = None
-            return
+            return True
         box["row"] = rows[0]
+        return True
 
+    # work returns True on success; do not treat a None callback result as failure.
     if _owner_work(owner_id, work) is None:
         return None
     row = box["row"]
