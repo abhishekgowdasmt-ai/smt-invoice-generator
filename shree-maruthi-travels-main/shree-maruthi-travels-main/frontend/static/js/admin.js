@@ -73,7 +73,7 @@ function revealWorkspace(me) {
     document.getElementById('admin-login-overlay').classList.add('hidden');
     document.getElementById('admin-workspace').style.display = 'flex';
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'companies', 'ev', 'tracking', 'settings', 'help'];
     switchTab(allowed.includes(hash) ? hash : 'home');
 }
 
@@ -110,7 +110,7 @@ function closeAdminNav() {
     if (workspace) workspace.classList.remove('nav-open');
 }
 
-const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'companies', 'ev'];
+const DATASOURCE_TABS = ['datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'companies', 'ev'];
 
 // --- TAB SWITCHER ---
 function switchTab(tabId) {
@@ -164,6 +164,8 @@ function switchTab(tabId) {
         fetchPgDrivers();
     } else if (tabId === 'pg-vehicles') {
         fetchPgVehicles();
+    } else if (tabId === 'pg-duties') {
+        fetchPgDuties();
     } else if (tabId === 'companies') {
         fetchCompanies();
     } else if (tabId === 'ev') {
@@ -176,7 +178,7 @@ function switchTab(tabId) {
 window.addEventListener('hashchange', () => {
     if (!smtToken) return;
     const hash = (window.location.hash || '').replace('#', '');
-    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'companies', 'ev', 'tracking', 'settings', 'help'];
+    const allowed = ['home', 'datasource', 'inquiries', 'cabs', 'drivers', 'pg-drivers', 'pg-vehicles', 'pg-duties', 'companies', 'ev', 'tracking', 'settings', 'help'];
     if (!allowed.includes(hash)) return;
     const current = document.querySelector('.admin-tab-content.active');
     if (current && current.id === `tab-${hash}`) return;
@@ -3259,5 +3261,440 @@ async function clearSimulationTrips() {
         }
     } catch (err) {
         console.error("Reset simulation error:", err);
+    }
+}
+
+// --- PostgreSQL Duties ---
+let pgDutyBranchMap = null;
+let pgDutySelectedId = null;
+
+function setPgDutyStatus(message, isError) {
+    const el = document.getElementById('pg-duties-status');
+    if (!el) return;
+    el.textContent = message || '';
+    el.style.color = isError ? '#ef4444' : 'var(--text-secondary)';
+}
+
+async function loadPgDutyBranches() {
+    if (pgDutyBranchMap) return pgDutyBranchMap;
+    const res = await fetch('/api/branches', { credentials: 'same-origin' });
+    const body = await res.json();
+    pgDutyBranchMap = {};
+    (body.data || []).forEach((row) => {
+        pgDutyBranchMap[row.id] = row.code || row.city || row.id;
+    });
+    return pgDutyBranchMap;
+}
+
+function escapeHtmlDuty(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+async function fetchPgDuties(doneMessage) {
+    if (!smtToken) return;
+    const tbody = document.getElementById('pg-duties-table-body');
+    if (!tbody) return;
+    setPgDutyStatus('Loading duties...');
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Loading duties...</td></tr>';
+    try {
+        await loadPgDutyBranches();
+        const params = new URLSearchParams();
+        const search = document.getElementById('pg-duty-search').value.trim();
+        const branch = document.getElementById('pg-duty-branch').value;
+        const status = document.getElementById('pg-duty-status').value;
+        const tripDate = document.getElementById('pg-duty-date').value;
+        if (search) params.set('search', search);
+        if (branch) params.set('branch', branch);
+        if (status) params.set('status', status);
+        if (tripDate) params.set('trip_date', tripDate);
+        const query = params.toString();
+        const res = await fetch(`/api/operations/bookings${query ? `?${query}` : ''}`, { credentials: 'same-origin' });
+        const body = await res.json();
+        if (res.status === 401) {
+            setPgDutyStatus('Sign in required.', true);
+            return;
+        }
+        if (!res.ok || !body.success) {
+            setPgDutyStatus(body.message || 'Duties could not be loaded.', true);
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Duties could not be loaded.</td></tr>';
+            return;
+        }
+        const rows = body.data || [];
+        if (!rows.length) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">No bookings match these filters.</td></tr>';
+            setPgDutyStatus(typeof doneMessage === 'string' ? doneMessage : 'No bookings found.');
+            return;
+        }
+        tbody.innerHTML = '';
+        rows.forEach((row) => {
+            const tr = document.createElement('tr');
+            const branchLabel = pgDutyBranchMap[row.branch_id] || row.branch_id || '';
+            tr.innerHTML = `
+                <td>${escapeHtmlDuty(row.trip_date || '')}</td>
+                <td>${escapeHtmlDuty(row.source_booking_id || '—')}</td>
+                <td>${escapeHtmlDuty(row.employee_name || '')}</td>
+                <td>${escapeHtmlDuty(branchLabel)}</td>
+                <td>${escapeHtmlDuty(row.status || '')}</td>
+                <td>${escapeHtmlDuty(row.duty_type || '')}</td>
+                <td>${escapeHtmlDuty(row.pickup_time || row.planned_start || '')}</td>
+                <td><button type="button" class="btn btn-secondary" onclick="openPgDutyDetail('${row.id}')">Open</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        setPgDutyStatus(typeof doneMessage === 'string' ? doneMessage : `${rows.length} booking${rows.length === 1 ? '' : 's'}.`);
+    } catch (err) {
+        console.error(err);
+        setPgDutyStatus('Duties could not be loaded.', true);
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #ef4444;">Duties could not be loaded.</td></tr>';
+    }
+}
+
+function showCreatePgDutyModal() {
+    const html = `
+        <form id="pg-duty-form" onsubmit="savePgDuty(event)">
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Branch*</label>
+                    <select id="pg-duty-form-branch" class="form-control-custom" required>
+                        <option value="">Choose a city</option>
+                        <option value="BLR">Bengaluru</option>
+                        <option value="HYD">Hyderabad</option>
+                    </select>
+                </div>
+                <div class="form-group-custom">
+                    <label>Trip date*</label>
+                    <input type="date" id="pg-duty-form-date" class="form-control-custom" required>
+                </div>
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Source booking ID</label>
+                    <input type="text" id="pg-duty-form-source" class="form-control-custom">
+                </div>
+                <div class="form-group-custom">
+                    <label>Pickup time</label>
+                    <input type="time" id="pg-duty-form-pickup" class="form-control-custom">
+                </div>
+            </div>
+            <div class="form-group-custom">
+                <label>Passenger / employee</label>
+                <input type="text" id="pg-duty-form-employee" class="form-control-custom">
+            </div>
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Duty type</label>
+                    <input type="text" id="pg-duty-form-duty" class="form-control-custom">
+                </div>
+                <div class="form-group-custom">
+                    <label>Cab type</label>
+                    <input type="text" id="pg-duty-form-cab" class="form-control-custom">
+                </div>
+            </div>
+            <div class="form-group-custom">
+                <label>Pickup / route</label>
+                <input type="text" id="pg-duty-form-route" class="form-control-custom">
+            </div>
+            <div class="form-group-custom">
+                <label>Remarks</label>
+                <textarea id="pg-duty-form-remarks" class="form-control-custom" rows="2"></textarea>
+            </div>
+            <p id="pg-duty-form-error" style="color: #ef4444; min-height: 1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Create booking</button>
+        </form>
+    `;
+    openModal('Create PostgreSQL booking', html);
+}
+
+async function resolvePgDutyBranchId(code) {
+    const res = await fetch('/api/branches', { credentials: 'same-origin' });
+    const body = await res.json();
+    const found = (body.data || []).find((row) => row.code === code);
+    return found ? found.id : null;
+}
+
+async function savePgDuty(event) {
+    event.preventDefault();
+    const error = document.getElementById('pg-duty-form-error');
+    error.textContent = '';
+    const code = document.getElementById('pg-duty-form-branch').value;
+    const branchId = await resolvePgDutyBranchId(code);
+    if (!branchId) {
+        error.textContent = 'Branch is not valid.';
+        return;
+    }
+    const payload = {
+        branch_id: branchId,
+        trip_date: document.getElementById('pg-duty-form-date').value,
+        source_booking_id: document.getElementById('pg-duty-form-source').value.trim() || null,
+        pickup_time: document.getElementById('pg-duty-form-pickup').value || null,
+        employee_name: document.getElementById('pg-duty-form-employee').value.trim() || null,
+        duty_type: document.getElementById('pg-duty-form-duty').value.trim() || null,
+        cab_type: document.getElementById('pg-duty-form-cab').value.trim() || null,
+        planned_start: document.getElementById('pg-duty-form-route').value.trim() || null,
+        remarks: document.getElementById('pg-duty-form-remarks').value.trim() || null,
+    };
+    Object.keys(payload).forEach((key) => {
+        if (payload[key] === null || payload[key] === '') delete payload[key];
+    });
+    try {
+        const res = await fetch('/api/operations/bookings', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'Booking could not be created.';
+            return;
+        }
+        closeModal();
+        fetchPgDuties('Booking created.');
+        if (body.data && body.data.id) openPgDutyDetail(body.data.id);
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'Booking could not be created.';
+    }
+}
+
+async function openPgDutyDetail(bookingId) {
+    pgDutySelectedId = bookingId;
+    const panel = document.getElementById('pg-duty-detail');
+    panel.style.display = 'block';
+    panel.innerHTML = '<p style="color: var(--text-secondary);">Loading booking...</p>';
+    try {
+        const tripRes = await fetch(`/api/operations/bookings/${bookingId}/trip`, { credentials: 'same-origin' });
+        const tripBody = await tripRes.json();
+        if (!tripRes.ok || !tripBody.success) {
+            panel.innerHTML = `<p style="color:#ef4444;">${escapeHtmlDuty(tripBody.message || 'Booking could not be loaded.')}</p>`;
+            return;
+        }
+        const data = tripBody.data || {};
+        const booking = data.booking || data;
+        const assignment = data.assignment;
+        const session = data.session;
+        const events = data.events || [];
+        await loadPgDutyBranches();
+        const branchLabel = pgDutyBranchMap[booking.branch_id] || booking.branch_id || '';
+        let actions = '';
+        if (booking.status === 'unassigned') {
+            actions += `<button class="btn btn-primary" type="button" onclick="promptAssignPgDuty('${booking.id}')">Assign driver</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="promptEditPgDuty('${booking.id}')">Edit / reschedule</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/cancel', {})">Cancel</button>`;
+        }
+        if (booking.status === 'assigned' || booking.status === 'accepted') {
+            actions += `<button class="btn btn-primary" type="button" onclick="promptAssignPgDuty('${booking.id}', true)">Reassign</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/unassign', {})">Unassign</button>`;
+            if (assignment && booking.status === 'assigned') {
+                actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/assignments/${assignment.id}/accept', {})">Mark accepted</button>`;
+                actions += `<button class="btn btn-secondary" type="button" onclick="promptRejectPgDuty('${assignment.id}')">Reject</button>`;
+                actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/assignments/${assignment.id}/resend-message', {})">Resend WhatsApp</button>`;
+            }
+            if (booking.status === 'accepted') {
+                actions += `<button class="btn btn-primary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/start', {})">Start trip</button>`;
+            }
+            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/cancel', {})">Cancel</button>`;
+        }
+        if (booking.status === 'started') {
+            actions += `<button class="btn btn-primary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/complete', {})">Complete trip</button>`;
+            actions += `<button class="btn btn-secondary" type="button" onclick="runPgDutyAction('/api/operations/bookings/${booking.id}/cancel', {})">Cancel</button>`;
+        }
+        panel.innerHTML = `
+            <div class="dashboard-table-container">
+                <div class="dashboard-table-header" style="display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                    <h3 style="font-size: 1.25rem;">Booking detail</h3>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">${actions}</div>
+                </div>
+                <div style="padding: 1rem; display:grid; gap:0.5rem;">
+                    <div><strong>Status:</strong> ${escapeHtmlDuty(booking.status)}</div>
+                    <div><strong>Source ID:</strong> ${escapeHtmlDuty(booking.source_booking_id || '—')}</div>
+                    <div><strong>Date / time:</strong> ${escapeHtmlDuty(booking.trip_date || '')} ${escapeHtmlDuty(booking.pickup_time || '')}</div>
+                    <div><strong>Branch:</strong> ${escapeHtmlDuty(branchLabel)}</div>
+                    <div><strong>Passenger:</strong> ${escapeHtmlDuty(booking.employee_name || '')}</div>
+                    <div><strong>Duty / cab:</strong> ${escapeHtmlDuty(booking.duty_type || '')} / ${escapeHtmlDuty(booking.cab_type || '')}</div>
+                    <div><strong>Pickup:</strong> ${escapeHtmlDuty(booking.planned_start || booking.route_text || '')}</div>
+                    <div><strong>Remarks:</strong> ${escapeHtmlDuty(booking.remarks || '')}</div>
+                    <div><strong>Driver:</strong> ${escapeHtmlDuty(assignment ? (assignment.driver_name || assignment.driver_id) : '—')}</div>
+                    <div><strong>Vehicle:</strong> ${escapeHtmlDuty(assignment && assignment.vehicle_registration ? assignment.vehicle_registration : '—')}</div>
+                    <div><strong>WhatsApp:</strong> ${escapeHtmlDuty(assignment && assignment.whatsapp_status ? assignment.whatsapp_status : '—')}</div>
+                    <div><strong>Session:</strong> ${escapeHtmlDuty(session ? session.status : '—')}</div>
+                    <div><strong>History:</strong> ${(events || []).map((ev) => escapeHtmlDuty(`${ev.old_status || '∅'} → ${ev.new_status}`)).join(' · ') || '—'}</div>
+                </div>
+            </div>
+        `;
+    } catch (err) {
+        console.error(err);
+        panel.innerHTML = '<p style="color:#ef4444;">Booking could not be loaded.</p>';
+    }
+}
+
+async function runPgDutyAction(url, payload) {
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {}),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            setPgDutyStatus(body.message || 'Action failed.', true);
+            return;
+        }
+        let message = 'Duty updated.';
+        if (body.whatsapp) {
+            const wa = Array.isArray(body.whatsapp) ? body.whatsapp[0] : body.whatsapp;
+            if (wa && wa.send_status) message += ` WhatsApp: ${wa.send_status}.`;
+        }
+        fetchPgDuties(message);
+        if (pgDutySelectedId) openPgDutyDetail(pgDutySelectedId);
+    } catch (err) {
+        console.error(err);
+        setPgDutyStatus('Action failed.', true);
+    }
+}
+
+async function promptAssignPgDuty(bookingId, reassign) {
+    const driversRes = await fetch('/api/drivers?active=true&verification_status=verified', { credentials: 'same-origin' });
+    const driversBody = await driversRes.json();
+    const drivers = driversBody.data || [];
+    if (!drivers.length) {
+        setPgDutyStatus('No verified active drivers are available.', true);
+        return;
+    }
+    const options = drivers.map((d) => `<option value="${d.id}">${escapeHtmlDuty(d.display_name)} (${escapeHtmlDuty(d.phone || 'no phone')})</option>`).join('');
+    const html = `
+        <form onsubmit="submitAssignPgDuty(event, '${bookingId}', ${reassign ? 'true' : 'false'})">
+            <div class="form-group-custom">
+                <label>Driver*</label>
+                <select id="pg-duty-assign-driver" class="form-control-custom" required>${options}</select>
+            </div>
+            <div class="form-group-custom">
+                <label>Vehicle ID (optional)</label>
+                <input id="pg-duty-assign-vehicle" class="form-control-custom" placeholder="Vehicle UUID">
+            </div>
+            <label style="display:flex; gap:0.5rem; align-items:center; margin-bottom:1rem;">
+                <input type="checkbox" id="pg-duty-assign-wa" checked>
+                Send WhatsApp after save
+            </label>
+            <p id="pg-duty-assign-error" style="color:#ef4444; min-height:1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">${reassign ? 'Reassign' : 'Assign'}</button>
+        </form>
+    `;
+    openModal(reassign ? 'Reassign driver' : 'Assign driver', html);
+}
+
+async function submitAssignPgDuty(event, bookingId, reassign) {
+    event.preventDefault();
+    const error = document.getElementById('pg-duty-assign-error');
+    error.textContent = '';
+    const payload = {
+        driver_id: document.getElementById('pg-duty-assign-driver').value,
+        send_message: document.getElementById('pg-duty-assign-wa').checked,
+    };
+    const vehicle = document.getElementById('pg-duty-assign-vehicle').value.trim();
+    if (vehicle) payload.vehicle_id = vehicle;
+    const url = reassign
+        ? `/api/operations/bookings/${bookingId}/reassign`
+        : `/api/operations/bookings/${bookingId}/assign`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'Assignment failed.';
+            return;
+        }
+        closeModal();
+        let message = reassign ? 'Driver reassigned.' : 'Driver assigned.';
+        if (body.whatsapp) {
+            const wa = Array.isArray(body.whatsapp) ? body.whatsapp[0] : body.whatsapp;
+            if (wa && wa.send_status) message += ` WhatsApp: ${wa.send_status}.`;
+        }
+        fetchPgDuties(message);
+        openPgDutyDetail(bookingId);
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'Assignment failed.';
+    }
+}
+
+function promptRejectPgDuty(assignmentId) {
+    const reason = prompt('Rejection reason');
+    if (!reason || !reason.trim()) return;
+    runPgDutyAction(`/api/operations/assignments/${assignmentId}/reject`, { reason: reason.trim() });
+}
+
+async function promptEditPgDuty(bookingId) {
+    const tripRes = await fetch(`/api/operations/bookings/${bookingId}/trip`, { credentials: 'same-origin' });
+    const tripBody = await tripRes.json();
+    if (!tripRes.ok || !tripBody.success) {
+        setPgDutyStatus(tripBody.message || 'Booking could not be loaded.', true);
+        return;
+    }
+    const booking = (tripBody.data && tripBody.data.booking) || tripBody.data;
+    const html = `
+        <form onsubmit="submitEditPgDuty(event, '${bookingId}')">
+            <div class="form-grid-2">
+                <div class="form-group-custom">
+                    <label>Trip date</label>
+                    <input type="date" id="pg-duty-edit-date" class="form-control-custom" value="${escapeHtmlDuty(booking.trip_date || '')}">
+                </div>
+                <div class="form-group-custom">
+                    <label>Pickup time</label>
+                    <input type="time" id="pg-duty-edit-pickup" class="form-control-custom" value="${escapeHtmlDuty((booking.pickup_time || '').slice(0,5))}">
+                </div>
+            </div>
+            <div class="form-group-custom">
+                <label>Passenger</label>
+                <input type="text" id="pg-duty-edit-employee" class="form-control-custom" value="${escapeHtmlDuty(booking.employee_name || '')}">
+            </div>
+            <div class="form-group-custom">
+                <label>Remarks</label>
+                <textarea id="pg-duty-edit-remarks" class="form-control-custom" rows="2">${escapeHtmlDuty(booking.remarks || '')}</textarea>
+            </div>
+            <p id="pg-duty-edit-error" style="color:#ef4444; min-height:1.2rem;"></p>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Save changes</button>
+        </form>
+    `;
+    openModal('Edit / reschedule booking', html);
+}
+
+async function submitEditPgDuty(event, bookingId) {
+    event.preventDefault();
+    const error = document.getElementById('pg-duty-edit-error');
+    error.textContent = '';
+    const payload = {
+        trip_date: document.getElementById('pg-duty-edit-date').value || undefined,
+        pickup_time: document.getElementById('pg-duty-edit-pickup').value || null,
+        employee_name: document.getElementById('pg-duty-edit-employee').value.trim() || null,
+        remarks: document.getElementById('pg-duty-edit-remarks').value.trim() || null,
+    };
+    try {
+        const res = await fetch(`/api/operations/bookings/${bookingId}`, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok || !body.success) {
+            error.textContent = body.message || 'Booking could not be updated.';
+            return;
+        }
+        closeModal();
+        fetchPgDuties('Booking updated.');
+        openPgDutyDetail(bookingId);
+    } catch (err) {
+        console.error(err);
+        error.textContent = 'Booking could not be updated.';
     }
 }

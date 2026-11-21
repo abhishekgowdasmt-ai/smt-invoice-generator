@@ -28,6 +28,7 @@ except ImportError:
 from rac_api import rac_bp
 import staff_auth
 import dev_postgres
+import operations_duty
 
 dev_postgres.check_development_database()
 
@@ -265,6 +266,192 @@ def api_operation_booking_update(booking_id):
     if not isinstance(payload, dict):
         return jsonify({'success': False, 'message': 'Booking details are not valid.'}), 400
     return _operations_response(dev_postgres.update_operation_booking(user_id, booking_id, payload))
+
+
+def _operations_duty_payload(result):
+    if not result or not result.get('ok'):
+        return None
+    data = {}
+    for key in ('booking', 'assignment', 'assignments', 'previous_assignment',
+                'session', 'events'):
+        if key in result:
+            data[key] = result[key]
+    if len(data) == 1 and 'booking' in data:
+        return data['booking']
+    if not data and 'booking' in result:
+        return result['booking']
+    return data or result.get('booking')
+
+
+def _operations_duty_response(user_id, result):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Booking register is not available'}), 503
+    if not result.get('ok'):
+        return _operations_response(result)
+    payload = {'success': True, 'data': _operations_duty_payload(result)}
+    notices = []
+    if result.get('notify'):
+        notices.append(result['notify'])
+    notices.extend(result.get('notify_list') or [])
+    if notices:
+        deliveries = []
+        for notice in notices:
+            try:
+                deliveries.append(operations_duty.deliver_operation_whatsapp(user_id, notice))
+            except Exception:
+                deliveries.append({
+                    'sent': False,
+                    'send_status': 'ready',
+                    'error': 'WhatsApp delivery failed after the duty change was saved.',
+                })
+        payload['whatsapp'] = deliveries[0] if len(deliveries) == 1 else deliveries
+    return jsonify(payload), 200
+
+
+@app.route('/api/operations/bookings/<booking_id>/assign', methods=['POST'])
+def api_operation_booking_assign(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _operations_duty_response(
+        user_id, operations_duty.assign_booking(user_id, booking_id, payload)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/reassign', methods=['POST'])
+def api_operation_booking_reassign(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _operations_duty_response(
+        user_id, operations_duty.reassign_booking(user_id, booking_id, payload)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/unassign', methods=['POST'])
+def api_operation_booking_unassign(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _operations_duty_response(
+        user_id, operations_duty.unassign_booking(user_id, booking_id, payload)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/cancel', methods=['POST'])
+def api_operation_booking_cancel(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _operations_duty_response(
+        user_id, operations_duty.cancel_booking(user_id, booking_id, payload)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/start', methods=['POST'])
+def api_operation_booking_start(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.start_trip(user_id, booking_id)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/complete', methods=['POST'])
+def api_operation_booking_complete(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.complete_trip(user_id, booking_id)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/assignment', methods=['GET'])
+def api_operation_booking_assignment(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.get_booking_assignment(user_id, booking_id)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/assignments', methods=['GET'])
+def api_operation_booking_assignments(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.list_booking_assignments(user_id, booking_id)
+    )
+
+
+@app.route('/api/operations/bookings/<booking_id>/trip', methods=['GET'])
+def api_operation_booking_trip(booking_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.get_trip_status(user_id, booking_id)
+    )
+
+
+@app.route('/api/operations/assignments/<assignment_id>/accept', methods=['POST'])
+def api_operation_assignment_accept(assignment_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.accept_assignment(user_id, assignment_id)
+    )
+
+
+@app.route('/api/operations/assignments/<assignment_id>/reject', methods=['POST'])
+def api_operation_assignment_reject(assignment_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _operations_duty_response(
+        user_id, operations_duty.reject_assignment(user_id, assignment_id, payload)
+    )
+
+
+@app.route('/api/operations/assignments/<assignment_id>/resend-message', methods=['POST'])
+def api_operation_assignment_resend(assignment_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.resend_assignment_message(user_id, assignment_id)
+    )
+
+
+@app.route('/api/operations/assignments/<assignment_id>/events', methods=['GET'])
+def api_operation_assignment_events(assignment_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    return _operations_duty_response(
+        user_id, operations_duty.list_assignment_events(user_id, assignment_id)
+    )
+
+
+@app.route('/api/operations/assignments/<assignment_id>/vehicle', methods=['PATCH'])
+def api_operation_assignment_vehicle(assignment_id):
+    user_id, denied = _operations_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _operations_duty_response(
+        user_id, operations_duty.set_assignment_vehicle(user_id, assignment_id, payload)
+    )
 
 
 def _company_owner(denied_message='Only an owner can manage companies'):

@@ -85,6 +85,7 @@
                         <button type="button" id="btn-tab-drivers" onclick="switchTab('drivers')">Drivers Directory</button>
                         <button type="button" id="btn-tab-pg-drivers" onclick="switchTab('pg-drivers')">PostgreSQL Drivers</button>
                         <button type="button" id="btn-tab-pg-vehicles" onclick="switchTab('pg-vehicles')">PostgreSQL Vehicles</button>
+                        <button type="button" id="btn-tab-pg-duties" onclick="switchTab('pg-duties')">PostgreSQL Duties</button>
                         <button type="button" id="btn-tab-companies" onclick="switchTab('companies')">Corporate Clients</button>
                         <button type="button" id="btn-tab-ev" onclick="switchTab('ev')">EV Fleets</button>
                         <button type="button" id="btn-tab-cabs" onclick="switchTab('cabs')">Cabs &amp; Documents</button>
@@ -200,6 +201,12 @@
                         <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M4 13h16l-2-6H6z"/><path d="M6 17h.01M18 17h.01M4 13v4h16v-4"/></svg></span>
                         <h3>PostgreSQL Vehicle Directory</h3>
                         <p>Owner vehicle register for Bengaluru and Hyderabad. Separate from SQLite cabs and the EV fleet.</p>
+                        <span class="dash-open">Open →</span>
+                    </button>
+                    <button type="button" class="dash-card tone-orange" onclick="switchTab('pg-duties')">
+                        <span class="dash-ico"><svg viewBox="0 0 24 24"><path d="M8 7h11M8 12h11M8 17h7"/><rect x="3" y="5" width="18" height="14" rx="2"/></svg></span>
+                        <h3>PostgreSQL Duties</h3>
+                        <p>Create, assign, and complete local PostgreSQL bookings. Separate from the live RAC JSON roster.</p>
                         <span class="dash-open">Open →</span>
                     </button>
                     <button type="button" class="dash-card tone-green" onclick="switchTab('companies')">
@@ -569,6 +576,63 @@
                         </table>
                     </div>
                 </div>
+            </div>
+
+            <!-- Tab: PostgreSQL Duties -->
+            <div class="admin-tab-content" id="tab-pg-duties" style="display:none;">
+                <header style="position: static; background: transparent; border: none; padding: 0 0 2rem 0; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <div>
+                        <h2 style="font-size: 2.25rem; margin-bottom: 0.25rem;">PostgreSQL Duties</h2>
+                        <p style="color: var(--text-secondary);">Supervisor booking board for the local PostgreSQL register. This does not change the RAC JSON store.</p>
+                    </div>
+                    <button class="btn btn-primary" type="button" onclick="showCreatePgDutyModal()">Create booking</button>
+                </header>
+                <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1rem;">
+                    <input id="pg-duty-search" class="form-control-custom" placeholder="Search booking ID or name" style="max-width: 16rem;" oninput="fetchPgDuties()">
+                    <select id="pg-duty-branch" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()">
+                        <option value="">All cities</option>
+                        <option value="BLR">Bengaluru</option>
+                        <option value="HYD">Hyderabad</option>
+                    </select>
+                    <select id="pg-duty-status" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()">
+                        <option value="">All statuses</option>
+                        <option value="unassigned">Unassigned</option>
+                        <option value="assigned">Assigned</option>
+                        <option value="accepted">Accepted</option>
+                        <option value="started">Started</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <input id="pg-duty-date" type="date" class="form-control-custom" style="max-width: 12rem;" onchange="fetchPgDuties()">
+                </div>
+                <p id="pg-duties-status" style="color: var(--text-secondary); margin: 0 0 1rem 0;">Loading duties...</p>
+                <div class="dashboard-table-container">
+                    <div class="dashboard-table-header">
+                        <h3 style="font-size: 1.25rem;">Bookings</h3>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="pg-duties-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Source ID</th>
+                                    <th>Passenger</th>
+                                    <th>Branch</th>
+                                    <th>Status</th>
+                                    <th>Duty</th>
+                                    <th>Pickup</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pg-duties-table-body">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; color: var(--text-muted);">Loading duties...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="pg-duty-detail" style="margin-top: 1.5rem; display: none;"></div>
             </div>
 
             <!-- Tab: Corporate Clients -->
