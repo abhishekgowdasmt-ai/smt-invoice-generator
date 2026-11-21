@@ -1,0 +1,24 @@
+Apply 010_driver_app.sql to a disposable local database whose name ends with _test
+(for example smt_revision8_test) before running driver app tests.
+
+Do not apply to smt_dev or production without explicit approval.
+
+In pgAdmin Query Tool (connected as a superuser to the target _test database):
+
+1. Open 010_driver_app.sql
+2. Execute the script
+3. Confirm COMMIT succeeded
+
+Required for Master Prompt 3 driver authentication, in-app notifications,
+driver document/company visibility, and kilometre reading inserts.
+
+Environment for the Flutter app (driver_app/.env or --dart-define):
+
+  API_BASE_URL=http://10.0.2.2:5000   # Android emulator → host Flask
+  # or http://127.0.0.1:5000 for desktop/tests
+
+Backend .env additions (do not commit secrets):
+
+  DRIVER_TOKEN=<random >=32 chars>
+  # Optional fallback: if DRIVER_TOKEN is unset, STAFF_TOKEN is reused with a
+  # different salt for local development only.

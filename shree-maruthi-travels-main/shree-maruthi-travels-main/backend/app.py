@@ -27,9 +27,11 @@ except ImportError:
 
 from rac_api import rac_bp
 import staff_auth
+import driver_auth
 import dev_postgres
 import operations_duty
 import operations_finance
+import operations_driver_app
 
 dev_postgres.check_development_database()
 
@@ -181,6 +183,45 @@ def _operations_actor():
             return None, (jsonify({'success': False, 'message': 'Only a supervisor can manage bookings'}), 403)
         return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
     return found['id'], None
+
+
+def _driver_actor():
+    if dev_postgres.local_development_dsn() is None:
+        return None, (jsonify({'success': False, 'message': 'Driver services are not available'}), 503)
+    token = driver_auth.bearer_token(request.headers.get(driver_auth.DRIVER_HEADER))
+    session = driver_auth.read_token(token)
+    if not session:
+        return None, (jsonify({'success': False, 'message': 'Sign in required'}), 401)
+    return session['user_id'], None
+
+
+def _driver_api_response(result, created=False):
+    if result is None:
+        return jsonify({'success': False, 'message': 'Driver services are not available'}), 503
+    if result.get('ok'):
+        payload = {'success': True}
+        for key, value in result.items():
+            if key in ('ok',):
+                continue
+            payload[key] = value
+        return jsonify(payload), (201 if created else 200)
+    error = result.get('error')
+    message = result.get('message') or 'Driver request could not be completed'
+    if error == 'not_found':
+        return jsonify({'success': False, 'message': message}), 404
+    if error == 'forbidden':
+        return jsonify({'success': False, 'message': message}), 403
+    if error == 'conflict':
+        return jsonify({'success': False, 'message': message}), 409
+    if error == 'disabled':
+        return jsonify({'success': False, 'message': message, 'code': 'disabled'}), 403
+    if error == 'unauthorized':
+        return jsonify({'success': False, 'message': message}), 401
+    if error == 'unavailable':
+        return jsonify({'success': False, 'message': message}), 503
+    if error == 'invalid':
+        return jsonify({'success': False, 'message': message}), 400
+    return jsonify({'success': False, 'message': message}), 400
 
 
 def _operations_response(result, created=False):
@@ -453,6 +494,134 @@ def api_operation_assignment_vehicle(assignment_id):
     return _operations_duty_response(
         user_id, operations_duty.set_assignment_vehicle(user_id, assignment_id, payload)
     )
+
+
+# --- Driver Android application APIs (Bearer token; identity from session) ---
+
+@app.route('/api/driver/login', methods=['POST'])
+def api_driver_login():
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_app.authenticate_driver(payload.get('phone'), payload.get('password'))
+    )
+
+
+@app.route('/api/driver/logout', methods=['POST'])
+def api_driver_logout():
+    # Tokens are signed and short-lived; clients discard local storage.
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return jsonify({'success': True, 'message': 'Signed out.'})
+
+
+@app.route('/api/driver/session', methods=['GET'])
+def api_driver_session():
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.session_profile(user_id))
+
+
+@app.route('/api/driver/dashboard', methods=['GET'])
+def api_driver_dashboard():
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.dashboard(user_id))
+
+
+@app.route('/api/driver/duties', methods=['GET'])
+def api_driver_duties():
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(
+        operations_driver_app.list_duties(user_id, request.args.get('filter'))
+    )
+
+
+@app.route('/api/driver/duties/<assignment_id>', methods=['GET'])
+def api_driver_duty_detail(assignment_id):
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.get_duty(user_id, assignment_id))
+
+
+@app.route('/api/driver/duties/<assignment_id>/accept', methods=['POST'])
+def api_driver_duty_accept(assignment_id):
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.accept_duty(user_id, assignment_id))
+
+
+@app.route('/api/driver/duties/<assignment_id>/reject', methods=['POST'])
+def api_driver_duty_reject(assignment_id):
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_app.reject_duty(user_id, assignment_id, payload)
+    )
+
+
+@app.route('/api/driver/duties/<assignment_id>/start', methods=['POST'])
+def api_driver_duty_start(assignment_id):
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_app.start_trip(user_id, assignment_id, payload)
+    )
+
+
+@app.route('/api/driver/duties/<assignment_id>/complete', methods=['POST'])
+def api_driver_duty_complete(assignment_id):
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_app.complete_trip(user_id, assignment_id, payload)
+    )
+
+
+@app.route('/api/driver/notifications', methods=['GET'])
+def api_driver_notifications():
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.list_notifications(user_id))
+
+
+@app.route('/api/driver/notifications/<notification_id>/read', methods=['POST'])
+def api_driver_notification_read(notification_id):
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(
+        operations_driver_app.mark_notification_read(user_id, notification_id)
+    )
+
+
+@app.route('/api/driver/payouts', methods=['GET'])
+def api_driver_payouts():
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.list_payouts(user_id))
+
+
+@app.route('/api/driver/profile', methods=['GET'])
+def api_driver_profile():
+    user_id, denied = _driver_actor()
+    if denied:
+        return denied
+    return _driver_api_response(operations_driver_app.session_profile(user_id))
 
 
 def _finance_response(result, created=False):
@@ -937,6 +1106,26 @@ def api_drivers():
     if not isinstance(payload, dict):
         return jsonify({'success': False, 'message': 'Driver details are not valid'}), 400
     return _driver_response(dev_postgres.create_driver(user_id, payload), created=True)
+
+
+@app.route('/api/drivers/<driver_id>/login-account', methods=['POST'])
+def api_driver_login_account(driver_id):
+    """Owner provisions a phone+password login linked to the driver row."""
+    user_id, denied = _company_owner('Only an owner can provision driver logins')
+    if denied:
+        return denied
+    payload = request.get_json(silent=True) or {}
+    result = operations_driver_app.provision_driver_login(
+        user_id, driver_id, payload.get('password')
+    )
+    if result is None:
+        return jsonify({'success': False, 'message': 'Driver login is not available'}), 503
+    if not result.get('ok'):
+        return _driver_api_response(result)
+    return jsonify({
+        'success': True,
+        'data': {'user_id': result['user_id'], 'created': result['created']},
+    }), (201 if result.get('created') else 200)
 
 
 @app.route('/api/drivers/<driver_id>', methods=['GET', 'PATCH'])
