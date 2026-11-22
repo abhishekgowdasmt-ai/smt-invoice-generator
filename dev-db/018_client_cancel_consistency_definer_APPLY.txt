@@ -1,0 +1,25 @@
+Apply 018_client_cancel_consistency_definer.sql to disposable smt_revision8_test only.
+
+Why:
+Client cancel of an unassigned client_request fails at COMMIT because
+assert_booking_consistent() (deferred) SELECTs booking_assignments without
+smt_client having SELECT privilege. Acceptance evidence: InsufficientPrivilege
+on booking_assignments during client cancel; API returns HTTP 503.
+
+Approval required before apply. Do not apply to smt_dev or production unless
+separately approved.
+
+pgAdmin Query Tool on database smt_revision8_test as a superuser:
+  Open and execute: 018_client_cancel_consistency_definer.sql
+
+Or PowerShell (you will be prompted for the local postgres password):
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -v ON_ERROR_STOP=1 -f "C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\018_client_cancel_consistency_definer.sql"
+
+Verify:
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -c "SELECT prosecdef, pg_get_userbyid(proowner) AS owner FROM pg_proc WHERE proname = 'assert_booking_consistent'"
+
+Expected: prosecdef = true, owner = smt_definer.
+
+Then re-run client cancel acceptance (Prompt 10 harness wf3 / client portal cancel).

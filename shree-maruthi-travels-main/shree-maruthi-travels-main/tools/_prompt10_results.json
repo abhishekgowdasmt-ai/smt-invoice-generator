@@ -1,0 +1,169 @@
+{
+  "results": [
+    {
+      "name": "disposable_safeguard",
+      "status": "PASS",
+      "detail": "smt_revision8_test"
+    },
+    {
+      "name": "owner_api_session",
+      "status": "PASS",
+      "detail": "status=200 role=od"
+    },
+    {
+      "name": "unauth_ops_denied",
+      "status": "PASS",
+      "detail": "401"
+    },
+    {
+      "name": "duty_triggers",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "finance_schema",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "notif_schema",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "db_integrity_probe",
+      "status": "PASS",
+      "detail": "{\"orphan_assignments\": 0, \"multi_open\": 0, \"neg_bal\": 0, \"rls\": 130}"
+    },
+    {
+      "name": "seed_company",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "seed_drivers_vehicle_clients",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "wf1_client_create",
+      "status": "PASS",
+      "detail": "201"
+    },
+    {
+      "name": "wf1_supervisor_sees_request",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "wf1_assign",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf1_driver_sees_duty",
+      "status": "PASS",
+      "detail": ""
+    },
+    {
+      "name": "wf1_accept",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf1_start",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf1_complete",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf1_status_consistency",
+      "status": "PASS",
+      "detail": "ops=completed client=completed"
+    },
+    {
+      "name": "wf2_reject",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf2_reassign",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf2_driver_b_accept",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf2_driver_isolation",
+      "status": "PASS",
+      "detail": "404"
+    },
+    {
+      "name": "wf3_client_cancel",
+      "status": "FAIL",
+      "detail": "503"
+    },
+    {
+      "name": "security_cross_company_booking",
+      "status": "PASS",
+      "detail": "404"
+    },
+    {
+      "name": "limitation_soft_retry_201_already",
+      "status": "PASS",
+      "detail": "first=201 second=201 already=True"
+    },
+    {
+      "name": "wf5_driver_notifications",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf5_staff_notifications",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "wf4_billable_list",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "reports_bookings",
+      "status": "PASS",
+      "detail": "200"
+    },
+    {
+      "name": "reports_csv_export",
+      "status": "PASS",
+      "detail": "200 text/csv; charset=utf-8; charset=utf-8"
+    },
+    {
+      "name": "limitation_no_push",
+      "status": "PASS",
+      "detail": "polling only \u2014 not push"
+    },
+    {
+      "name": "limitation_no_websockets",
+      "status": "PASS",
+      "detail": "not implemented"
+    },
+    {
+      "name": "limitation_no_scheduled_jobs",
+      "status": "PASS",
+      "detail": "not implemented"
+    },
+    {
+      "name": "limitation_owner_mediated_driver_client_notif",
+      "status": "PASS",
+      "detail": "documented architecture"
+    }
+  ]
+}
