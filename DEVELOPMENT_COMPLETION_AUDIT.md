@@ -158,7 +158,8 @@ Physical-device verification: **not performed**.
 
 ## 17. Local Git commit
 
-See commit hash after local commit (Prompt 9). Not pushed to GitHub.
+`ff00c9a2474e5709be39d15528b72091e7fc9f47` — Complete Master Prompt 9 development audit with verified defect fixes.  
+Not pushed to GitHub.
 
 ## 18. Confirmation
 
