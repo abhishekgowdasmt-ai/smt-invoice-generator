@@ -419,6 +419,43 @@ def create_booking_request(user_id, payload):
                 "error": "invalid",
                 "message": "That branch is not available for your company.",
             }
+        # Soft retry protection: identical unassigned client_request within 2 minutes
+        # returns the existing row instead of inserting a duplicate. No new schema.
+        cur.execute(
+            """
+            SELECT b.id::text
+            FROM bookings b
+            WHERE b.company_id = %s::uuid
+              AND b.branch_id = %s::uuid
+              AND b.origin = 'client_request'
+              AND b.status = 'unassigned'
+              AND b.trip_date = %s::date
+              AND COALESCE(b.planned_start, '') = COALESCE(%s, '')
+              AND COALESCE(b.employee_name, '') = COALESCE(%s, '')
+              AND COALESCE(b.pickup_time::text, '') = COALESCE(%s::text, '')
+              AND b.created_at >= now() - interval '2 minutes'
+            ORDER BY b.created_at DESC
+            LIMIT 1
+            """,
+            (
+                company_id,
+                branch[0],
+                trip_date,
+                planned_start,
+                employee_name,
+                pickup_time,
+            ),
+        )
+        existing = cur.fetchone()
+        if existing:
+            cur.execute(_BOOKING_SELECT + " AND b.id = %s::uuid", (existing[0],))
+            row = cur.fetchone()
+            return {
+                "ok": True,
+                "booking": _booking_shape(row) if row else None,
+                "already": True,
+                "message": "Booking request already received. A supervisor will assign a driver.",
+            }
         source_id = "CLIENT-" + uuid.uuid4().hex[:12].upper()
         booking_id = str(uuid.uuid4())
         cur.execute("SAVEPOINT client_booking")

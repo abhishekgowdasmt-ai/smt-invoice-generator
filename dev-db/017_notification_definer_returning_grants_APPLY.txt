@@ -1,0 +1,41 @@
+Apply 017_notification_definer_returning_grants.sql to disposable smt_revision8_test only.
+
+Prerequisites:
+  - 016_app_notifications.sql applied (client_notifications, staff_notifications,
+    post_client_notification, post_staff_notification)
+
+Why: After 016, INSERT ... RETURNING id inside the SECURITY DEFINER post_*
+functions fails because smt_definer lacks SELECT on id. Staff IDENTITY inserts
+also lack USAGE on staff_notifications_id_seq (grant ran before that sequence
+existed). Client sequence grants from 016 are already correct.
+
+pgAdmin Query Tool on database smt_revision8_test as a superuser:
+
+1. Open
+   C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\017_notification_definer_returning_grants.sql
+2. Execute (F5). Expect COMMIT.
+3. Verify:
+
+SELECT
+  has_column_privilege('smt_definer', 'client_notifications', 'id', 'SELECT') AS client_id_select,
+  has_column_privilege('smt_definer', 'staff_notifications', 'id', 'SELECT') AS staff_id_select,
+  has_table_privilege('smt_definer', 'client_notifications', 'SELECT') AS client_table_select,
+  has_table_privilege('smt_definer', 'staff_notifications', 'SELECT') AS staff_table_select,
+  has_sequence_privilege('smt_definer', 'staff_notifications_id_seq', 'USAGE') AS staff_seq_usage,
+  has_sequence_privilege('smt_definer', 'client_notifications_id_seq', 'USAGE') AS client_seq_usage;
+-- expect: true, true, false, false, true, true
+-- (table-level SELECT stays false; only column id SELECT is granted)
+
+-- Owner/staff must not gain the new sequence grant from this migration
+SELECT
+  has_sequence_privilege('smt_owner', 'staff_notifications_id_seq', 'USAGE') AS owner_staff_seq,
+  has_sequence_privilege('smt_staff', 'staff_notifications_id_seq', 'USAGE') AS staff_staff_seq;
+-- expect: false, false  (owner/staff insert via definer function, not direct nextval)
+
+Do not apply to smt_dev or production without separate approval.
+
+After apply, re-run against smt_revision8_test:
+
+  tests/test_app_notifications.py
+  tests/test_operations_reports.py
+  tests/test_shared_integration.py

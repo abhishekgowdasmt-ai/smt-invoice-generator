@@ -220,6 +220,78 @@ def _driver_api_response(result, created=False):
     )
 
 
+def _booking_for_notification(booking_id):
+    """Load booking ids needed for post-commit notification emits.
+
+    Runs as the bootstrap owner after the duty write already committed under the
+    driver role. Drivers cannot EXECUTE post_client_notification (016), so client
+    alerts are posted by the owner actor using only the server-known booking id.
+    """
+    booking_id = dev_postgres._parse_uuid(booking_id)
+    owner_id = dev_postgres._bootstrap_owner_id()
+    if booking_id is None or owner_id is None:
+        return None, None
+    rows = dev_postgres._rows_as_owner(
+        """
+        SELECT id::text, company_id::text, branch_id::text, status, origin,
+               source_booking_id
+        FROM bookings
+        WHERE id = %s::uuid
+        """,
+        (booking_id,),
+    )
+    if not rows:
+        return owner_id, None
+    row = rows[0]
+    return owner_id, {
+        'id': row[0],
+        'company_id': row[1],
+        'branch_id': row[2],
+        'status': row[3],
+        'origin': row[4],
+        'source_booking_id': row[5],
+    }
+
+
+def _emit_after_driver_duty(result):
+    """Best-effort client/staff notifications after a successful driver duty write."""
+    if not result or not result.get('ok'):
+        return
+    duty = result.get('duty') or {}
+    booking_id = duty.get('booking_id')
+    if not booking_id:
+        return
+    try:
+        owner_id, booking = _booking_for_notification(booking_id)
+        if not owner_id or not booking:
+            return
+        assignment_status = duty.get('assignment_status')
+        booking_status = duty.get('booking_status') or booking.get('status')
+        if assignment_status == 'rejected':
+            operations_notifications.emit_driver_reject_staff(
+                owner_id,
+                booking,
+                None,
+                duty.get('rejection_reason'),
+            )
+            return
+        if booking_status in ('assigned', 'accepted', 'started', 'completed', 'cancelled'):
+            operations_notifications.emit_assignment_client_update(
+                owner_id, booking, booking_status
+            )
+    except Exception:
+        return
+
+
+def _driver_duty_response(result):
+    response = _driver_api_response(result)
+    try:
+        _emit_after_driver_duty(result)
+    except Exception:
+        pass
+    return response
+
+
 def _client_actor():
     if dev_postgres.local_development_dsn() is None:
         return None, (jsonify({'success': False, 'message': 'Client portal is not available'}), 503)
@@ -757,7 +829,7 @@ def api_driver_duty_accept(assignment_id):
     user_id, denied = _driver_actor()
     if denied:
         return denied
-    return _driver_api_response(operations_driver_app.accept_duty(user_id, assignment_id))
+    return _driver_duty_response(operations_driver_app.accept_duty(user_id, assignment_id))
 
 
 @app.route('/api/driver/duties/<assignment_id>/reject', methods=['POST'])
@@ -766,7 +838,7 @@ def api_driver_duty_reject(assignment_id):
     if denied:
         return denied
     payload = request.get_json(silent=True) or {}
-    return _driver_api_response(
+    return _driver_duty_response(
         operations_driver_app.reject_duty(user_id, assignment_id, payload)
     )
 
@@ -777,7 +849,7 @@ def api_driver_duty_start(assignment_id):
     if denied:
         return denied
     payload = request.get_json(silent=True) or {}
-    return _driver_api_response(
+    return _driver_duty_response(
         operations_driver_app.start_trip(user_id, assignment_id, payload)
     )
 
@@ -788,7 +860,7 @@ def api_driver_duty_complete(assignment_id):
     if denied:
         return denied
     payload = request.get_json(silent=True) or {}
-    return _driver_api_response(
+    return _driver_duty_response(
         operations_driver_app.complete_trip(user_id, assignment_id, payload)
     )
 
@@ -926,9 +998,15 @@ def api_client_booking_cancel(booking_id):
     user_id, denied = _client_actor()
     if denied:
         return denied
-    return _client_api_response(
-        operations_client_portal.cancel_booking_request(user_id, booking_id)
-    )
+    result = operations_client_portal.cancel_booking_request(user_id, booking_id)
+    if result and result.get('ok') and result.get('booking'):
+        try:
+            operations_notifications.emit_assignment_client_update(
+                user_id, result['booking'], 'cancelled'
+            )
+        except Exception:
+            pass
+    return _client_api_response(result)
 
 
 @app.route('/api/client/trips', methods=['GET'])

@@ -78,10 +78,11 @@ Alerts nav item lists company notifications with mark-read and booking/invoice d
 
 | File | Status |
 |------|--------|
-| `dev-db/016_app_notifications.sql` | **Prepared only** — do not apply without approval |
-| `dev-db/016_app_notifications_APPLY.txt` | Apply instructions for `smt_revision8_test` |
+| `dev-db/016_app_notifications.sql` | Applied on disposable `smt_revision8_test` when verifying Prompt 7+ |
+| `dev-db/016_app_notifications_APPLY.txt` | Apply instructions |
+| `dev-db/017_notification_definer_returning_grants.sql` | Corrective grants for definer `RETURNING id` + staff seq USAGE |
 
-Reports require no new schema. Notification APIs return unavailable until 016 is applied.
+Reports require no new schema. Notification APIs need 016 (+ 017 for working inserts).
 
 ## Scheduled reports
 
@@ -114,7 +115,9 @@ Reports require no new schema. Notification APIs return unavailable until 016 is
 - Company settlement report requires explicit `company_id`; date range does not rewrite settlement totals.
 - Trip duration/km omitted when source columns are null.
 - Scheduled digest emails not implemented.
-- Migration 016 not applied by the agent.
+- Driver cannot call `post_client_notification` directly; client alerts after driver
+  duty actions are owner-mediated post-commit emits (see `CROSS_APP_WORKFLOWS.md`).
+- Do not apply 016/017 to `smt_dev` or production without separate approval.
 
 ## Untouched systems
 

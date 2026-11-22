@@ -71,7 +71,11 @@ counts under RLS.
 
 Advanced reporting and notifications (Master Prompt 7) are documented in
 `REPORTING_AND_NOTIFICATIONS.md` (`GET /api/reports/*`, CSV exports, and
-client/staff notification APIs that require prepared migration 016).
+client/staff notification APIs; schema baseline migrations 016 + 017).
+
+Cross-application lifecycle sync (Master Prompt 8) is documented in
+`CROSS_APP_WORKFLOWS.md`, including driver-path notification emits and
+client booking retry protection.
 
 **Supervisor-specific:** `/api/operations/*`, `/api/finance/*`, master-data CRUD,
 login provisioning for drivers/clients.
