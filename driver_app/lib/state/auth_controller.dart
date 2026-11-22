@@ -52,17 +52,7 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
     try {
       final result = await _api.login(phone, password);
-      final token = result['token'] as String?;
-      if (token == null || token.isEmpty) {
-        throw ApiException('Login did not return a session token.');
-      }
-      await _storage.saveToken(token);
-      _apiClient.setToken(token);
-      profile = await _api.profile();
-      status = AuthStatus.signedIn;
-      busy = false;
-      notifyListeners();
-      return true;
+      return await _completeLogin(result);
     } on ApiException catch (error) {
       errorMessage = error.message;
       status = AuthStatus.signedOut;
@@ -70,6 +60,78 @@ class AuthController extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<Map<String, dynamic>?> requestOtp(String phone, String purpose) async {
+    busy = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      final result = await _api.requestOtp(phone, purpose);
+      busy = false;
+      notifyListeners();
+      return result;
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      busy = false;
+      notifyListeners();
+      return null;
+    }
+  }
+
+  Future<bool> loginWithOtp(String phone, String code) async {
+    busy = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      final result = await _api.loginWithOtp(phone, code);
+      return await _completeLogin(result);
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      status = AuthStatus.signedOut;
+      busy = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> resetPasswordWithOtp({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) async {
+    busy = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _api.resetPasswordWithOtp(
+        phone: phone,
+        code: code,
+        newPassword: newPassword,
+      );
+      busy = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      busy = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> _completeLogin(Map<String, dynamic> result) async {
+    final token = result['token'] as String?;
+    if (token == null || token.isEmpty) {
+      throw ApiException('Login did not return a session token.');
+    }
+    await _storage.saveToken(token);
+    _apiClient.setToken(token);
+    profile = await _api.profile();
+    status = AuthStatus.signedIn;
+    busy = false;
+    notifyListeners();
+    return true;
   }
 
   Future<void> logout() async {

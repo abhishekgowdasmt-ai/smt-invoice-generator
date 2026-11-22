@@ -15,6 +15,38 @@ class DriverApi {
     );
   }
 
+  Future<Map<String, dynamic>> requestOtp(String phone, String purpose) {
+    return _client.post(
+      '/api/driver/otp/request',
+      auth: false,
+      body: {'phone': phone, 'purpose': purpose},
+    );
+  }
+
+  Future<Map<String, dynamic>> loginWithOtp(String phone, String code) {
+    return _client.post(
+      '/api/driver/otp/login',
+      auth: false,
+      body: {'phone': phone, 'code': code},
+    );
+  }
+
+  Future<Map<String, dynamic>> resetPasswordWithOtp({
+    required String phone,
+    required String code,
+    required String newPassword,
+  }) {
+    return _client.post(
+      '/api/driver/otp/reset-password',
+      auth: false,
+      body: {
+        'phone': phone,
+        'code': code,
+        'new_password': newPassword,
+      },
+    );
+  }
+
   Future<void> logout() async {
     try {
       await _client.post('/api/driver/logout');

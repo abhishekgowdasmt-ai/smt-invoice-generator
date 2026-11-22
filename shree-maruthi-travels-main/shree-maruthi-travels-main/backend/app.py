@@ -33,6 +33,7 @@ import dev_postgres
 import operations_duty
 import operations_finance
 import operations_driver_app
+import operations_driver_otp
 import operations_client_portal
 import operations_reports
 import operations_notifications
@@ -794,6 +795,34 @@ def api_driver_login():
     payload = request.get_json(silent=True) or {}
     return _driver_api_response(
         operations_driver_app.authenticate_driver(payload.get('phone'), payload.get('password'))
+    )
+
+
+@app.route('/api/driver/otp/request', methods=['POST'])
+def api_driver_otp_request():
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_otp.request_otp(payload.get('phone'), payload.get('purpose'))
+    )
+
+
+@app.route('/api/driver/otp/login', methods=['POST'])
+def api_driver_otp_login():
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_otp.verify_otp_login(payload.get('phone'), payload.get('code'))
+    )
+
+
+@app.route('/api/driver/otp/reset-password', methods=['POST'])
+def api_driver_otp_reset_password():
+    payload = request.get_json(silent=True) or {}
+    return _driver_api_response(
+        operations_driver_otp.reset_password_with_otp(
+            payload.get('phone'),
+            payload.get('code'),
+            payload.get('new_password') or payload.get('password'),
+        )
     )
 
 

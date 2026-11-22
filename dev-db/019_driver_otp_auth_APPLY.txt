@@ -1,0 +1,28 @@
+Apply 019_driver_otp_auth.sql as postgres superuser (smt_app cannot CREATE TABLE).
+
+1) Disposable test DB first:
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -v ON_ERROR_STOP=1 -f "C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\019_driver_otp_auth.sql"
+
+Verify:
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_revision8_test -c "SELECT to_regclass('public.driver_auth_otps') IS NOT NULL AS otp_table"
+
+Expected: otp_table = t
+
+2) Local Flask currently uses smt_dev — apply there only after test DB is green:
+
+& "C:\Program Files\PostgreSQL\16\bin\psql.exe" -h 127.0.0.1 -p 5432 -U postgres -d smt_dev -v ON_ERROR_STOP=1 -f "C:\Users\user\Downloads\smt-invoice-generator-main\smt-invoice-generator-main\dev-db\019_driver_otp_auth.sql"
+
+Do not apply to production without separate approval.
+
+OTP APIs:
+  POST /api/driver/otp/request          {phone, purpose: login|reset}
+  POST /api/driver/otp/login            {phone, code}
+  POST /api/driver/otp/reset-password   {phone, code, new_password}
+
+Delivery uses the WhatsApp bridge. For local testing without WhatsApp, SMT_OTP_DEV_EXPOSE=yes returns dev_code in the request response (never enable that in production).
+
+Focused tests (after step 1):
+  set SMT_REVISION8_DISPOSABLE=yes and SMT_REVISION8_DATABASE_URL to smt_revision8_test
+  python -m unittest tests.test_driver_otp_auth -v
