@@ -6,6 +6,7 @@ pandas<3.0.0
 reportlab
 openpyxl
 python-dateutil>=2.9.0
+psycopg[binary]>=3.1.0
 fastapi>=0.115.0
 uvicorn>=0.30.0
 python-multipart>=0.0.9

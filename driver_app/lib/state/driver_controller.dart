@@ -98,8 +98,13 @@ class DriverController extends ChangeNotifier {
   }
 
   Future<void> markRead(String id) async {
-    await _api.markNotificationRead(id);
-    await refreshNotifications();
+    try {
+      await _api.markNotificationRead(id);
+      await refreshNotifications();
+    } on ApiException catch (error) {
+      errorMessage = error.message;
+      notifyListeners();
+    }
   }
 
   Future<void> refreshPayouts() async {

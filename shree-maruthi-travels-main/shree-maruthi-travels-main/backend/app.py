@@ -585,7 +585,13 @@ def _operations_duty_payload(result):
     return data or result.get('booking')
 
 
-def _operations_duty_response(user_id, result):
+def _operations_duty_response(user_id, result, *, emit_notifications=True):
+    """Serialize duty results. Notification emits are mutation-only.
+
+    GET trip/assignment/history routes must pass emit_notifications=False so
+    reads never create inbox rows (including spurious staff-reject keys when
+    booking is absent from the payload).
+    """
     if result is None:
         return jsonify({'success': False, 'message': 'Booking register is not available'}), 503
     if not result.get('ok'):
@@ -607,21 +613,23 @@ def _operations_duty_response(user_id, result):
                     'error': 'WhatsApp delivery failed after the duty change was saved.',
                 })
         payload['whatsapp'] = deliveries[0] if len(deliveries) == 1 else deliveries
-    try:
-        booking = result.get('booking') or {}
-        assignment = result.get('assignment') or {}
-        status = booking.get('status') or assignment.get('status')
-        if status in ('assigned', 'accepted', 'started', 'completed', 'cancelled'):
-            operations_notifications.emit_assignment_client_update(user_id, booking, status)
-        if assignment.get('status') == 'rejected':
-            operations_notifications.emit_driver_reject_staff(
-                user_id,
-                booking,
-                assignment.get('driver_id'),
-                assignment.get('rejection_reason'),
-            )
-    except Exception:
-        pass
+    if emit_notifications:
+        try:
+            booking = result.get('booking')
+            assignment = result.get('assignment') or {}
+            if isinstance(booking, dict) and booking.get('id'):
+                status = booking.get('status') or assignment.get('status')
+                if status in ('assigned', 'accepted', 'started', 'completed', 'cancelled'):
+                    operations_notifications.emit_assignment_client_update(user_id, booking, status)
+                if assignment.get('status') == 'rejected':
+                    operations_notifications.emit_driver_reject_staff(
+                        user_id,
+                        booking,
+                        assignment.get('driver_id'),
+                        assignment.get('rejection_reason'),
+                    )
+        except Exception:
+            pass
     return jsonify(payload), 200
 
 
@@ -695,7 +703,9 @@ def api_operation_booking_assignment(booking_id):
     if denied:
         return denied
     return _operations_duty_response(
-        user_id, operations_duty.get_booking_assignment(user_id, booking_id)
+        user_id,
+        operations_duty.get_booking_assignment(user_id, booking_id),
+        emit_notifications=False,
     )
 
 
@@ -705,7 +715,9 @@ def api_operation_booking_assignments(booking_id):
     if denied:
         return denied
     return _operations_duty_response(
-        user_id, operations_duty.list_booking_assignments(user_id, booking_id)
+        user_id,
+        operations_duty.list_booking_assignments(user_id, booking_id),
+        emit_notifications=False,
     )
 
 
@@ -715,7 +727,9 @@ def api_operation_booking_trip(booking_id):
     if denied:
         return denied
     return _operations_duty_response(
-        user_id, operations_duty.get_trip_status(user_id, booking_id)
+        user_id,
+        operations_duty.get_trip_status(user_id, booking_id),
+        emit_notifications=False,
     )
 
 
@@ -756,7 +770,9 @@ def api_operation_assignment_events(assignment_id):
     if denied:
         return denied
     return _operations_duty_response(
-        user_id, operations_duty.list_assignment_events(user_id, assignment_id)
+        user_id,
+        operations_duty.list_assignment_events(user_id, assignment_id),
+        emit_notifications=False,
     )
 
 
@@ -972,7 +988,12 @@ def api_client_bookings():
         ))
     payload = request.get_json(silent=True) or {}
     result = operations_client_portal.create_booking_request(user_id, payload)
-    if result and result.get('ok') and result.get('booking'):
+    if (
+        result
+        and result.get('ok')
+        and result.get('booking')
+        and not result.get('already')
+    ):
         try:
             operations_notifications.emit_after_client_booking(user_id, result['booking'])
         except Exception:

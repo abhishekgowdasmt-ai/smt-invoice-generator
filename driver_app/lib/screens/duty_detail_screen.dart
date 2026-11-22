@@ -89,6 +89,7 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         );
       },
     );
+    if (!mounted) return;
     if (reason == null) return;
     final driver = context.read<DriverController>();
     final updated = await driver.reject(
@@ -121,6 +122,7 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         ],
       ),
     );
+    if (!mounted) return;
     if (confirmed != true) return;
     final driver = context.read<DriverController>();
     final updated = await driver.startTrip(widget.assignmentId, value);
@@ -155,6 +157,7 @@ class _DutyDetailScreenState extends State<DutyDetailScreen> {
         ],
       ),
     );
+    if (!mounted) return;
     if (confirmed != true) return;
     final driver = context.read<DriverController>();
     final updated = await driver.completeTrip(widget.assignmentId, value);

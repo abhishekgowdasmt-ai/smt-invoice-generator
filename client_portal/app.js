@@ -683,6 +683,8 @@
       bookingForm.addEventListener("submit", async (event) => {
         event.preventDefault();
         const form = event.target;
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
         const body = Object.fromEntries(new FormData(form).entries());
         try {
           const result = await api("/api/client/bookings", { method: "POST", body });
@@ -691,6 +693,7 @@
           setView("booking_detail");
         } catch (error) {
           state.error = error.message;
+          if (submitBtn) submitBtn.disabled = false;
           render();
         }
       });

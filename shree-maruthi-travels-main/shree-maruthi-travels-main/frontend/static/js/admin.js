@@ -4604,13 +4604,13 @@ async function fetchStaffNotifications() {
     const list = document.getElementById('staff-notif-list');
     const unread = document.getElementById('staff-notif-unread');
     if (!list) return;
-    list.textContent = 'Loading alerts�';
+    list.textContent = 'Loading alerts...';
     try {
         const res = await fetch('/api/operations/notifications', { credentials: 'same-origin' });
         const body = await res.json();
         if (!res.ok || !body.success) {
             list.textContent = body.message || 'Alerts need migration 016 or are unavailable.';
-            if (unread) unread.textContent = '�';
+            if (unread) unread.textContent = '-';
             return;
         }
         const rows = (body.data && body.data.notifications) || [];
@@ -4625,7 +4625,7 @@ async function fetchStaffNotifications() {
                 <div>
                     <strong>${escapeHtmlDuty(n.title)}</strong>
                     <div style="color:var(--text-secondary); font-size:0.85rem;">${escapeHtmlDuty(n.body)}</div>
-                    <div style="color:var(--text-muted); font-size:0.75rem;">${escapeHtmlDuty(n.created_at || '')} � ${escapeHtmlDuty(n.kind || '')}</div>
+                    <div style="color:var(--text-muted); font-size:0.75rem;">${escapeHtmlDuty(n.created_at || '')} | ${escapeHtmlDuty(n.kind || '')}</div>
                 </div>
                 ${n.read_at ? '' : `<button type="button" class="btn btn-secondary" onclick="markStaffNotificationRead('${n.id}')">Mark read</button>`}
             </div>`).join('');
@@ -4686,7 +4686,7 @@ function renderReportTable(reportName, data) {
 async function runSupervisorReport() {
     const status = document.getElementById('report-status');
     const name = (document.getElementById('report-name') || {}).value || 'bookings';
-    if (status) status.textContent = 'Loading report�';
+    if (status) status.textContent = 'Loading report...';
     try {
         const params = reportQueryParams();
         const res = await fetch(`/api/reports/${encodeURIComponent(name)}?${params.toString()}`, { credentials: 'same-origin' });
@@ -4707,7 +4707,12 @@ async function runSupervisorReport() {
 
 function exportSupervisorReportCsv() {
     const name = (document.getElementById('report-name') || {}).value || 'bookings';
+    const status = document.getElementById('report-status');
     const params = reportQueryParams();
+    if (name === 'company-settlement' && !params.get('company_id')) {
+        if (status) status.textContent = 'Company settlement CSV requires a company ID.';
+        return;
+    }
     params.set('export', 'csv');
     window.location.href = `/api/reports/${encodeURIComponent(name)}?${params.toString()}`;
 }
