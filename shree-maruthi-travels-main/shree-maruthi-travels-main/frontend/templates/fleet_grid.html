@@ -13,21 +13,7 @@
         </div>
     </div>
 
-    <!-- Vehicle 2: Tata Tigor EV -->
-    <div class="booking-panel-card fleet-card" style="padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff;">
-        <div style="height: 150px; overflow: hidden; border-radius: 8px; margin-bottom: 1rem; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center;">
-            <img src="{{ url_for('static', filename='images/tigor_ev.png') }}" alt="Tata Tigor EV" style="width: 100%; height: 100%; object-fit: contain;">
-        </div>
-        <h4 style="color: var(--primary); font-size: 1.25rem;">Tata Tigor EV</h4>
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Sustainable Electric Sedan • Capacity: 4 Passengers</p>
-        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.4;">Zero emission corporate travel option for companies looking to optimize carbon footprint.</p>
-        <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-            <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary-light);">ZERO EMISSION</span>
-            <button class="jmr-book-btn" onclick="selectFleetVehicle('Tata Tigor EV')">Choose</button>
-        </div>
-    </div>
-
-    <!-- Vehicle 3: Innova Crysta -->
+    <!-- Vehicle 2: Innova Crysta -->
     <div class="booking-panel-card fleet-card" style="padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff;">
         <div style="height: 150px; overflow: hidden; border-radius: 8px; margin-bottom: 1rem; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center;">
             <img src="{{ url_for('static', filename='images/innova_crysta.png') }}" alt="Innova Crysta" style="width: 100%; height: 100%; object-fit: contain;">
@@ -41,31 +27,45 @@
         </div>
     </div>
 
-    <!-- Vehicle 4: Force Urbania -->
+    <!-- Vehicle 3: Executive SUV -->
     <div class="booking-panel-card fleet-card" style="padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff;">
         <div style="height: 150px; overflow: hidden; border-radius: 8px; margin-bottom: 1rem; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center;">
-            <img src="{{ url_for('static', filename='images/urbania_tt.png') }}" alt="Force Urbania" style="width: 100%; height: 100%; object-fit: contain;">
+            <img src="{{ url_for('static', filename='images/executive_suv.png') }}" alt="Executive SUV" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
-        <h4 style="color: var(--primary); font-size: 1.25rem;">Force Urbania TT</h4>
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Executive Mini-Bus • Capacity: 12-17 Passengers</p>
-        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.4;">Next-generation comfort passenger shuttle with premium seating and ambient lighting.</p>
+        <h4 style="color: var(--primary); font-size: 1.25rem;">Executive SUV</h4>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Premium SUV • Capacity: 6 Passengers</p>
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.4;">Comfortable SUV option for client visits, airport runs, and small team travel.</p>
         <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-            <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary-light);">12-17 SEATER</span>
-            <button class="jmr-book-btn" onclick="selectFleetVehicle('Force Urbania TT')">Choose</button>
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-dark);">CLIENT READY</span>
+            <button class="jmr-book-btn" onclick="selectFleetVehicle('Executive SUV')">Choose</button>
         </div>
     </div>
 
-    <!-- Vehicle 5: Commuter Bus -->
+    <!-- Vehicle 4: Tata Tigor EV -->
     <div class="booking-panel-card fleet-card" style="padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff;">
         <div style="height: 150px; overflow: hidden; border-radius: 8px; margin-bottom: 1rem; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center;">
-            <img src="{{ url_for('static', filename='images/commuter_bus.png') }}" alt="Premium Commuter Bus" style="width: 100%; height: 100%; object-fit: contain;">
+            <img src="{{ url_for('static', filename='images/tigor_ev.png') }}" alt="Tata Tigor EV" style="width: 100%; height: 100%; object-fit: contain;">
         </div>
-        <h4 style="color: var(--primary); font-size: 1.25rem;">Premium Commuter Bus</h4>
-        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Normal Commuter Bus • Capacity: 30-50 Passengers</p>
-        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.4;">Optimal solution for large scale corporate route optimization and shift shifts.</p>
+        <h4 style="color: var(--primary); font-size: 1.25rem;">Tata Tigor EV</h4>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Sustainable Electric Sedan • Capacity: 4 Passengers</p>
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.4;">Zero emission corporate travel option for companies looking to optimize carbon footprint.</p>
         <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
-            <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-dark);">30-50 Commuters</span>
-            <button class="jmr-book-btn" onclick="selectFleetVehicle('Premium Commuter Bus')">Choose</button>
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--primary-light);">ZERO EMISSION</span>
+            <button class="jmr-book-btn" onclick="selectFleetVehicle('Tata Tigor EV')">Choose</button>
+        </div>
+    </div>
+
+    <!-- Vehicle 5: Premium Sedan -->
+    <div class="booking-panel-card fleet-card" style="padding: 1.5rem; border: 1px solid var(--border-color); border-radius: 12px; background: #ffffff;">
+        <div style="height: 150px; overflow: hidden; border-radius: 8px; margin-bottom: 1rem; background: var(--bg-surface-elevated); display: flex; align-items: center; justify-content: center;">
+            <img src="{{ url_for('static', filename='images/premium_sedan.png') }}" alt="Premium Sedan" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+        <h4 style="color: var(--primary); font-size: 1.25rem;">Premium Sedan</h4>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Executive Sedan • Capacity: 4 Passengers</p>
+        <p style="color: var(--text-muted); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.4;">Polished sedan for leadership travel and guest airport transfers.</p>
+        <div style="margin-top: 1.5rem; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: var(--accent-dark);">EXECUTIVE</span>
+            <button class="jmr-book-btn" onclick="selectFleetVehicle('Premium Sedan')">Choose</button>
         </div>
     </div>
 </div>

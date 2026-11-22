@@ -36,26 +36,35 @@
     </header>
 
     <section class="hero" id="home">
-        <div>
+        <div class="hero-copy-block">
             <p class="eyebrow">Corporate mobility, Bengaluru</p>
             <h2>Staff transport that arrives on time.</h2>
-            <p class="hero-copy">Shree Maruthi Travels plans employee shuttles, airport transfers, and outstation cars for offices that need a quiet, tracked fleet. The desk is open day and night.</p>
+            <p class="hero-copy">Employee cabs, airport transfers, and outstation cars for Bengaluru offices — Innova Crysta, Dzire, and tracked dispatch around the clock.</p>
             <div class="hero-actions">
                 <a class="btn-solid" href="#corporate-ets">Plan a shuttle</a>
                 <a class="btn-ghost" href="/services">See services</a>
             </div>
-            <div class="stat-row" style="margin-top:2rem;">
+            <div class="stat-row">
                 <div class="stat"><strong>2017</strong><span>Operating since</span></div>
                 <div class="stat"><strong>24/7</strong><span>Dispatch desk</span></div>
                 <div class="stat"><strong>EV</strong><span>Sedans in the fleet</span></div>
             </div>
         </div>
-        <div class="hero-panel">
-            <img src="{{ url_for('static', filename='images/urbania_tt.png') }}" alt="SMT shuttle">
-            <div class="hero-note">
-                <strong>Gubbalala office</strong>
-                <span>Call +91 96119 75999 for a route quote.</span>
-            </div>
+        <div class="hero-visual">
+            <figure class="hero-panel hero-panel-primary">
+                <img src="{{ url_for('static', filename='images/innova_crysta.png') }}" alt="Toyota Innova Crysta corporate cab">
+                <figcaption class="hero-note">
+                    <strong>Innova Crysta</strong>
+                    <span>Executive MPV for airport and outstation runs.</span>
+                </figcaption>
+            </figure>
+            <figure class="hero-panel hero-panel-secondary">
+                <img src="{{ url_for('static', filename='images/dzire_sedan.png') }}" alt="Maruti Suzuki Dzire sedan cab">
+                <figcaption class="hero-note">
+                    <strong>Swift Dzire</strong>
+                    <span>Daily corporate commute sedan.</span>
+                </figcaption>
+            </figure>
         </div>
     </section>
 
@@ -335,7 +344,7 @@
             <a class="service-card" href="/services"><h4>Employee shuttles</h4><p>Shift pickups, fixed routes, and a live desk for IT parks.</p></a>
             <a class="service-card" href="/services"><h4>Airport</h4><p>Kempegowda Terminal 1 and Terminal 2 pickups and drops.</p></a>
             <a class="service-card" href="/services"><h4>Outstation</h4><p>Round trips and one-way cars for teams leaving the city.</p></a>
-            <a class="service-card" href="/fleet"><h4>Fleet</h4><p>Sedans, electric cars, Innova, Urbania, and commuter buses.</p></a>
+            <a class="service-card" href="/fleet"><h4>Fleet</h4><p>Dzire sedans, Innova Crysta, electric cars, and larger shuttle options.</p></a>
         </div>
     </section>
 
@@ -392,7 +401,7 @@
                 <p>Whitefield campus</p>
             </article>
             <article>
-                <p>"Innova and Urbania for guest movements. The cabin is clean and the driver is on time."</p>
+                <p>"Innova and Dzire for guest movements. The cabin is clean and the driver is on time."</p>
                 <h5>Event coordinator</h5>
                 <p>IT corridor</p>
             </article>
