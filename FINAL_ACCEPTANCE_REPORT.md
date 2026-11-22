@@ -243,7 +243,7 @@ Provided in `PRODUCTION_READINESS.md` §§6–10. Owner approval required for an
 
 ## 20. Local Git commit
 
-Recorded after commit in §20 of the committed copy / chat response.
+`8708ad11c76be8a9ea33a99c5534e43c79d60ad9` — local only; not pushed.
 
 ---
 
